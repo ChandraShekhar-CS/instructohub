@@ -124,9 +124,13 @@ class _CourseCatalogScreenState extends State<CourseCatalogScreen> {
     setState(() => _isFilterPanelOpen = !_isFilterPanelOpen);
   }
 
-  // Modified _openCourse function
+  // MODIFIED THIS FUNCTION TO SAVE THE LAST VIEWED COURSE
   Future<void> _openCourse(Course course) async {
-    // Navigate directly to CourseDetailScreen without showing a dialog
+    // Save the last viewed course to local storage
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('lastViewedCourse', json.encode(course.toJson()));
+
+    // Navigate to CourseDetailScreen
     Navigator.push(
       context,
       MaterialPageRoute(

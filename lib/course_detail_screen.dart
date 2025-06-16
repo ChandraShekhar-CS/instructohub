@@ -22,7 +22,9 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
   bool _isLoading = true;
   List<dynamic> _courseContents = [];
   Map<String, dynamic>? _courseDetails;
-  double _courseProgress = 0.7;
+  // Using a hardcoded progress value for demonstration.
+  // In a real app, you would fetch this from your `course` object.
+  final double _courseProgress = 0.7;
 
   @override
   void initState() {
@@ -46,7 +48,9 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
         );
       }
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -57,9 +61,11 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
     final response = await http.post(url);
 
     if (response.statusCode == 200) {
-      setState(() {
-        _courseContents = json.decode(response.body);
-      });
+      if (mounted) {
+        setState(() {
+          _courseContents = json.decode(response.body);
+        });
+      }
     } else {
       throw Exception('Failed to load course contents');
     }
@@ -74,9 +80,11 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
     if (response.statusCode == 200) {
       final data = json.decode(response.body);
       if (data['courses'] != null && data['courses'].isNotEmpty) {
-        setState(() {
-          _courseDetails = data['courses'][0];
-        });
+        if (mounted) {
+          setState(() {
+            _courseDetails = data['courses'][0];
+          });
+        }
       }
     }
   }
@@ -85,55 +93,115 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
     IconData iconData;
     switch (module['modname']) {
       case 'forum':
-        iconData = Icons.forum;
+        iconData = Icons.forum_outlined;
         break;
       case 'assign':
-        iconData = Icons.assignment;
+        iconData = Icons.assignment_outlined;
         break;
       case 'quiz':
-        iconData = Icons.quiz;
+        iconData = Icons.quiz_outlined;
         break;
       case 'resource':
-        iconData = Icons.description;
+        iconData = Icons.description_outlined;
         break;
       case 'url':
-        iconData = Icons.link;
+        iconData = Icons.link_outlined;
         break;
       case 'page':
-        iconData = Icons.article;
+        iconData = Icons.article_outlined;
         break;
       case 'video':
-        iconData = Icons.video_library;
+        iconData = Icons.video_library_outlined;
         break;
       default:
-        iconData = Icons.school;
+        iconData = Icons.school_outlined;
     }
 
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
-      child: ListTile(
-        leading: Icon(iconData, color: AppTheme.secondary1),
-        title: Text(
-          module['name'] ?? 'Unnamed Module',
-          style: const TextStyle(fontWeight: FontWeight.w600),
-        ),
-        subtitle: module['description'] != null
-            ? Text(
-                module['description'],
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.bodyMedium,
-              )
-            : null,
-        trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-        onTap: () {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Opening ${module['name'] ?? 'module'}'),
-              duration: const Duration(seconds: 1),
+    return ListTile(
+      leading: Icon(iconData, color: AppTheme.primary2),
+      title: Text(
+        module['name'] ?? 'Unnamed Module',
+        style: const TextStyle(fontWeight: FontWeight.w500),
+      ),
+      onTap: () {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Opening ${module['name'] ?? 'module'}'),
+            duration: const Duration(seconds: 1),
+          ),
+        );
+      },
+    );
+  }
+
+  // WIDGET FOR DISPLAYING THE PROGRESS BAR
+  Widget _buildProgressBar() {
+    final double progressValue = _courseProgress;
+    final String progressPercent = (progressValue * 100).toStringAsFixed(0);
+
+    String statusText;
+    Color statusColor;
+    Color statusBgColor;
+
+    if (progressValue <= 0) {
+      statusText = 'NOT STARTED';
+      statusColor = Colors.red.shade600;
+      statusBgColor = Colors.red.shade50;
+    } else if (progressValue > 0 && progressValue < 1.0) {
+      statusText = 'IN PROGRESS';
+      statusColor = Colors.blue.shade600;
+      statusBgColor = Colors.blue.shade50;
+    } else {
+      statusText = 'COMPLETED';
+      statusColor = Colors.green.shade600;
+      statusBgColor = Colors.green.shade50;
+    }
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10.0, vertical: 4.0),
+                decoration: BoxDecoration(
+                  color: statusBgColor,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  statusText,
+                  style: TextStyle(
+                    color: statusColor,
+                    fontWeight: FontWeight.bold,
+                    fontSize: AppTheme.fontSizeXs,
+                  ),
+                ),
+              ),
+              Text(
+                '$progressPercent%',
+                style: TextStyle(
+                  color: statusColor,
+                  fontWeight: FontWeight.bold,
+                  fontSize: AppTheme.fontSizeSm,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8.0),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(10),
+            child: LinearProgressIndicator(
+              value: progressValue,
+              minHeight: 6,
+              backgroundColor: Colors.grey.shade200,
+              valueColor: AlwaysStoppedAnimation<Color>(statusColor),
             ),
-          );
-        },
+          ),
+        ],
       ),
     );
   }
@@ -142,7 +210,7 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.course.fullname),
+        title: Text(widget.course.fullname, overflow: TextOverflow.ellipsis),
         backgroundColor: AppTheme.secondary1,
         foregroundColor: AppTheme.offwhite,
       ),
@@ -153,13 +221,14 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   if (widget.course.courseimage.isNotEmpty)
-                    Container(
+                    SizedBox(
                       height: 200,
                       width: double.infinity,
                       child: Image.network(
                         widget.course.courseimage,
                         fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) => Container(
+                        errorBuilder: (context, error, stackTrace) =>
+                            Container(
                           color: AppTheme.loginBgLeft,
                           child: const Icon(
                             Icons.school,
@@ -169,39 +238,10 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
                         ),
                       ),
                     ),
-                  // ADDED PROGRESS BAR HERE
+                  // ADDED THE PROGRESS BAR WIDGET HERE
+                  _buildProgressBar(),
                   Padding(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 16.0, vertical: 8.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Progress: ${(_courseProgress * 100).toStringAsFixed(0)}%', // Display percentage
-                          style:
-                              Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                    color: AppTheme.primary1,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                        ),
-                        const SizedBox(height: 4),
-                        LinearProgressIndicator(
-                          value: _courseProgress,
-                          backgroundColor: AppTheme
-                              .secondary3, // Light orange for background
-                          valueColor: AlwaysStoppedAnimation<Color>(
-                              AppTheme.secondary1), // Orange for progress
-                          minHeight: 8,
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.only(
-                        left: 16.0,
-                        right: 16.0,
-                        bottom: 16.0), // Adjust padding
+                    padding: const EdgeInsets.all(16.0),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -209,66 +249,61 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
                           widget.course.fullname,
                           style: Theme.of(context)
                               .textTheme
-                              .headlineLarge
-                              ?.copyWith(
-                                color: AppTheme.primary1,
-                              ),
+                              .headlineMedium
+                              ?.copyWith(color: AppTheme.primary1),
                         ),
                         if (widget.course.summary.isNotEmpty)
                           const SizedBox(height: 8),
                         if (widget.course.summary.isNotEmpty)
                           Text(
                             widget.course.summary,
-                            style:
-                                Theme.of(context).textTheme.bodyLarge?.copyWith(
-                                      color: AppTheme.textSecondary,
-                                    ),
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodyLarge
+                                ?.copyWith(color: AppTheme.textSecondary),
                           ),
                         const SizedBox(height: 16),
-                        if (_courseDetails != null) ...[
-                          const SizedBox(height: 8),
-                          if (_courseDetails!['enrolledusercount'] != null)
-                            Row(
-                              children: [
-                                Icon(Icons.people,
-                                    size: AppTheme.fontSizeSm,
-                                    color: AppTheme.primary2),
-                                const SizedBox(width: 8),
-                                Text(
-                                  '${_courseDetails!['enrolledusercount']} enrolled',
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .bodyMedium
-                                      ?.copyWith(
-                                        color: AppTheme.primary2,
-                                      ),
-                                ),
-                              ],
-                            ),
-                        ],
+                        if (_courseDetails != null &&
+                            _courseDetails!['enrolledusercount'] != null)
+                          Row(
+                            children: [
+                              Icon(Icons.people_outline,
+                                  size: AppTheme.fontSizeSm,
+                                  color: AppTheme.primary2),
+                              const SizedBox(width: 8),
+                              Text(
+                                '${_courseDetails!['enrolledusercount']} enrolled',
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .bodyMedium
+                                    ?.copyWith(color: AppTheme.primary2),
+                              ),
+                            ],
+                          ),
                       ],
                     ),
                   ),
                   const Padding(
                     padding: EdgeInsets.symmetric(horizontal: 16.0),
+                    child: Divider(),
+                  ),
+                  const Padding(
+                    padding: EdgeInsets.all(16.0),
                     child: Text(
                       'Course Content',
                       style: TextStyle(
-                        fontSize:
-                            AppTheme.fontSize2xl, // Using 2xl for the heading
+                        fontSize: AppTheme.fontSizeLg,
                         fontWeight: FontWeight.bold,
-                        color: AppTheme
-                            .primary1, // Ensure text color is from theme
+                        color: AppTheme.primary1,
                       ),
                     ),
                   ),
-                  const SizedBox(height: 8),
                   if (_courseContents.isEmpty)
                     const Padding(
                       padding: EdgeInsets.all(16.0),
                       child: Center(
                         child: Text(
-                          'No course content available',
+                          'No course content available.',
                           style: TextStyle(
                             fontSize: AppTheme.fontSizeBase,
                             color: AppTheme.primary2,
@@ -277,48 +312,47 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
                       ),
                     )
                   else
+                    // MODIFIED TO USE ExpansionTile FOR DROPDOWN FUNCTIONALITY
                     ListView.builder(
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
                       itemCount: _courseContents.length,
                       itemBuilder: (context, sectionIndex) {
                         final section = _courseContents[sectionIndex];
+                        final modules =
+                            section['modules'] as List<dynamic>? ?? [];
 
-                        if (section['name'] == 'General') {
+                        if (section['name'] == 'General' || modules.isEmpty) {
                           return const SizedBox.shrink();
                         }
 
-                        return Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            if (section['name'] != null &&
-                                section['name'].toString().isNotEmpty)
-                              Container(
-                                width: double.infinity,
-                                padding: const EdgeInsets.all(16.0),
-                                color: AppTheme.loginBgLeft,
-                                child: Text(
-                                  section['name'],
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .titleMedium
-                                      ?.copyWith(
-                                        color: AppTheme.primary1,
-                                      ),
-                                ),
-                              ),
-                            if (section['modules'] != null)
-                              ...List.generate(
-                                section['modules'].length,
-                                (moduleIndex) => _buildModuleItem(
-                                  section['modules'][moduleIndex],
-                                ),
-                              ),
-                            const SizedBox(height: 8),
-                          ],
+                        return Card(
+                          margin: const EdgeInsets.symmetric(
+                              horizontal: 16.0, vertical: 8.0),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12)),
+                          clipBehavior: Clip.antiAlias,
+                          elevation: 2,
+                          child: ExpansionTile(
+                            title: Text(
+                              section['name'] ?? 'Unnamed Section',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .titleMedium
+                                  ?.copyWith(color: AppTheme.primary1),
+                            ),
+                            backgroundColor: AppTheme.cardColor,
+                            collapsedBackgroundColor: AppTheme.cardColor,
+                            childrenPadding:
+                                const EdgeInsets.only(bottom: 8.0),
+                            children: modules
+                                .map((module) => _buildModuleItem(module))
+                                .toList(),
+                          ),
                         );
                       },
                     ),
+                  const SizedBox(height: 20),
                 ],
               ),
             ),

@@ -4,6 +4,7 @@ class Course {
   final String summary;
   final String courseimage;
   final List<dynamic> contacts;
+  final double? progress; 
 
   Course({
     required this.id,
@@ -11,6 +12,7 @@ class Course {
     required this.summary,
     required this.courseimage,
     required this.contacts,
+    this.progress, 
   });
 
   factory Course.fromJson(Map<String, dynamic> json) {
@@ -20,6 +22,19 @@ class Course {
       summary: (json['summary'] as String?)?.replaceAll(RegExp(r'<[^>]*>'), '') ?? '',
       courseimage: (json['courseimage'] as String?) ?? '',
       contacts: (json['contacts'] as List<dynamic>?) ?? [],
+      // PARSE THE PROGRESS VALUE FROM JSON
+      progress: (json['progress'] as num?)?.toDouble(), 
     );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'fullname': fullname,
+      'summary': summary,
+      'courseimage': courseimage,
+      'contacts': contacts,
+      'progress': progress, // ADD THIS LINE
+    };
   }
 }
