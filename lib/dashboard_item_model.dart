@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
+import 'app_theme.dart';
 
-// An enum to represent the different types of widgets that can be on the dashboard.
 enum DashboardWidgetType {
   continueLearning,
   quickActions,
@@ -8,13 +8,13 @@ enum DashboardWidgetType {
   keyMetrics,
   upcomingEvents,
   recentActivity,
+  courseCatalog,
 }
 
-// A data model to hold the information for each dashboard item.
 class DashboardItem {
   final int id;
   final DashboardWidgetType type;
-  bool isMainArea; // To track if the item is in the main or sidebar area.
+  bool isMainArea;
 
   DashboardItem({
     required this.id,
@@ -22,8 +22,6 @@ class DashboardItem {
     this.isMainArea = true,
   });
 
-  // A helper method to get the widget corresponding to the type.
-  // This makes the UI code cleaner.
   Widget get widget {
     switch (type) {
       case DashboardWidgetType.continueLearning:
@@ -38,10 +36,11 @@ class DashboardItem {
         return const UpcomingEventsWidget();
       case DashboardWidgetType.recentActivity:
         return const RecentActivityWidget();
+      case DashboardWidgetType.courseCatalog:
+        return const CourseCatalogWidget();
     }
   }
 
-  // A helper method for a user-friendly title.
   String get title {
      switch (type) {
       case DashboardWidgetType.continueLearning:
@@ -56,22 +55,66 @@ class DashboardItem {
         return 'Upcoming Events';
       case DashboardWidgetType.recentActivity:
         return 'Recent Activity';
+      case DashboardWidgetType.courseCatalog:
+        return 'Course Catalog';
     }
   }
 }
-
-// --- Placeholder Widgets ---
-// In a real app, these would each be in their own file and contain complex logic.
 
 class ContinueLearningWidget extends StatelessWidget {
   const ContinueLearningWidget({super.key});
   @override
   Widget build(BuildContext context) {
-    return const Card(
-      child: ListTile(
-        leading: Icon(Icons.play_circle_outline),
-        title: Text('Continue Learning'),
-        subtitle: Text('Your Courses'),
+    return Container(
+      decoration: AppTheme.cardDecoration,
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: const BoxDecoration(
+                color: AppTheme.secondary1,
+                borderRadius: BorderRadius.all(Radius.circular(8)),
+              ),
+              child: const Icon(
+                Icons.play_circle_outline,
+                color: AppTheme.cardColor,
+                size: 24,
+              ),
+            ),
+            const SizedBox(width: 16),
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    'Continue Learning',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: AppTheme.primary1,
+                    ),
+                  ),
+                  SizedBox(height: 4),
+                  Text(
+                    'Your Courses',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: AppTheme.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(
+              Icons.arrow_forward_ios,
+              color: AppTheme.textSecondary,
+              size: 16,
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -81,11 +124,56 @@ class QuickActionsWidget extends StatelessWidget {
   const QuickActionsWidget({super.key});
   @override
   Widget build(BuildContext context) {
-    return const Card(
-      child: ListTile(
-        leading: Icon(Icons.bolt_outlined),
-        title: Text('Quick Actions'),
-        subtitle: Text('Shortcuts'),
+    return Container(
+      decoration: AppTheme.cardDecoration,
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: const BoxDecoration(
+                color: AppTheme.secondary1,
+                borderRadius: BorderRadius.all(Radius.circular(8)),
+              ),
+              child: const Icon(
+                Icons.bolt_outlined,
+                color: AppTheme.cardColor,
+                size: 24,
+              ),
+            ),
+            const SizedBox(width: 16),
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    'Quick Actions',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: AppTheme.primary1,
+                    ),
+                  ),
+                  SizedBox(height: 4),
+                  Text(
+                    'Shortcuts',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: AppTheme.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(
+              Icons.arrow_forward_ios,
+              color: AppTheme.textSecondary,
+              size: 16,
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -95,11 +183,56 @@ class RecommendedCoursesWidget extends StatelessWidget {
   const RecommendedCoursesWidget({super.key});
   @override
   Widget build(BuildContext context) {
-    return const Card(
-      child: ListTile(
-        leading: Icon(Icons.star_border_outlined),
-        title: Text('Recommended Courses'),
-        subtitle: Text('Trending'),
+    return Container(
+      decoration: AppTheme.cardDecoration,
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: const BoxDecoration(
+                color: AppTheme.secondary1,
+                borderRadius: BorderRadius.all(Radius.circular(8)),
+              ),
+              child: const Icon(
+                Icons.star_border_outlined,
+                color: AppTheme.cardColor,
+                size: 24,
+              ),
+            ),
+            const SizedBox(width: 16),
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    'Recommended Courses',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: AppTheme.primary1,
+                    ),
+                  ),
+                  SizedBox(height: 4),
+                  Text(
+                    'Trending',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: AppTheme.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(
+              Icons.arrow_forward_ios,
+              color: AppTheme.textSecondary,
+              size: 16,
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -109,11 +242,56 @@ class KeyMetricsWidget extends StatelessWidget {
   const KeyMetricsWidget({super.key});
   @override
   Widget build(BuildContext context) {
-    return const Card(
-      child: ListTile(
-        leading: Icon(Icons.show_chart_outlined),
-        title: Text('Key Metrics'),
-        subtitle: Text('Your Progress'),
+    return Container(
+      decoration: AppTheme.cardDecoration,
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: const BoxDecoration(
+                color: AppTheme.secondary1,
+                borderRadius: BorderRadius.all(Radius.circular(8)),
+              ),
+              child: const Icon(
+                Icons.show_chart_outlined,
+                color: AppTheme.cardColor,
+                size: 24,
+              ),
+            ),
+            const SizedBox(width: 16),
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    'Key Metrics',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: AppTheme.primary1,
+                    ),
+                  ),
+                  SizedBox(height: 4),
+                  Text(
+                    'Your Progress',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: AppTheme.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(
+              Icons.arrow_forward_ios,
+              color: AppTheme.textSecondary,
+              size: 16,
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -123,11 +301,56 @@ class UpcomingEventsWidget extends StatelessWidget {
   const UpcomingEventsWidget({super.key});
   @override
   Widget build(BuildContext context) {
-    return const Card(
-      child: ListTile(
-        leading: Icon(Icons.event_outlined),
-        title: Text('Upcoming Events'),
-        subtitle: Text('Calendar'),
+    return Container(
+      decoration: AppTheme.cardDecoration,
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: const BoxDecoration(
+                color: AppTheme.secondary1,
+                borderRadius: BorderRadius.all(Radius.circular(8)),
+              ),
+              child: const Icon(
+                Icons.event_outlined,
+                color: AppTheme.cardColor,
+                size: 24,
+              ),
+            ),
+            const SizedBox(width: 16),
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    'Upcoming Events',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: AppTheme.primary1,
+                    ),
+                  ),
+                  SizedBox(height: 4),
+                  Text(
+                    'Calendar',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: AppTheme.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(
+              Icons.arrow_forward_ios,
+              color: AppTheme.textSecondary,
+              size: 16,
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -137,11 +360,116 @@ class RecentActivityWidget extends StatelessWidget {
   const RecentActivityWidget({super.key});
   @override
   Widget build(BuildContext context) {
-    return const Card(
-      child: ListTile(
-        leading: Icon(Icons.history_outlined),
-        title: Text('Recent Activity'),
-        subtitle: Text('Timeline'),
+    return Container(
+      decoration: AppTheme.cardDecoration,
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: const BoxDecoration(
+                color: AppTheme.secondary1,
+                borderRadius: BorderRadius.all(Radius.circular(8)),
+              ),
+              child: const Icon(
+                Icons.history_outlined,
+                color: AppTheme.cardColor,
+                size: 24,
+              ),
+            ),
+            const SizedBox(width: 16),
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    'Recent Activity',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: AppTheme.primary1,
+                    ),
+                  ),
+                  SizedBox(height: 4),
+                  Text(
+                    'Timeline',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: AppTheme.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(
+              Icons.arrow_forward_ios,
+              color: AppTheme.textSecondary,
+              size: 16,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class CourseCatalogWidget extends StatelessWidget {
+  const CourseCatalogWidget({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: AppTheme.cardDecoration,
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: const BoxDecoration(
+                color: AppTheme.secondary1,
+                borderRadius: BorderRadius.all(Radius.circular(8)),
+              ),
+              child: const Icon(
+                Icons.search,
+                color: AppTheme.cardColor,
+                size: 24,
+              ),
+            ),
+            const SizedBox(width: 16),
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    'Course Catalog',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: AppTheme.primary1,
+                    ),
+                  ),
+                  SizedBox(height: 4),
+                  Text(
+                    'Browse all courses',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: AppTheme.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(
+              Icons.arrow_forward_ios,
+              color: AppTheme.textSecondary,
+              size: 16,
+            ),
+          ],
+        ),
       ),
     );
   }

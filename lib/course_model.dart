@@ -1,26 +1,25 @@
-// A simple data model class to represent a course.
-// In a real app, this would be generated from your API schema (e.g., using Freezed or JSON Serializable).
 class Course {
-  final String id;
-  final String title;
-  final String description;
-  final String instructor;
+  final int id;
+  final String fullname;
+  final String summary;
+  final String courseimage;
+  final List<dynamic> contacts;
 
   Course({
     required this.id,
-    required this.title,
-    required this.description,
-    required this.instructor,
+    required this.fullname,
+    required this.summary,
+    required this.courseimage,
+    required this.contacts,
   });
 
-  // A factory constructor for creating a new Course instance from a map.
-  // This is useful for parsing the JSON response from your API.
   factory Course.fromJson(Map<String, dynamic> json) {
     return Course(
-      id: json['id'] as String,
-      title: json['title'] as String,
-      description: json['description'] as String,
-      instructor: json['instructor'] as String,
+      id: json['id'] as int? ?? 0,
+      fullname: (json['fullname'] as String?) ?? 'Untitled Course',
+      summary: (json['summary'] as String?)?.replaceAll(RegExp(r'<[^>]*>'), '') ?? '',
+      courseimage: (json['courseimage'] as String?) ?? '',
+      contacts: (json['contacts'] as List<dynamic>?) ?? [],
     );
   }
 }

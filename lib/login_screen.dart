@@ -3,6 +3,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dashboard_screen.dart';
+import 'app_theme.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -22,18 +23,12 @@ class _LoginScreenState extends State<LoginScreen> {
 
   String? _logoUrl;
 
-  static const Color primary1 = Color(0xFF161616);
-  static const Color primary2 = Color(0xFF2E263D);
-  static const Color secondary1 = Color(0xFFE16B3A);
-  static const Color secondary2 = Color(0xFF1B3943);
-  static const Color backgroundColor = Color(0xFFF5F1EB);
-
   @override
   void initState() {
     super.initState();
     _fetchBrandAssets();
   }
-  
+
   @override
   void dispose() {
     _usernameController.dispose();
@@ -87,6 +82,28 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  Future<void> _fetchAndSaveUserInfo(String token) async {
+    final url = Uri.parse('https://moodle.instructohub.com/webservice/rest/server.php?wsfunction=core_webservice_get_site_info&moodlewsrestformat=json&wstoken=$token');
+    try {
+      final response = await http.post(url);
+      if (mounted) {
+        if (response.statusCode == 200) {
+          final responseBody = json.decode(response.body);
+          if (responseBody['errorcode'] == null) {
+            final prefs = await SharedPreferences.getInstance();
+            await prefs.setString('userInfo', response.body);
+          } else {
+            throw Exception('Failed to fetch user info: ${responseBody['error']}');
+          }
+        } else {
+          throw Exception('Failed to fetch user info. Status code: ${response.statusCode}');
+        }
+      }
+    } catch (e) {
+      rethrow;
+    }
+  }
+
   Future<void> _handleLogin() async {
     if (_formKey.currentState!.validate()) {
       setState(() {
@@ -118,6 +135,8 @@ class _LoginScreenState extends State<LoginScreen> {
               final prefs = await SharedPreferences.getInstance();
               await prefs.setString('authToken', token);
 
+              await _fetchAndSaveUserInfo(token);
+
               Navigator.pushReplacement(
                 context,
                 MaterialPageRoute(
@@ -127,7 +146,12 @@ class _LoginScreenState extends State<LoginScreen> {
             } else {
               String error = responseBody['error'] ?? 'Invalid username or password.';
               ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text(error), backgroundColor: Colors.red),
+                SnackBar(
+                  content: Text(error),
+                  backgroundColor: AppTheme.secondary1,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  behavior: SnackBarBehavior.floating,
+                ),
               );
             }
           } else {
@@ -138,14 +162,24 @@ class _LoginScreenState extends State<LoginScreen> {
             }
             
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(error), backgroundColor: Colors.red),
+              SnackBar(
+                content: Text(error),
+                backgroundColor: AppTheme.secondary1,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                behavior: SnackBarBehavior.floating,
+              ),
             );
           }
         }
       } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('An error occurred: ${e.toString()}'), backgroundColor: Colors.red),
+            SnackBar(
+              content: Text('An error occurred: ${e.toString()}'),
+              backgroundColor: AppTheme.secondary1,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              behavior: SnackBarBehavior.floating,
+            ),
           );
         }
       } finally {
@@ -161,9 +195,14 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget _buildNetworkImage(String? url, {double? height, double? width}) {
     if (url == null) {
       return SizedBox(
-        height: height ?? 15,
+        height: height ?? 5,
         width: width ?? 100,
-        child: Center(child: CircularProgressIndicator(strokeWidth: 2, color: primary1)),
+        child: const Center(
+          child: CircularProgressIndicator(
+            strokeWidth: 2, 
+            color: AppTheme.primary1,
+          ),
+        ),
       );
     } else {
       return Image.network(
@@ -174,7 +213,7 @@ class _LoginScreenState extends State<LoginScreen> {
         loadingBuilder: (context, child, loadingProgress) {
           if (loadingProgress == null) return child;
           return SizedBox(
-            height: height ?? 20,
+            height: height ?? 5,
             width: width ?? 100,
             child: Center(
               child: CircularProgressIndicator(
@@ -182,14 +221,14 @@ class _LoginScreenState extends State<LoginScreen> {
                     ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
                     : null,
                 strokeWidth: 2,
-                color: primary1
+                color: AppTheme.primary1,
               ),
             ),
           );
         },
         errorBuilder: (context, error, stackTrace) {
           return Container(
-            height: height ?? 10,
+            height: height ?? 5,
             width: width ?? 100,
             child: Image.network(
               'https://static.instructohub.com/staticfiles/assets/images/website/Instructo_hub_logo.png',
@@ -207,7 +246,7 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: backgroundColor,
+      backgroundColor: AppTheme.backgroundColor,
       body: Container(
         decoration: const BoxDecoration(
           image: DecorationImage(
@@ -231,9 +270,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                           
-                              
-                            const SizedBox(height: 16),
+                            const SizedBox(height: 1),
                             const Text(
                               'Welcome! Login to experience the future of education.',
                               style: TextStyle(
@@ -241,38 +278,33 @@ class _LoginScreenState extends State<LoginScreen> {
                                 fontSize: 16,
                               ),
                             ),
-                            const SizedBox(height: 40),
+                            const SizedBox(height: 30),
                             Form(
                               key: _formKey,
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.stretch,
                                 children: [
                                   Container(
-                                    decoration: BoxDecoration(
-                                      color: Colors.white,
-                                      borderRadius: BorderRadius.circular(8.0),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: Colors.black.withOpacity(0.05),
-                                          spreadRadius: 1,
-                                          blurRadius: 10,
-                                          offset: const Offset(0, 2),
-                                        ),
-                                      ],
-                                    ),
+                                    decoration: AppTheme.inputDecoration,
                                     child: TextFormField(
                                       controller: _usernameController,
                                       decoration: InputDecoration(
                                         hintText: 'Enter your username',
                                         hintStyle: TextStyle(color: Colors.grey.shade400),
-                                        prefixIcon: Icon(Icons.person_outline, color: Colors.grey.shade400),
+                                        prefixIcon: const Icon(
+                                          Icons.person_outline, 
+                                          color: AppTheme.secondary1,
+                                        ),
                                         border: OutlineInputBorder(
-                                          borderRadius: BorderRadius.circular(8.0),
+                                          borderRadius: BorderRadius.circular(50),
                                           borderSide: BorderSide.none,
                                         ),
                                         filled: true,
-                                        fillColor: Colors.white,
-                                        contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+                                        fillColor: AppTheme.cardColor,
+                                        contentPadding: const EdgeInsets.symmetric(
+                                          vertical: 16, 
+                                          horizontal: 16,
+                                        ),
                                       ),
                                       validator: (value) {
                                         if (value == null || value.trim().isEmpty) {
@@ -284,25 +316,17 @@ class _LoginScreenState extends State<LoginScreen> {
                                   ),
                                   const SizedBox(height: 20),
                                   Container(
-                                    decoration: BoxDecoration(
-                                      color: Colors.white,
-                                      borderRadius: BorderRadius.circular(8.0),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: Colors.black.withOpacity(0.05),
-                                          spreadRadius: 1,
-                                          blurRadius: 10,
-                                          offset: const Offset(0, 2),
-                                        ),
-                                      ],
-                                    ),
+                                    decoration: AppTheme.inputDecoration,
                                     child: TextFormField(
                                       controller: _passwordController,
                                       obscureText: _obscurePassword,
                                       decoration: InputDecoration(
                                         hintText: 'Enter your password',
                                         hintStyle: TextStyle(color: Colors.grey.shade400),
-                                        prefixIcon: Icon(Icons.lock_outline, color: Colors.grey.shade400),
+                                        prefixIcon: const Icon(
+                                          Icons.lock_outline, 
+                                          color: AppTheme.secondary1,
+                                        ),
                                         suffixIcon: IconButton(
                                           icon: Icon(
                                             _obscurePassword
@@ -321,8 +345,11 @@ class _LoginScreenState extends State<LoginScreen> {
                                           borderSide: BorderSide.none,
                                         ),
                                         filled: true,
-                                        fillColor: Colors.white,
-                                        contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+                                        fillColor: AppTheme.cardColor,
+                                        contentPadding: const EdgeInsets.symmetric(
+                                          vertical: 16, 
+                                          horizontal: 16,
+                                        ),
                                       ),
                                       validator: (value) {
                                         if (value == null || value.trim().isEmpty) {
@@ -342,9 +369,9 @@ class _LoginScreenState extends State<LoginScreen> {
                                             width: 20,
                                             height: 20,
                                             decoration: BoxDecoration(
-                                              color: _rememberMe ? Colors.blue : Colors.transparent,
+                                              color: _rememberMe ? AppTheme.secondary1 : Colors.transparent,
                                               border: Border.all(
-                                                color: _rememberMe ? Colors.blue : Colors.grey,
+                                                color: _rememberMe ? AppTheme.secondary1 : Colors.grey,
                                                 width: 2,
                                               ),
                                               borderRadius: BorderRadius.circular(4),
@@ -359,7 +386,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                                   ? const Icon(
                                                       Icons.check,
                                                       size: 16,
-                                                      color: Colors.white,
+                                                      color: AppTheme.cardColor,
                                                     )
                                                   : null,
                                             ),
@@ -368,20 +395,18 @@ class _LoginScreenState extends State<LoginScreen> {
                                           const Text(
                                             'Stay signed in',
                                             style: TextStyle(
-                                              color: primary1,
+                                              color: AppTheme.primary1,
                                               fontSize: 14,
                                             ),
                                           ),
                                         ],
                                       ),
                                       TextButton(
-                                        onPressed: () {
-                                          
-                                        },
+                                        onPressed: () {},
                                         child: const Text(
                                           'Forgot password?',
                                           style: TextStyle(
-                                            color: primary1,
+                                            color: AppTheme.primary1,
                                             fontSize: 14,
                                           ),
                                         ),
@@ -406,11 +431,11 @@ class _LoginScreenState extends State<LoginScreen> {
                                     child: ElevatedButton(
                                       onPressed: _isLoading ? null : _handleLogin,
                                       style: ElevatedButton.styleFrom(
-                                        backgroundColor: primary1,
+                                        backgroundColor: AppTheme.secondary1,
                                         shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(8.0),
+                                          borderRadius: BorderRadius.circular(50),
                                         ),
-                                        foregroundColor: Colors.white,
+                                        foregroundColor: AppTheme.cardColor,
                                         elevation: 0,
                                       ),
                                       child: _isLoading
@@ -418,7 +443,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                               height: 20,
                                               width: 20,
                                               child: CircularProgressIndicator(
-                                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                                valueColor: AlwaysStoppedAnimation<Color>(AppTheme.cardColor),
                                                 strokeWidth: 2,
                                               ),
                                             )
@@ -439,14 +464,12 @@ class _LoginScreenState extends State<LoginScreen> {
                                       const Text(
                                         "New User? ",
                                         style: TextStyle(
-                                          color: Color.fromARGB(255, 214, 6, 6),
+                                          color: AppTheme.secondary1,
                                           fontSize: 14,
                                         ),
                                       ),
                                       TextButton(
-                                        onPressed: () {
-                                           
-                                        },
+                                        onPressed: () {},
                                         style: TextButton.styleFrom(
                                           padding: EdgeInsets.zero,
                                           minimumSize: Size.zero,
@@ -455,7 +478,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                         child: const Text(
                                           'Signup',
                                           style: TextStyle(
-                                            color: primary1,
+                                            color: AppTheme.primary1,
                                             fontWeight: FontWeight.bold,
                                             fontSize: 14,
                                           ),

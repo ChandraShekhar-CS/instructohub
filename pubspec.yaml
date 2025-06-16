@@ -1,5 +1,5 @@
-name: instructohub
-description: A new Flutter project.
+name: InstructoHub
+description: A learning platform.
 
 publish_to: 'none'
 
@@ -11,6 +11,14 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+
+
+  url_launcher: ^6.2.4
+  webview_flutter: ^4.4.4
+
+
+  webview_flutter_android: ^3.12.1
+  webview_flutter_wkwebview: ^3.9.4
 
   # For making API calls
   http: ^1.1.0 
@@ -24,9 +32,17 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
+  flutter_launcher_icons: "^0.13.1" # Check pub.dev for the latest version
 
   flutter_lints: ^2.0.0
 
 flutter:
   uses-material-design: true
+
+
+flutter_launcher_icons:
+  android: "launcher_icon" # can be true or a string to name the icon
+  ios: true
+  image_path: "assets/images/icon.png"
+  min_sdk_android: 21 # optional: ensures adaptive icons are generated
 
