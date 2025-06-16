@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'course_model.dart';
 import 'course_category_model.dart';
 import 'course_detail_screen.dart';
@@ -44,11 +43,13 @@ class _CourseCatalogScreenState extends State<CourseCatalogScreen> {
         _fetchCourseCategories(),
         _fetchCourses(),
       ]);
-      setState(() {
-        _categories = results[0] as List<CourseCategory>;
-        _courses = results[1] as List<Course>;
-        _filteredCourses = _courses;
-      });
+      if(mounted) {
+        setState(() {
+          _categories = results[0] as List<CourseCategory>;
+          _courses = results[1] as List<Course>;
+          _filteredCourses = _courses;
+        });
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -56,7 +57,9 @@ class _CourseCatalogScreenState extends State<CourseCatalogScreen> {
         );
       }
     } finally {
-      setState(() => _isLoading = false);
+      if(mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -124,13 +127,11 @@ class _CourseCatalogScreenState extends State<CourseCatalogScreen> {
     setState(() => _isFilterPanelOpen = !_isFilterPanelOpen);
   }
 
-  // MODIFIED THIS FUNCTION TO SAVE THE LAST VIEWED COURSE
   Future<void> _openCourse(Course course) async {
-    // Save the last viewed course to local storage
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('lastViewedCourse', json.encode(course.toJson()));
 
-    // Navigate to CourseDetailScreen
+    if (!mounted) return;
     Navigator.push(
       context,
       MaterialPageRoute(

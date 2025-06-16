@@ -4,6 +4,8 @@ import 'dart:convert';
 import 'course_model.dart';
 import 'app_theme.dart';
 
+// This file should NOT import 'course_catalog_screen.dart' to prevent circular dependencies.
+
 class CourseDetailScreen extends StatefulWidget {
   final Course course;
   final String token;
@@ -22,10 +24,7 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
   bool _isLoading = true;
   List<dynamic> _courseContents = [];
   Map<String, dynamic>? _courseDetails;
-  // Using a hardcoded progress value for demonstration.
-  // In a real app, you would fetch this from your `course` object.
-  final double _courseProgress = 0.7;
-
+  
   @override
   void initState() {
     super.initState();
@@ -134,9 +133,8 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
     );
   }
 
-  // WIDGET FOR DISPLAYING THE PROGRESS BAR
   Widget _buildProgressBar() {
-    final double progressValue = _courseProgress;
+    final double progressValue = (widget.course.progress ?? 0.0) / 100.0;
     final String progressPercent = (progressValue * 100).toStringAsFixed(0);
 
     String statusText;
@@ -238,7 +236,6 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
                         ),
                       ),
                     ),
-                  // ADDED THE PROGRESS BAR WIDGET HERE
                   _buildProgressBar(),
                   Padding(
                     padding: const EdgeInsets.all(16.0),
@@ -312,7 +309,6 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
                       ),
                     )
                   else
-                    // MODIFIED TO USE ExpansionTile FOR DROPDOWN FUNCTIONALITY
                     ListView.builder(
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),

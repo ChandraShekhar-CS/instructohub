@@ -2,9 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import 'dashboard_item_model.dart';
-import 'course_catalog_screen.dart';
+
 import 'app_theme.dart';
+import 'course_catalog_screen.dart';
+import 'course_detail_screen.dart';
+import 'course_model.dart';
+import 'dashboard_item_model.dart';
 
 class DashboardScreen extends StatefulWidget {
   final String token;
@@ -26,6 +29,41 @@ class _DashboardScreenState extends State<DashboardScreen> {
     super.initState();
     _fetchDashboardLayout();
   }
+
+  Future<void> _handleContinueLearningTap() async {
+    final prefs = await SharedPreferences.getInstance();
+    final lastViewedCourseString = prefs.getString('lastViewedCourse');
+
+    if (!mounted) return;
+
+    if (lastViewedCourseString != null) {
+      final courseJson = json.decode(lastViewedCourseString);
+      final course = Course.fromJson(courseJson);
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => CourseDetailScreen(
+            course: course,
+            token: widget.token,
+          ),
+        ),
+      );
+    } else {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => CourseCatalogScreen(token: widget.token),
+        ),
+      );
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text("No recent courses found. Let's find one for you!"),
+          backgroundColor: AppTheme.secondary2,
+        ),
+      );
+    }
+  }
+
 
   Future<void> _fetchDashboardLayout() async {
     setState(() { _isLoading = true; });
@@ -223,9 +261,22 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
   
   Widget _buildDraggableItem(DashboardItem item, int index, List<DashboardItem> list, bool isSingleColumn) {
+    Key key = ValueKey(item.id);
+
+    if (item.type == DashboardWidgetType.continueLearning && !_isEditMode) {
+      return GestureDetector(
+        key: key,
+        onTap: _handleContinueLearningTap,
+        child: Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          child: item.widget,
+        ),
+      );
+    }
+    
     if (item.type == DashboardWidgetType.courseCatalog && !_isEditMode) {
       return GestureDetector(
-        key: ValueKey(item.id),
+        key: key,
         onTap: () {
           Navigator.push(
             context,
@@ -244,8 +295,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
     Widget child = _isEditMode 
       ? Opacity(opacity: 0.8, child: item.widget) 
       : item.widget;
-
-    Key key = ValueKey(item.id);
 
     if (!_isEditMode) {
       return Container(
