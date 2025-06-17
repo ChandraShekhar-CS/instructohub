@@ -1,10 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'course_model.dart';
-import 'app_theme.dart';
-
-// This file should NOT import 'course_catalog_screen.dart' to prevent circular dependencies.
+import '../models/course_model.dart';
+import '../theme/app_theme.dart';
+import '../services/api_service.dart';
+import 'viewers/module_detail_screen.dart'; 
+import 'viewers/page_viewer_screen.dart';
+import 'viewers/assignment_viewer_screen.dart';
+import 'viewers/quiz_viewer_screen.dart';
+import 'viewers/forum_viewer_screen.dart';
+import 'viewers/resource_viewer_screen.dart';
 
 class CourseDetailScreen extends StatefulWidget {
   final Course course;
@@ -35,38 +40,24 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
     setState(() => _isLoading = true);
 
     try {
-      await Future.wait([
-        _fetchCourseContents(),
-        _fetchExtendedCourseInfo(),
-      ]);
+      final contents = await ApiService.getCourseContent(widget.course.id.toString(), widget.token);
+      
+      await _fetchExtendedCourseInfo(); 
+
+      if (mounted) {
+        setState(() {
+          _courseContents = contents;
+          _isLoading = false;
+        });
+      }
     } catch (e) {
       if (mounted) {
+        setState(() => _isLoading = false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
               content: Text('Error fetching course details: ${e.toString()}')),
         );
       }
-    } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
-    }
-  }
-
-  Future<void> _fetchCourseContents() async {
-    final url = Uri.parse(
-        'https://moodle.instructohub.com/webservice/rest/server.php?wsfunction=core_course_get_contents&moodlewsrestformat=json&wstoken=${widget.token}&courseid=${widget.course.id}');
-
-    final response = await http.post(url);
-
-    if (response.statusCode == 200) {
-      if (mounted) {
-        setState(() {
-          _courseContents = json.decode(response.body);
-        });
-      }
-    } else {
-      throw Exception('Failed to load course contents');
     }
   }
 
@@ -90,30 +81,33 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
 
   Widget _buildModuleItem(dynamic module) {
     IconData iconData;
+    Widget destinationScreen;
+    final dynamic foundContent = module['foundContent'];
+
     switch (module['modname']) {
       case 'forum':
         iconData = Icons.forum_outlined;
+        destinationScreen = ForumViewerScreen(module: module, foundContent: foundContent, token: widget.token);
         break;
       case 'assign':
         iconData = Icons.assignment_outlined;
+        destinationScreen = AssignmentViewerScreen(module: module, foundContent: foundContent, token: widget.token);
         break;
       case 'quiz':
         iconData = Icons.quiz_outlined;
+        destinationScreen = QuizViewerScreen(module: module, foundContent: foundContent, token: widget.token);
         break;
       case 'resource':
         iconData = Icons.description_outlined;
-        break;
-      case 'url':
-        iconData = Icons.link_outlined;
+        destinationScreen = ResourceViewerScreen(module: module, foundContent: foundContent, token: widget.token);
         break;
       case 'page':
         iconData = Icons.article_outlined;
-        break;
-      case 'video':
-        iconData = Icons.video_library_outlined;
+        destinationScreen = PageViewerScreen(module: module, foundContent: foundContent, token: widget.token);
         break;
       default:
         iconData = Icons.school_outlined;
+        destinationScreen = ModuleDetailScreen(module: module, token: widget.token);
     }
 
     return ListTile(
@@ -123,10 +117,10 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
         style: const TextStyle(fontWeight: FontWeight.w500),
       ),
       onTap: () {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Opening ${module['name'] ?? 'module'}'),
-            duration: const Duration(seconds: 1),
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => destinationScreen,
           ),
         );
       },

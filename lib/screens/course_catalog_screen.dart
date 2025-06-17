@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'course_model.dart';
-import 'course_category_model.dart';
+import '../models/course_model.dart';
+import '../course_category_model.dart';
 import 'course_detail_screen.dart';
 
 class CourseCatalogScreen extends StatefulWidget {
