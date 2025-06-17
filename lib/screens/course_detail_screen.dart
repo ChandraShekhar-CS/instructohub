@@ -10,14 +10,17 @@ import 'viewers/assignment_viewer_screen.dart';
 import 'viewers/quiz_viewer_screen.dart';
 import 'viewers/forum_viewer_screen.dart';
 import 'viewers/resource_viewer_screen.dart';
+import 'course_catalog_screen.dart';
 
 class CourseDetailScreen extends StatefulWidget {
   final Course course;
   final String token;
+  final bool showCatalogButton;
 
   const CourseDetailScreen({
     required this.course,
     required this.token,
+    this.showCatalogButton = false,
     Key? key,
   }) : super(key: key);
 
@@ -77,6 +80,15 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
         }
       }
     }
+  }
+
+  void _navigateToCatalog() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => CourseCatalogScreen(token: widget.token),
+      ),
+    );
   }
 
   Widget _buildModuleItem(dynamic module) {
@@ -198,6 +210,8 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
     );
   }
 
+
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -205,6 +219,13 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
         title: Text(widget.course.fullname, overflow: TextOverflow.ellipsis),
         backgroundColor: AppTheme.secondary1,
         foregroundColor: AppTheme.offwhite,
+        actions: widget.showCatalogButton ? [
+          IconButton(
+            icon: const Icon(Icons.library_books_outlined),
+            onPressed: _navigateToCatalog,
+            tooltip: 'Browse Courses',
+          ),
+        ] : null,
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -231,6 +252,7 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
                       ),
                     ),
                   _buildProgressBar(),
+                  if (widget.showCatalogButton) 
                   Padding(
                     padding: const EdgeInsets.all(16.0),
                     child: Column(
@@ -258,9 +280,9 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
                             _courseDetails!['enrolledusercount'] != null)
                           Row(
                             children: [
-                              Icon(Icons.people_outline,
-                                  size: AppTheme.fontSizeSm,
-                                  color: AppTheme.primary2),
+                              Icon(Icons.people_outline, 
+                              size: AppTheme.fontSizeSm,
+                              color: AppTheme.primary2),
                               const SizedBox(width: 8),
                               Text(
                                 '${_courseDetails!['enrolledusercount']} enrolled',

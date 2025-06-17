@@ -51,7 +51,7 @@ class _PageViewerScreenState extends State<PageViewerScreen> {
 <!DOCTYPE html>
 <html>
   <head>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=0.5">
     <style>
       body { margin:0; padding:0; }
       img, table { max-width: 100%; height: auto; }
