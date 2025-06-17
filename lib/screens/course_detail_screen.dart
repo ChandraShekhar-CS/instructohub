@@ -32,6 +32,7 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
   bool _isLoading = true;
   List<dynamic> _courseContents = [];
   Map<String, dynamic>? _courseDetails;
+  int? _expandedSectionIndex;
   
   @override
   void initState() {
@@ -300,17 +301,6 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
                     padding: EdgeInsets.symmetric(horizontal: 16.0),
                     child: Divider(),
                   ),
-                  const Padding(
-                    padding: EdgeInsets.all(16.0),
-                    child: Text(
-                      'Course Content',
-                      style: TextStyle(
-                        fontSize: AppTheme.fontSizeLg,
-                        fontWeight: FontWeight.bold,
-                        color: AppTheme.primary1,
-                      ),
-                    ),
-                  ),
                   if (_courseContents.isEmpty)
                     const Padding(
                       padding: EdgeInsets.all(16.0),
@@ -325,42 +315,78 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
                       ),
                     )
                   else
-                    ListView.builder(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      itemCount: _courseContents.length,
-                      itemBuilder: (context, sectionIndex) {
-                        final section = _courseContents[sectionIndex];
-                        final modules =
-                            section['modules'] as List<dynamic>? ?? [];
+                    Builder(
+                      builder: (context) {
+                        final filteredSections = _courseContents
+                            .asMap()
+                            .entries
+                            .where((entry) {
+                              final sectionIndex = entry.key;
+                              final section = entry.value;
+                              final modules = section['modules'] as List<dynamic>? ?? [];
+                              return !(sectionIndex == 0 || section['name'] == 'General' || modules.isEmpty);
+                            })
+                            .toList();
 
-                        if (section['name'] == 'General' || modules.isEmpty) {
-                          return const SizedBox.shrink();
-                        }
+                        return ListView.builder(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          itemCount: filteredSections.length,
+                          itemBuilder: (context, index) {
+                            final entry = filteredSections[index];
+                            final section = entry.value;
+                            final modules = section['modules'] as List<dynamic>? ?? [];
 
-                        return Card(
-                          margin: const EdgeInsets.symmetric(
-                              horizontal: 16.0, vertical: 8.0),
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12)),
-                          clipBehavior: Clip.antiAlias,
-                          elevation: 2,
-                          child: ExpansionTile(
-                            title: Text(
-                              section['name'] ?? 'Unnamed Section',
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .titleMedium
-                                  ?.copyWith(color: AppTheme.primary1),
-                            ),
-                            backgroundColor: AppTheme.cardColor,
-                            collapsedBackgroundColor: AppTheme.cardColor,
-                            childrenPadding:
-                                const EdgeInsets.only(bottom: 8.0),
-                            children: modules
-                                .map((module) => _buildModuleItem(module))
-                                .toList(),
-                          ),
+                            return Card(
+                              key: Key('card_$index'),
+                              margin: const EdgeInsets.symmetric(
+                                  horizontal: 16.0, vertical: 8.0),
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12)),
+                              clipBehavior: Clip.antiAlias,
+                              elevation: 2,
+                              child: Column(
+                                children: [
+                                  Container(
+                                    color: AppTheme.cardColor,
+                                    child: ListTile(
+                                      title: Text(
+                                        section['name'] ?? 'Unnamed Section',
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .titleMedium
+                                            ?.copyWith(color: AppTheme.primary1),
+                                      ),
+                                      trailing: Icon(
+                                        _expandedSectionIndex == index 
+                                            ? Icons.expand_less 
+                                            : Icons.expand_more,
+                                        color: AppTheme.primary1,
+                                      ),
+                                      onTap: () {
+                                        setState(() {
+                                          if (_expandedSectionIndex == index) {
+                                            _expandedSectionIndex = null;
+                                          } else {
+                                            _expandedSectionIndex = index;
+                                          }
+                                        });
+                                      },
+                                    ),
+                                  ),
+                                  if (_expandedSectionIndex == index)
+                                    Container(
+                                      color: AppTheme.cardColor,
+                                      child: Column(
+                                        children: modules
+                                            .map((module) => _buildModuleItem(module))
+                                            .toList(),
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            );
+                          },
                         );
                       },
                     ),

@@ -60,7 +60,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
       );
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text("No recent courses found. Let's find one for you!"),
+          content:
+              const Text("No recent courses found. Let's find one for you!"),
           backgroundColor: AppTheme.secondary2,
         ),
       );
@@ -122,21 +123,37 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   void _loadDashboardItems() {
-    setState(() { _isLoading = true; });
+    setState(() {
+      _isLoading = true;
+    });
 
     Future.delayed(const Duration(milliseconds: 500), () {
       setState(() {
         _mainItems = [
-          DashboardItem(id: 7, type: DashboardWidgetType.courseCatalog, isMainArea: true),
-          DashboardItem(id: 1, type: DashboardWidgetType.continueLearning, isMainArea: true),
-          DashboardItem(id: 2, type: DashboardWidgetType.quickActions, isMainArea: true),
-          DashboardItem(id: 3, type: DashboardWidgetType.recommendedCourses, isMainArea: true),
-          
+          DashboardItem(
+              id: 1,
+              type: DashboardWidgetType.continueLearning,
+              isMainArea: true),
+          DashboardItem(
+              id: 7, type: DashboardWidgetType.courseCatalog, isMainArea: true),
+          DashboardItem(
+              id: 2, type: DashboardWidgetType.quickActions, isMainArea: true),
+          DashboardItem(
+              id: 3,
+              type: DashboardWidgetType.recommendedCourses,
+              isMainArea: true),
         ];
         _sidebarItems = [
-          DashboardItem(id: 4, type: DashboardWidgetType.keyMetrics, isMainArea: false),
-          DashboardItem(id: 5, type: DashboardWidgetType.upcomingEvents, isMainArea: false),
-          DashboardItem(id: 6, type: DashboardWidgetType.recentActivity, isMainArea: false),
+          DashboardItem(
+              id: 4, type: DashboardWidgetType.keyMetrics, isMainArea: false),
+          DashboardItem(
+              id: 5,
+              type: DashboardWidgetType.upcomingEvents,
+              isMainArea: false),
+          DashboardItem(
+              id: 6,
+              type: DashboardWidgetType.recentActivity,
+              isMainArea: false),
         ];
         _isLoading = false;
       });

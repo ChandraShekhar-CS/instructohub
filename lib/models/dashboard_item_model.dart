@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
+import '../models/course_model.dart';
 
 enum DashboardWidgetType {
   continueLearning,
@@ -56,19 +59,53 @@ class DashboardItem {
       case DashboardWidgetType.recentActivity:
         return 'Recent Activity';
       case DashboardWidgetType.courseCatalog:
-        return 'Course Catalog';
+        return 'My Course';
     }
   }
 }
 
-class ContinueLearningWidget extends StatelessWidget {
-  const ContinueLearningWidget({super.key});
+class ContinueLearningWidget extends StatefulWidget {
+  const ContinueLearningWidget({Key? key}) : super(key: key);
+
+  @override
+  _ContinueLearningWidgetState createState() => _ContinueLearningWidgetState();
+}
+
+class _ContinueLearningWidgetState extends State<ContinueLearningWidget> {
+  Course? _lastViewedCourse;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadLastViewedCourse();
+  }
+
+  Future<void> _loadLastViewedCourse() async {
+    final prefs = await SharedPreferences.getInstance();
+    final jsonString = prefs.getString('lastViewedCourse');
+    if (jsonString != null) {
+      try {
+        final map = json.decode(jsonString);
+        setState(() {
+          _lastViewedCourse = Course.fromJson(map);
+        });
+      } catch (_) {
+        // fail silently or handle error
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    if (_lastViewedCourse == null) {
+      // you can return a placeholder, empty container, or spinner
+      return const SizedBox.shrink();
+    }
+
     return Container(
       decoration: AppTheme.cardDecoration,
       child: Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(16),
         child: Row(
           children: [
             Container(
@@ -84,12 +121,12 @@ class ContinueLearningWidget extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 16),
-            const Expanded(
+            Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Text(
+                  const Text(
                     'Continue Learning',
                     style: TextStyle(
                       fontSize: 16,
@@ -97,10 +134,10 @@ class ContinueLearningWidget extends StatelessWidget {
                       color: AppTheme.primary1,
                     ),
                   ),
-                  SizedBox(height: 4),
+                  const SizedBox(height: 4),
                   Text(
-                    'Your Courses',
-                    style: TextStyle(
+                    _lastViewedCourse!.fullname,
+                    style: const TextStyle(
                       fontSize: 14,
                       color: AppTheme.textSecondary,
                     ),
@@ -445,7 +482,7 @@ class CourseCatalogWidget extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Text(
-                    'Course Catalog',
+                    'My Course',
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
