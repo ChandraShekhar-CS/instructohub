@@ -49,12 +49,12 @@ class AssignmentViewerScreen extends StatelessWidget {
           )
         : SingleChildScrollView(
             child: Padding(
-              padding: const EdgeInsets.all(16.0),
+              padding: const EdgeInsets.all(8.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Container(
-                    padding: const EdgeInsets.all(16.0),
+                    padding: const EdgeInsets.all(12.0),
                     decoration: BoxDecoration(
                       color: AppTheme.secondary2.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(12),
@@ -101,7 +101,7 @@ class AssignmentViewerScreen extends StatelessWidget {
                       ],
                     ),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 12),
                   
                   if (assignmentData['duedate'] != null) ...[
                     _buildInfoCard(
@@ -112,7 +112,7 @@ class AssignmentViewerScreen extends StatelessWidget {
                              DateTime.fromMillisecondsSinceEpoch(assignmentData['duedate'] * 1000).isBefore(DateTime.now())
                              ? Colors.red : AppTheme.primary2,
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 8),
                   ],
 
                   if (assignmentData['allowsubmissionsfromdate'] != null && assignmentData['allowsubmissionsfromdate'] != 0) ...[
@@ -122,7 +122,7 @@ class AssignmentViewerScreen extends StatelessWidget {
                       content: _formatDate(assignmentData['allowsubmissionsfromdate']),
                       color: AppTheme.primary2,
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 8),
                   ],
 
                   if (assignmentData['grade'] != null) ...[
@@ -132,12 +132,12 @@ class AssignmentViewerScreen extends StatelessWidget {
                       content: '${assignmentData['grade']} points',
                       color: AppTheme.primary2,
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 8),
                   ],
 
                   _buildSubmissionCard(assignmentData),
                   
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 12),
                   if (assignmentData['activity'] != null && assignmentData['activity']['instructions'] != null) ...[
                     Container(
                       padding: const EdgeInsets.all(16.0),
@@ -278,3 +278,6 @@ class AssignmentViewerScreen extends StatelessWidget {
     );
   }
 }
+
+  @override
+  bool get wantKeepAlive => true; // Keep the state alive when navigating away

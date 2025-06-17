@@ -62,12 +62,12 @@ class QuizViewerScreen extends StatelessWidget {
           )
         : SingleChildScrollView(
             child: Padding(
-              padding: const EdgeInsets.all(16.0),
+              padding: const EdgeInsets.all(8.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Container(
-                    padding: const EdgeInsets.all(16.0),
+                    padding: const EdgeInsets.all(12.0),
                     decoration: BoxDecoration(
                       color: AppTheme.secondary2.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(12),
@@ -114,7 +114,7 @@ class QuizViewerScreen extends StatelessWidget {
                       ],
                     ),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 12),
 
                   Row(
                     children: [
@@ -137,7 +137,7 @@ class QuizViewerScreen extends StatelessWidget {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 8),
 
                   if (quizData['timelimit'] != null) ...[
                     _buildInfoCard(
@@ -146,7 +146,7 @@ class QuizViewerScreen extends StatelessWidget {
                       content: _formatDuration(quizData['timelimit']),
                       color: AppTheme.primary2,
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 8),
                   ],
 
                   if (quizData['timeopen'] != null && quizData['timeopen'] != 0) ...[
@@ -156,7 +156,7 @@ class QuizViewerScreen extends StatelessWidget {
                       content: _formatDate(quizData['timeopen']),
                       color: AppTheme.primary2,
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 8),
                   ],
 
                   if (quizData['timeclose'] != null && quizData['timeclose'] != 0) ...[
@@ -168,12 +168,12 @@ class QuizViewerScreen extends StatelessWidget {
                              DateTime.fromMillisecondsSinceEpoch(quizData['timeclose'] * 1000).isBefore(DateTime.now())
                              ? Colors.red : AppTheme.primary2,
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 8),
                   ],
 
                   _buildAttemptsCard(quizData),
                   
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 12),
                   _buildStartQuizCard(quizData, context),
                 ],
               ),

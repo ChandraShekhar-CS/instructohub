@@ -1,9 +1,10 @@
 // lib/screens/viewers/page_viewer_screen.dart
+import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:flutter_html/flutter_html.dart';
-import '../../theme/app_theme.dart';
-import 'edit_page_screen.dart';
+import 'package:webview_flutter/webview_flutter.dart';
 
+/// Renders raw HTML content responsively in a full-screen WebView on mobile,
+/// with a native AppBar and optional intro section.
 class PageViewerScreen extends StatefulWidget {
   final dynamic module;
   final dynamic foundContent;
@@ -21,146 +22,87 @@ class PageViewerScreen extends StatefulWidget {
 }
 
 class _PageViewerScreenState extends State<PageViewerScreen> {
-  bool _isEditing = false;
-  late String _pageContent;
+  late final WebViewController _controller;
   late String _pageTitle;
   late String _pageIntro;
 
   @override
   void initState() {
     super.initState();
-    _updatePageData();
+    _controller = WebViewController()
+      ..setJavaScriptMode(JavaScriptMode.unrestricted);
+    _prepareContent();
   }
 
-  void _updatePageData() {
-    final contentSource = widget.foundContent ?? widget.module;
-    _pageTitle = contentSource['name'] ?? 'Page';
-    _pageContent = contentSource['content']?.replaceAll('@@PLUGINFILE@@', 'https://moodle.instructohub.com/pluginfile.php') ?? 'No content available.';
-    _pageIntro = contentSource['intro'] ?? '';
-  }
+  void _prepareContent() {
+    final source = widget.foundContent ?? widget.module;
+    _pageTitle = source['name'] as String? ?? 'Page';
+    _pageIntro = source['intro'] as String? ?? '';
 
-  void _handleSave(String newTitle, String newContent) {
-    setState(() {
-      _pageTitle = newTitle;
-      _pageContent = newContent;
-      _isEditing = false;
-    });
-    ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Changes saved! (Locally)'), backgroundColor: Colors.green),
+    final rawHtml = (source['content'] as String?)
+            ?.replaceAll(
+              '@@PLUGINFILE@@',
+              'https://moodle.instructohub.com/pluginfile.php?token=${widget.token}',
+            )
+            ?? '<p>No content available.</p>';
+
+    // Added responsive CSS for images, tables, pre/code, and embeddings (iframe, video, etc.)
+    final fullHtml = '''
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+      body { margin:0; padding:0; }
+      img, table { max-width: 100%; height: auto; }
+      pre, code { white-space: pre-wrap; word-wrap: break-word; }
+      iframe, embed, video, object {
+        display: block;
+        max-width: 100% !important;
+        height: auto !important;
+        margin: 0 auto;
+      }
+    </style>
+  </head>
+  <body>
+    $rawHtml
+  </body>
+</html>
+''';
+
+    final uri = Uri.dataFromString(
+      fullHtml,
+      mimeType: 'text/html',
+      encoding: Encoding.getByName('utf-8'),
     );
+
+    _controller.loadRequest(Uri.parse(uri.toString()));
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_isEditing) {
-      return EditPageScreen(
-        initialTitle: _pageTitle,
-        initialContent: _pageContent,
-        onSave: _handleSave,
-      );
-    }
-    
     return Scaffold(
-      backgroundColor: AppTheme.backgroundColor,
       appBar: AppBar(
         title: Text(_pageTitle, overflow: TextOverflow.ellipsis),
-        backgroundColor: AppTheme.secondary1,
-        foregroundColor: AppTheme.offwhite,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.edit_outlined),
-            onPressed: () {
-              setState(() {
-                _isEditing = true;
-              });
-            },
-            tooltip: 'Edit Page',
+        backgroundColor: Theme.of(context).primaryColor,
+      ),
+      body: Column(
+        children: [
+          if (_pageIntro.isNotEmpty) ...[
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+              child: Text(
+                _pageIntro,
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
+            ),
+            const Divider(height: 1),
+          ],
+          Expanded(
+            child: WebViewWidget(controller: _controller),
           ),
         ],
       ),
-      body: SingleChildScrollView(
-              child: Padding(
-                padding: const EdgeInsets.all(12.0),
-                child: Column(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(16.0),
-                      decoration: BoxDecoration(
-                        color: AppTheme.secondary1.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: AppTheme.secondary1.withOpacity(0.2))
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.all(8),
-                                decoration: BoxDecoration(
-                                  color: AppTheme.secondary1.withOpacity(0.2),
-                                  borderRadius: BorderRadius.circular(8)
-                                ),
-                                child: const Icon(Icons.article_outlined, color: AppTheme.secondary1, size: 24),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Text(
-                                  _pageTitle,
-                                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                                    color: AppTheme.primary1,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                          if (_pageIntro.isNotEmpty) ...[
-                             const SizedBox(height: 12),
-                             Text(_pageIntro, style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: AppTheme.textSecondary)),
-                          ]
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    Container(
-                      padding: const EdgeInsets.all(16.0),
-                      decoration: BoxDecoration(
-                        color: AppTheme.cardColor,
-                        borderRadius: BorderRadius.circular(12),
-                        boxShadow: [
-                           BoxShadow(
-                            color: Colors.black.withOpacity(0.05),
-                            spreadRadius: 1,
-                            blurRadius: 10,
-                           )
-                        ]
-                      ),
-                      child: Html(
-                        data: _pageContent,
-                        style: {
-                          "body": Style(
-                            fontSize: FontSize(AppTheme.fontSizeBase),
-                            color: AppTheme.primary1,
-                          ),
-                          "p": Style(
-                            lineHeight: const LineHeight(1.5),
-                          ),
-                           "a": Style(
-                            color: AppTheme.secondary1,
-                            textDecoration: TextDecoration.none,
-                          ),
-                           "h1, h2, h3, h4, h5, h6": Style(
-                            color: AppTheme.primary1,
-                            fontWeight: FontWeight.bold
-                           )
-                        },
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
     );
   }
 }
