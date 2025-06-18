@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../dashboard_screen.dart';
+import '../domain_config_screen.dart';
+import '../../services/api_service.dart';
 import '../../theme/app_theme.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -20,13 +22,15 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _obscurePassword = true;
   bool _rememberMe = true;
   bool _isLoading = false;
+  bool _isLoadingBranding = true;
 
   String? _logoUrl;
+  String? _siteName;
 
   @override
   void initState() {
     super.initState();
-    _fetchBrandAssets();
+    _checkAPIConfiguration();
   }
 
   @override
@@ -36,71 +40,67 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
+  Future<void> _checkAPIConfiguration() async {
+    if (!ApiService.instance.isConfigured) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const DomainConfigScreen(),
+          ),
+        );
+      });
+      return;
+    }
+    
+    _fetchBrandAssets();
+  }
+
   Future<void> _fetchBrandAssets() async {
-    const String serviceToken = "74bfeaa03d534620f3b431d223330c68";
-    final url = Uri.parse('https://moodle.instructohub.com/webservice/rest/server.php?wsfunction=core_webservice_get_site_info&moodlewsrestformat=json&wstoken=$serviceToken');
-    const String fallbackLogoUrl = 'https://static.instructohub.com/staticfiles/assets/images/website/Instructo_hub_logo.png';
+    setState(() {
+      _isLoadingBranding = true;
+    });
 
     try {
-        final response = await http.get(url);
+      // Try to get site info using a basic webservice call
+      // This will likely fail but might give us some site information
+      final url = '${ApiService.instance.baseUrl}?wsfunction=core_webservice_get_site_info&moodlewsrestformat=json';
+      final response = await http.get(Uri.parse(url));
 
-        if (mounted) {
-            if (response.statusCode == 200) {
-                final responseBody = json.decode(response.body);
-                
-                String? fetchedLogoUrl = responseBody['logourl'] ?? responseBody['userpictureurl'];
-                
-                if (fetchedLogoUrl != null && fetchedLogoUrl.isNotEmpty) {
-                    if (fetchedLogoUrl.contains('pluginfile.php')) {
-                        if (fetchedLogoUrl.contains('?')) {
-                            fetchedLogoUrl += '&token=$serviceToken';
-                        } else {
-                            fetchedLogoUrl += '?token=$serviceToken';
-                        }
-                    }
-                    
-                    setState(() {
-                        _logoUrl = fetchedLogoUrl;
-                    });
-                } else {
-                    setState(() {
-                        _logoUrl = fallbackLogoUrl;
-                    });
-                }
-            } else {
-                setState(() {
-                    _logoUrl = fallbackLogoUrl;
-                });
-            }
+      if (mounted && response.statusCode == 200) {
+        final result = json.decode(response.body);
+        
+        // Even if there's an error, try to extract site name
+        if (result != null && result is Map) {
+          setState(() {
+            _siteName = result['sitename'] ?? 'LMS Portal';
+            // Don't try to get logo without proper token
+            _logoUrl = 'https://static.instructohub.com/staticfiles/assets/images/website/Instructo_hub_logo.png';
+          });
+          return;
         }
+      }
+      
+      // Fallback if API call fails
+      if (mounted) {
+        setState(() {
+          _logoUrl = 'https://static.instructohub.com/staticfiles/assets/images/website/Instructo_hub_logo.png';
+          _siteName = 'LMS Portal';
+        });
+      }
     } catch (e) {
       if (mounted) {
         setState(() {
-            _logoUrl = fallbackLogoUrl;
+          _logoUrl = 'https://static.instructohub.com/staticfiles/assets/images/website/Instructo_hub_logo.png';
+          _siteName = 'LMS Portal';
         });
       }
-    }
-  }
-
-  Future<void> _fetchAndSaveUserInfo(String token) async {
-    final url = Uri.parse('https://moodle.instructohub.com/webservice/rest/server.php?wsfunction=core_webservice_get_site_info&moodlewsrestformat=json&wstoken=$token');
-    try {
-      final response = await http.post(url);
+    } finally {
       if (mounted) {
-        if (response.statusCode == 200) {
-          final responseBody = json.decode(response.body);
-          if (responseBody['errorcode'] == null) {
-            final prefs = await SharedPreferences.getInstance();
-            await prefs.setString('userInfo', response.body);
-          } else {
-            throw Exception('Failed to fetch user info: ${responseBody['error']}');
-          }
-        } else {
-          throw Exception('Failed to fetch user info. Status code: ${response.statusCode}');
-        }
+        setState(() {
+          _isLoadingBranding = false;
+        });
       }
-    } catch (e) {
-      rethrow;
     }
   }
 
@@ -110,60 +110,39 @@ class _LoginScreenState extends State<LoginScreen> {
         _isLoading = true;
       });
 
-      final url = Uri.parse('https://moodle.instructohub.com/login/token.php?service=dapi');
-
       try {
-        final response = await http.post(
-          url,
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-          },
-          body: {
-            'username': _usernameController.text.trim(),
-            'password': _passwordController.text.trim(),
-          },
+        final loginResult = await ApiService.instance.login(
+          _usernameController.text.trim(),
+          _passwordController.text.trim(),
         );
 
         if (mounted) {
-          final contentType = response.headers['content-type'];
-          
-          if (response.statusCode == 200 && contentType != null && contentType.contains('application/json')) {
-            final responseBody = json.decode(response.body);
+          if (loginResult['success'] == true) {
+            final String token = loginResult['token'];
+            final prefs = await SharedPreferences.getInstance();
             
-            if (responseBody['token'] != null) {
-              final String token = responseBody['token'];
-              final prefs = await SharedPreferences.getInstance();
+            if (_rememberMe) {
               await prefs.setString('authToken', token);
-
-              await _fetchAndSaveUserInfo(token);
-
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => DashboardScreen(token: token),
-                ),
-              );
             } else {
-              String error = responseBody['error'] ?? 'Invalid username or password.';
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(error),
-                  backgroundColor: AppTheme.secondary1,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                  behavior: SnackBarBehavior.floating,
-                ),
-              );
+              await prefs.remove('authToken');
             }
+
+            // Fetch and save user info
+            final userInfoResult = await ApiService.instance.getUserInfo(token);
+            if (userInfoResult['success'] == true) {
+              await prefs.setString('userInfo', userInfoResult['data'].toString());
+            }
+
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (context) => DashboardScreen(token: token),
+              ),
+            );
           } else {
-            String error = 'Failed to login (Code: ${response.statusCode}). Please try again later.';
-            if (contentType != null && contentType.contains('application/json')) {
-                final responseBody = json.decode(response.body);
-                error = responseBody['error'] ?? 'An unknown error occurred.';
-            }
-            
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text(error),
+                content: Text(loginResult['error'] ?? 'Login failed'),
                 backgroundColor: AppTheme.secondary1,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                 behavior: SnackBarBehavior.floating,
@@ -191,56 +170,194 @@ class _LoginScreenState extends State<LoginScreen> {
       }
     }
   }
+
+  void _showDomainSettings() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: AppTheme.secondary1.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(
+                Icons.settings,
+                color: AppTheme.secondary1,
+                size: 20,
+              ),
+            ),
+            const SizedBox(width: 12),
+            const Text('Domain Settings'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Current Configuration:',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade50,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.grey.shade200),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.domain, size: 16, color: AppTheme.secondary1),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'API: ${ApiService.instance.baseUrl}',
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (_siteName != null) ...[
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        const Icon(Icons.school, size: 16, color: AppTheme.secondary1),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Site: $_siteName',
+                            style: const TextStyle(fontSize: 12),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'Would you like to change to a different LMS domain?',
+              style: TextStyle(fontSize: 14),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text(
+              'Cancel',
+              style: TextStyle(color: AppTheme.textSecondary),
+            ),
+          ),
+          ElevatedButton.icon(
+            onPressed: () async {
+              Navigator.pop(context);
+              await ApiService.instance.clearConfiguration();
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const DomainConfigScreen(),
+                ),
+              );
+            },
+            icon: const Icon(Icons.swap_horiz, size: 18),
+            label: const Text('Change Domain'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.secondary1,
+              foregroundColor: AppTheme.cardColor,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
   
   Widget _buildNetworkImage(String? url, {double? height, double? width}) {
-    if (url == null) {
-      return SizedBox(
-        height: height ?? 5,
-        width: width ?? 100,
+    if (_isLoadingBranding || url == null) {
+      return Container(
+        height: height ?? 50,
+        width: width ?? 150,
+        decoration: BoxDecoration(
+          color: Colors.grey.shade200,
+          borderRadius: BorderRadius.circular(8),
+        ),
         child: const Center(
           child: CircularProgressIndicator(
             strokeWidth: 2, 
-            color: AppTheme.primary1,
+            color: AppTheme.secondary1,
           ),
         ),
       );
-    } else {
-      return Image.network(
-        url,
-        height: height,
-        width: width,
-        fit: BoxFit.contain,
-        loadingBuilder: (context, child, loadingProgress) {
-          if (loadingProgress == null) return child;
-          return SizedBox(
-            height: height ?? 5,
-            width: width ?? 100,
-            child: Center(
-              child: CircularProgressIndicator(
-                value: loadingProgress.expectedTotalBytes != null
-                    ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
-                    : null,
-                strokeWidth: 2,
-                color: AppTheme.primary1,
-              ),
-            ),
-          );
-        },
-        errorBuilder: (context, error, stackTrace) {
-          return Container(
-            height: height ?? 5,
-            width: width ?? 100,
-            child: Image.network(
-              'https://static.instructohub.com/staticfiles/assets/images/website/Instructo_hub_logo.png',
-              fit: BoxFit.contain,
-              errorBuilder: (context, error, stackTrace) {
-                return const Icon(Icons.error_outline, color: Colors.grey);
-              },
-            ),
-          );
-        },
-      );
     }
+    
+    return Image.network(
+      url,
+      height: height,
+      width: width,
+      fit: BoxFit.contain,
+      loadingBuilder: (context, child, loadingProgress) {
+        if (loadingProgress == null) return child;
+        return Container(
+          height: height ?? 50,
+          width: width ?? 150,
+          decoration: BoxDecoration(
+            color: Colors.grey.shade200,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Center(
+            child: CircularProgressIndicator(
+              value: loadingProgress.expectedTotalBytes != null
+                  ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
+                  : null,
+              strokeWidth: 2,
+              color: AppTheme.secondary1,
+            ),
+          ),
+        );
+      },
+      errorBuilder: (context, error, stackTrace) {
+        return Container(
+          height: height ?? 50,
+          width: width ?? 150,
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: AppTheme.secondary1.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: AppTheme.secondary1.withOpacity(0.3)),
+          ),
+          child: const Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.school, color: AppTheme.secondary1, size: 24),
+              SizedBox(width: 8),
+              Text(
+                'LMS',
+                style: TextStyle(
+                  color: AppTheme.secondary1,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18,
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   @override
@@ -249,181 +366,358 @@ class _LoginScreenState extends State<LoginScreen> {
       backgroundColor: AppTheme.backgroundColor,
       body: Container(
         decoration: const BoxDecoration(
-          image: DecorationImage(
-            image: NetworkImage('https://learn.instructohub.com/static/media/login-bg.e2a088d001b1fc451772.png'),
-            fit: BoxFit.cover,
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              AppTheme.loginBgLeft,
+              AppTheme.loginBgRight,
+            ],
           ),
         ),
         child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(32.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildNetworkImage(_logoUrl, height: 20),
-                const SizedBox(height: 60),
-                Expanded(
-                  child: Center(
-                    child: ConstrainedBox(
+          child: Column(
+            children: [
+              // Top bar with logo and domain settings
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    // Logo
+                    Expanded(
+                      child: Container(
+                        height: 50,
+                        alignment: Alignment.centerLeft,
+                        child: _buildNetworkImage(_logoUrl, height: 50, width: 150),
+                      ),
+                    ),
+                    // Domain settings button
+                    Container(
+                      decoration: BoxDecoration(
+                        color: AppTheme.cardColor,
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.05),
+                            spreadRadius: 1,
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: IconButton(
+                        onPressed: _showDomainSettings,
+                        icon: const Icon(
+                          Icons.settings,
+                          color: AppTheme.secondary1,
+                          size: 20,
+                        ),
+                        tooltip: 'Domain Settings',
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              
+              // Site name if available
+              if (_isLoadingBranding) ...[
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 120,
+                        height: 28,
+                        decoration: BoxDecoration(
+                          color: AppTheme.primary2.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 24),
+              ] else if (_siteName != null) ...[
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: AppTheme.secondary3,
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: AppTheme.secondary1.withOpacity(0.3),
+                          ),
+                        ),
+                        child: Text(
+                          _siteName!,
+                          style: const TextStyle(
+                            fontSize: AppTheme.fontSizeSm,
+                            fontWeight: FontWeight.w600,
+                            color: AppTheme.secondary1,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 24),
+              ],
+              
+              // Main login form
+              Expanded(
+                child: Center(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    child: Container(
                       constraints: const BoxConstraints(maxWidth: 400),
-                      child: SingleChildScrollView(
+                      child: Container(
+                        padding: const EdgeInsets.all(32),
+                        decoration: BoxDecoration(
+                          color: AppTheme.cardColor,
+                          borderRadius: BorderRadius.circular(24),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.08),
+                              spreadRadius: 0,
+                              blurRadius: 30,
+                              offset: const Offset(0, 8),
+                            ),
+                          ],
+                        ),
                         child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
-                            const SizedBox(height: 1),
+                            // Welcome text
                             const Text(
-                              'Welcome! Login to experience the future of education.',
+                              'Welcome Back!',
+                              textAlign: TextAlign.center,
                               style: TextStyle(
-                                color: Colors.grey,
-                                fontSize: 16,
+                                fontSize: 28,
+                                fontWeight: FontWeight.bold,
+                                color: AppTheme.loginTextTitle,
                               ),
                             ),
-                            const SizedBox(height: 30),
+                            const SizedBox(height: 8),
+                            const Text(
+                              'Login to continue your learning journey',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                color: AppTheme.loginTextBody,
+                                fontSize: AppTheme.fontSizeBase,
+                              ),
+                            ),
+                            const SizedBox(height: 32),
+                            
+                            // Login form
                             Form(
                               key: _formKey,
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.stretch,
                                 children: [
-                                  Container(
-                                    decoration: AppTheme.inputDecoration,
-                                    child: TextFormField(
-                                      controller: _usernameController,
-                                      decoration: InputDecoration(
-                                        hintText: 'Enter your username',
-                                        hintStyle: TextStyle(color: Colors.grey.shade400),
-                                        prefixIcon: const Icon(
-                                          Icons.person_outline, 
+                                  // Username field
+                                  TextFormField(
+                                    controller: _usernameController,
+                                    decoration: InputDecoration(
+                                      labelText: 'Username',
+                                      hintText: 'Enter your username',
+                                      labelStyle: const TextStyle(color: AppTheme.primary2),
+                                      hintStyle: const TextStyle(color: AppTheme.primary2),
+                                      prefixIcon: Container(
+                                        margin: const EdgeInsets.all(12),
+                                        padding: const EdgeInsets.all(8),
+                                        decoration: BoxDecoration(
+                                          color: AppTheme.secondary3,
+                                          borderRadius: BorderRadius.circular(8),
+                                        ),
+                                        child: const Icon(
+                                          Icons.person_outline,
                                           color: AppTheme.secondary1,
-                                        ),
-                                        border: OutlineInputBorder(
-                                          borderRadius: BorderRadius.circular(50),
-                                          borderSide: BorderSide.none,
-                                        ),
-                                        filled: true,
-                                        fillColor: AppTheme.cardColor,
-                                        contentPadding: const EdgeInsets.symmetric(
-                                          vertical: 16, 
-                                          horizontal: 16,
+                                          size: 20,
                                         ),
                                       ),
-                                      validator: (value) {
-                                        if (value == null || value.trim().isEmpty) {
-                                          return 'Username is required';
-                                        }
-                                        return null;
-                                      },
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(16),
+                                        borderSide: BorderSide(color: AppTheme.primary2.withOpacity(0.3)),
+                                      ),
+                                      enabledBorder: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(16),
+                                        borderSide: BorderSide(color: AppTheme.primary2.withOpacity(0.3)),
+                                      ),
+                                      focusedBorder: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(16),
+                                        borderSide: const BorderSide(color: AppTheme.secondary1, width: 2),
+                                      ),
+                                      errorBorder: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(16),
+                                        borderSide: const BorderSide(color: Colors.red, width: 2),
+                                      ),
+                                      filled: true,
+                                      fillColor: AppTheme.cardColor,
+                                      contentPadding: const EdgeInsets.symmetric(
+                                        vertical: 20,
+                                        horizontal: 16,
+                                      ),
                                     ),
+                                    validator: (value) {
+                                      if (value == null || value.trim().isEmpty) {
+                                        return 'Username is required';
+                                      }
+                                      return null;
+                                    },
                                   ),
                                   const SizedBox(height: 20),
-                                  Container(
-                                    decoration: AppTheme.inputDecoration,
-                                    child: TextFormField(
-                                      controller: _passwordController,
-                                      obscureText: _obscurePassword,
-                                      decoration: InputDecoration(
-                                        hintText: 'Enter your password',
-                                        hintStyle: TextStyle(color: Colors.grey.shade400),
-                                        prefixIcon: const Icon(
-                                          Icons.lock_outline, 
+                                  
+                                  // Password field
+                                  TextFormField(
+                                    controller: _passwordController,
+                                    obscureText: _obscurePassword,
+                                    decoration: InputDecoration(
+                                      labelText: 'Password',
+                                      hintText: 'Enter your password',
+                                      labelStyle: const TextStyle(color: AppTheme.primary2),
+                                      hintStyle: const TextStyle(color: AppTheme.primary2),
+                                      prefixIcon: Container(
+                                        margin: const EdgeInsets.all(12),
+                                        padding: const EdgeInsets.all(8),
+                                        decoration: BoxDecoration(
+                                          color: AppTheme.secondary3,
+                                          borderRadius: BorderRadius.circular(8),
+                                        ),
+                                        child: const Icon(
+                                          Icons.lock_outline,
                                           color: AppTheme.secondary1,
-                                        ),
-                                        suffixIcon: IconButton(
-                                          icon: Icon(
-                                            _obscurePassword
-                                                ? Icons.visibility_off_outlined
-                                                : Icons.visibility_outlined,
-                                            color: Colors.grey.shade400,
-                                          ),
-                                          onPressed: () {
-                                            setState(() {
-                                              _obscurePassword = !_obscurePassword;
-                                            });
-                                          },
-                                        ),
-                                        border: OutlineInputBorder(
-                                          borderRadius: BorderRadius.circular(8.0),
-                                          borderSide: BorderSide.none,
-                                        ),
-                                        filled: true,
-                                        fillColor: AppTheme.cardColor,
-                                        contentPadding: const EdgeInsets.symmetric(
-                                          vertical: 16, 
-                                          horizontal: 16,
+                                          size: 20,
                                         ),
                                       ),
-                                      validator: (value) {
-                                        if (value == null || value.trim().isEmpty) {
-                                          return 'Password is required';
-                                        }
-                                        return null;
-                                      },
+                                      suffixIcon: IconButton(
+                                        icon: Icon(
+                                          _obscurePassword
+                                              ? Icons.visibility_off_outlined
+                                              : Icons.visibility_outlined,
+                                          color: AppTheme.primary2,
+                                        ),
+                                        onPressed: () {
+                                          setState(() {
+                                            _obscurePassword = !_obscurePassword;
+                                          });
+                                        },
+                                      ),
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(16),
+                                        borderSide: BorderSide(color: AppTheme.primary2.withOpacity(0.3)),
+                                      ),
+                                      enabledBorder: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(16),
+                                        borderSide: BorderSide(color: AppTheme.primary2.withOpacity(0.3)),
+                                      ),
+                                      focusedBorder: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(16),
+                                        borderSide: const BorderSide(color: AppTheme.secondary1, width: 2),
+                                      ),
+                                      errorBorder: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(16),
+                                        borderSide: const BorderSide(color: Colors.red, width: 2),
+                                      ),
+                                      filled: true,
+                                      fillColor: AppTheme.cardColor,
+                                      contentPadding: const EdgeInsets.symmetric(
+                                        vertical: 20,
+                                        horizontal: 16,
+                                      ),
                                     ),
+                                    validator: (value) {
+                                      if (value == null || value.trim().isEmpty) {
+                                        return 'Password is required';
+                                      }
+                                      return null;
+                                    },
                                   ),
                                   const SizedBox(height: 24),
+                                  
+                                  // Remember me and forgot password
                                   Row(
                                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                     children: [
-                                      Row(
-                                        children: [
-                                          Container(
-                                            width: 20,
-                                            height: 20,
-                                            decoration: BoxDecoration(
-                                              color: _rememberMe ? AppTheme.secondary1 : Colors.transparent,
-                                              border: Border.all(
-                                                color: _rememberMe ? AppTheme.secondary1 : Colors.grey,
-                                                width: 2,
+                                      Flexible(
+                                        child: Row(
+                                          children: [
+                                            Container(
+                                              width: 20,
+                                              height: 20,
+                                              decoration: BoxDecoration(
+                                                color: _rememberMe ? AppTheme.secondary1 : Colors.transparent,
+                                                border: Border.all(
+                                                  color: _rememberMe ? AppTheme.secondary1 : AppTheme.primary2,
+                                                  width: 2,
+                                                ),
+                                                borderRadius: BorderRadius.circular(4),
                                               ),
-                                              borderRadius: BorderRadius.circular(4),
+                                              child: InkWell(
+                                                onTap: () {
+                                                  setState(() {
+                                                    _rememberMe = !_rememberMe;
+                                                  });
+                                                },
+                                                borderRadius: BorderRadius.circular(4),
+                                                child: _rememberMe
+                                                    ? const Icon(
+                                                        Icons.check,
+                                                        size: 16,
+                                                        color: AppTheme.cardColor,
+                                                      )
+                                                    : null,
+                                              ),
                                             ),
-                                            child: InkWell(
-                                              onTap: () {
-                                                setState(() {
-                                                  _rememberMe = !_rememberMe;
-                                                });
-                                              },
-                                              child: _rememberMe
-                                                  ? const Icon(
-                                                      Icons.check,
-                                                      size: 16,
-                                                      color: AppTheme.cardColor,
-                                                    )
-                                                  : null,
+                                            const SizedBox(width: 8),
+                                            const Flexible(
+                                              child: Text(
+                                                'Stay signed in',
+                                                style: TextStyle(
+                                                  color: AppTheme.primary1,
+                                                  fontSize: AppTheme.fontSizeSm,
+                                                  fontWeight: FontWeight.w500,
+                                                ),
+                                              ),
                                             ),
-                                          ),
-                                          const SizedBox(width: 8),
-                                          const Text(
-                                            'Stay signed in',
-                                            style: TextStyle(
-                                              color: AppTheme.primary1,
-                                              fontSize: 14,
-                                            ),
-                                          ),
-                                        ],
+                                          ],
+                                        ),
                                       ),
                                       TextButton(
                                         onPressed: () {},
+                                        style: TextButton.styleFrom(
+                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                        ),
                                         child: const Text(
                                           'Forgot password?',
                                           style: TextStyle(
-                                            color: AppTheme.primary1,
-                                            fontSize: 14,
+                                            color: AppTheme.loginTextLink,
+                                            fontSize: AppTheme.fontSizeSm,
+                                            fontWeight: FontWeight.w500,
                                           ),
                                         ),
                                       ),
                                     ],
                                   ),
                                   const SizedBox(height: 32),
+                                  
+                                  // Login button - Fixed overflow issue
                                   Container(
                                     width: double.infinity,
                                     height: 56,
                                     decoration: BoxDecoration(
-                                      borderRadius: BorderRadius.circular(8.0),
+                                      borderRadius: BorderRadius.circular(16),
+                                      gradient: const LinearGradient(
+                                        colors: [AppTheme.secondary1, AppTheme.secondary2],
+                                      ),
                                       boxShadow: [
                                         BoxShadow(
-                                          color: Colors.black.withOpacity(0.1),
-                                          spreadRadius: 1,
-                                          blurRadius: 10,
+                                          color: AppTheme.secondary1.withOpacity(0.3),
+                                          spreadRadius: 0,
+                                          blurRadius: 12,
                                           offset: const Offset(0, 4),
                                         ),
                                       ],
@@ -431,19 +725,19 @@ class _LoginScreenState extends State<LoginScreen> {
                                     child: ElevatedButton(
                                       onPressed: _isLoading ? null : _handleLogin,
                                       style: ElevatedButton.styleFrom(
-                                        backgroundColor: AppTheme.secondary1,
+                                        backgroundColor: Colors.transparent,
+                                        shadowColor: Colors.transparent,
                                         shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(50),
+                                          borderRadius: BorderRadius.circular(16),
                                         ),
-                                        foregroundColor: AppTheme.cardColor,
                                         elevation: 0,
                                       ),
                                       child: _isLoading
                                           ? const SizedBox(
-                                              height: 20,
-                                              width: 20,
+                                              height: 24,
+                                              width: 24,
                                               child: CircularProgressIndicator(
-                                                valueColor: AlwaysStoppedAnimation<Color>(AppTheme.cardColor),
+                                                valueColor: AlwaysStoppedAnimation<Color>(AppTheme.loginButtonTextColor),
                                                 strokeWidth: 2,
                                               ),
                                             )
@@ -451,21 +745,24 @@ class _LoginScreenState extends State<LoginScreen> {
                                               'LOGIN',
                                               style: TextStyle(
                                                 fontWeight: FontWeight.bold,
-                                                fontSize: 16,
+                                                fontSize: AppTheme.fontSizeBase,
                                                 letterSpacing: 1,
+                                                color: AppTheme.loginButtonTextColor,
                                               ),
                                             ),
                                     ),
                                   ),
-                                  const SizedBox(height: 32),
+                                  const SizedBox(height: 24),
+                                  
+                                  // Sign up link
                                   Row(
                                     mainAxisAlignment: MainAxisAlignment.center,
                                     children: [
                                       const Text(
                                         "New User? ",
                                         style: TextStyle(
-                                          color: AppTheme.secondary1,
-                                          fontSize: 14,
+                                          color: AppTheme.loginTextBody,
+                                          fontSize: AppTheme.fontSizeSm,
                                         ),
                                       ),
                                       TextButton(
@@ -476,11 +773,11 @@ class _LoginScreenState extends State<LoginScreen> {
                                           tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                                         ),
                                         child: const Text(
-                                          'Signup',
+                                          'Create Account',
                                           style: TextStyle(
-                                            color: AppTheme.primary1,
+                                            color: AppTheme.secondary1,
                                             fontWeight: FontWeight.bold,
-                                            fontSize: 14,
+                                            fontSize: AppTheme.fontSizeSm,
                                           ),
                                         ),
                                       ),
@@ -495,8 +792,8 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),

@@ -44,7 +44,8 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
     setState(() => _isLoading = true);
 
     try {
-      final contents = await ApiService.getCourseContent(widget.course.id.toString(), widget.token);
+      // Corrected line: Use ApiService.instance to call the method
+      final contents = await ApiService.instance.getCourseContent(widget.course.id.toString(), widget.token);
       
       await _fetchExtendedCourseInfo(); 
 

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../screens/login/login_screen.dart';
 import '../screens/dashboard_screen.dart';
+import '../screens/domain_config_screen.dart';
+import '../services/api_service.dart';
 import '../theme/app_theme.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -42,7 +44,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     ));
     
     _animationController.forward();
-    _checkAuthStatus();
+    _initializeApp();
   }
 
   @override
@@ -51,21 +53,53 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     super.dispose();
   }
 
-  Future<void> _checkAuthStatus() async {
+  Future<void> _initializeApp() async {
     await Future.delayed(const Duration(seconds: 3));
     
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('authToken');
-    
-    if (mounted) {
-      if (token != null && token.isNotEmpty) {
+    if (!mounted) return;
+
+    try {
+      // First, try to load API configuration
+      final isConfigured = await ApiService.instance.loadConfiguration();
+      
+      if (!isConfigured) {
+        // No domain configured, go to domain config screen
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (context) => DashboardScreen(token: token),
+            builder: (context) => const DomainConfigScreen(),
           ),
         );
+        return;
+      }
+
+      // Domain is configured, check for existing auth token
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('authToken');
+      
+      if (token != null && token.isNotEmpty) {
+        // Verify the token is still valid
+        final verificationResult = await ApiService.instance.verifyToken(token);
+        
+        if (verificationResult['success'] == true) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) => DashboardScreen(token: token),
+            ),
+          );
+        } else {
+          // Token is invalid, remove it and go to login
+          await prefs.remove('authToken');
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const LoginScreen(),
+            ),
+          );
+        }
       } else {
+        // No token, go to login
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
@@ -73,6 +107,14 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
           ),
         );
       }
+    } catch (e) {
+      // Error occurred, go to domain config to reconfigure
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => const DomainConfigScreen(),
+        ),
+      );
     }
   }
 
@@ -159,6 +201,15 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                       const CircularProgressIndicator(
                         color: AppTheme.secondary1,
                         strokeWidth: 3,
+                      ),
+                      const SizedBox(height: 16),
+                      const Text(
+                        'Initializing...',
+                        style: TextStyle(
+                          color: AppTheme.cardColor,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
                     ],
                   ),
