@@ -5,6 +5,7 @@ import 'dart:convert';
 import '../dashboard_screen.dart';
 import '../domain_config_screen.dart';
 import '../../services/api_service.dart';
+import '../../services/icon_service.dart';
 import '../../theme/app_theme.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -53,6 +54,8 @@ class _LoginScreenState extends State<LoginScreen> {
       return;
     }
     
+    // Load icons and then fetch branding
+    await IconService.instance.loadIcons();
     _fetchBrandAssets();
   }
 
@@ -184,8 +187,8 @@ class _LoginScreenState extends State<LoginScreen> {
                 color: AppTheme.secondary1.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: const Icon(
-                Icons.settings,
+              child: Icon(
+                IconService.instance.settingsIcon,
                 color: AppTheme.secondary1,
                 size: 20,
               ),
@@ -218,7 +221,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 children: [
                   Row(
                     children: [
-                      const Icon(Icons.domain, size: 16, color: AppTheme.secondary1),
+                      Icon(IconService.instance.domainIcon, size: 16, color: AppTheme.secondary1),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
@@ -232,7 +235,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     const SizedBox(height: 8),
                     Row(
                       children: [
-                        const Icon(Icons.school, size: 16, color: AppTheme.secondary1),
+                        Icon(IconService.instance.schoolIcon, size: 16, color: AppTheme.secondary1),
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
@@ -272,7 +275,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
               );
             },
-            icon: const Icon(Icons.swap_horiz, size: 18),
+            icon: Icon(IconService.instance.swapIcon, size: 18),
             label: const Text('Change Domain'),
             style: ElevatedButton.styleFrom(
               backgroundColor: AppTheme.secondary1,
@@ -340,12 +343,12 @@ class _LoginScreenState extends State<LoginScreen> {
             borderRadius: BorderRadius.circular(8),
             border: Border.all(color: AppTheme.secondary1.withOpacity(0.3)),
           ),
-          child: const Row(
+          child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.school, color: AppTheme.secondary1, size: 24),
-              SizedBox(width: 8),
-              Text(
+              Icon(IconService.instance.schoolIcon, color: AppTheme.secondary1, size: 24),
+              const SizedBox(width: 8),
+              const Text(
                 'LMS',
                 style: TextStyle(
                   color: AppTheme.secondary1,
@@ -408,8 +411,8 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                       child: IconButton(
                         onPressed: _showDomainSettings,
-                        icon: const Icon(
-                          Icons.settings,
+                        icon: Icon(
+                          IconService.instance.settingsIcon,
                           color: AppTheme.secondary1,
                           size: 20,
                         ),
@@ -533,8 +536,8 @@ class _LoginScreenState extends State<LoginScreen> {
                                           color: AppTheme.secondary3,
                                           borderRadius: BorderRadius.circular(8),
                                         ),
-                                        child: const Icon(
-                                          Icons.person_outline,
+                                        child: Icon(
+                                          IconService.instance.personIcon,
                                           color: AppTheme.secondary1,
                                           size: 20,
                                         ),
@@ -587,8 +590,8 @@ class _LoginScreenState extends State<LoginScreen> {
                                           color: AppTheme.secondary3,
                                           borderRadius: BorderRadius.circular(8),
                                         ),
-                                        child: const Icon(
-                                          Icons.lock_outline,
+                                        child: Icon(
+                                          IconService.instance.lockIcon,
                                           color: AppTheme.secondary1,
                                           size: 20,
                                         ),
@@ -596,8 +599,8 @@ class _LoginScreenState extends State<LoginScreen> {
                                       suffixIcon: IconButton(
                                         icon: Icon(
                                           _obscurePassword
-                                              ? Icons.visibility_off_outlined
-                                              : Icons.visibility_outlined,
+                                              ? IconService.instance.visibilityOffIcon
+                                              : IconService.instance.visibilityOnIcon,
                                           color: AppTheme.primary2,
                                         ),
                                         onPressed: () {

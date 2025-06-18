@@ -4,6 +4,7 @@ import '../screens/login/login_screen.dart';
 import '../screens/dashboard_screen.dart';
 import '../screens/domain_config_screen.dart';
 import '../services/api_service.dart';
+import '../services/icon_service.dart';
 import '../theme/app_theme.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -63,6 +64,9 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
       final isConfigured = await ApiService.instance.loadConfiguration();
       
       if (!isConfigured) {
+        // Load default icons before going to domain config
+        await IconService.instance.loadIcons();
+        
         // No domain configured, go to domain config screen
         Navigator.pushReplacement(
           context,
@@ -78,6 +82,9 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
       final token = prefs.getString('authToken');
       
       if (token != null && token.isNotEmpty) {
+        // Load icons with token for customization
+        await IconService.instance.loadIcons(token: token);
+        
         // Verify the token is still valid
         final verificationResult = await ApiService.instance.verifyToken(token);
         
@@ -99,6 +106,9 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
           );
         }
       } else {
+        // Load default icons since no token available
+        await IconService.instance.loadIcons();
+        
         // No token, go to login
         Navigator.pushReplacement(
           context,
@@ -108,7 +118,8 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
         );
       }
     } catch (e) {
-      // Error occurred, go to domain config to reconfigure
+      // Error occurred, load default icons and go to domain config to reconfigure
+      await IconService.instance.loadIcons();
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
