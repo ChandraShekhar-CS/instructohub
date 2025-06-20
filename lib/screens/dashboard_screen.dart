@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
-import '../theme/app_theme.dart';
 import '../services/api_service.dart';
 import 'course_catalog_screen.dart';
 import 'course_detail_screen.dart';
@@ -13,6 +12,11 @@ import 'recommended_courses_screen.dart';
 import 'domain_config_screen.dart';
 import '../models/course_model.dart';
 import '../models/dashboard_item_model.dart';
+import '../theme/dynamic_app_theme.dart';
+import '../services/icon_service.dart'; // ADDED: For dynamic icons
+
+typedef AppTheme = DynamicAppTheme;
+
 
 class DashboardScreen extends StatefulWidget {
   final String token;
@@ -43,27 +47,37 @@ class _DashboardScreenState extends State<DashboardScreen> {
     });
 
     try {
+      // Preload theme assets and icons
+      await DynamicAppTheme.loadTheme(token: widget.token);
+      
       // Get current domain info
       final prefs = await SharedPreferences.getInstance();
       _currentDomain = prefs.getString('api_domain');
 
       // Load user info
       final userInfoResult = await ApiService.instance.getUserInfo(widget.token);
-      if (userInfoResult['success'] == true) {
-        _userInfo = userInfoResult['data'];
+      if (mounted && userInfoResult['success'] == true) {
+        setState(() {
+          _userInfo = userInfoResult['data'];
+        });
       }
 
       // Load user courses
       final courses = await ApiService.instance.getUserCourses(widget.token);
-      _userCourses = courses;
-
+      if(mounted) {
+        setState(() {
+          _userCourses = courses;
+        });
+      }
+      
       _loadDashboardItems();
+
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error loading dashboard: ${e.toString()}'),
-            backgroundColor: AppTheme.secondary1,
+            backgroundColor: AppTheme.error,
           ),
         );
       }
@@ -106,7 +120,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         SnackBar(
           content:
               const Text("No recent courses found. Let's find one for you!"),
-          backgroundColor: AppTheme.secondary2,
+          backgroundColor: AppTheme.info,
         ),
       );
     }
@@ -201,6 +215,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('authToken');
     await prefs.remove('userInfo');
+    await DynamicAppTheme.clearThemeCache(); // Clear theme cache on logout
     if (mounted) {
       Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
     }
@@ -210,6 +225,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const Text('LMS Information'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
@@ -253,7 +269,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ),
               );
             },
-            child: const Text('Change Domain'),
+            child: Text('Change Domain', style: TextStyle(color: AppTheme.secondary1)),
           ),
         ],
       ),
@@ -298,7 +314,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
       appBar: AppBar(
         title: Text(_userInfo != null 
             ? 'Welcome, ${_userInfo!['firstname'] ?? 'User'}!'
-            : 'My Dashboard'),
+            : 'My Dashboard',
+            style: TextStyle(color: AppTheme.textPrimary),
+        ),
         automaticallyImplyLeading: false,
         backgroundColor: AppTheme.backgroundColor,
         elevation: 0,
@@ -318,7 +336,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ],
             ),
             child: IconButton(
-              icon: const Icon(Icons.info_outline, color: AppTheme.secondary1),
+              // UPDATED: Using IconService for dynamic icons
+              icon: Icon(IconService.instance.infoIcon, color: AppTheme.secondary1), // REMOVED: const
               onPressed: _showDomainInfo,
               tooltip: 'LMS Info',
             ),
@@ -338,7 +357,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ],
             ),
             child: IconButton(
-              icon: const Icon(Icons.logout, color: AppTheme.secondary1),
+              // UPDATED: Using IconService for dynamic icons
+              icon: Icon(IconService.instance.logoutIcon, color: AppTheme.secondary1), // REMOVED: const
               onPressed: _handleLogout,
               tooltip: 'Logout',
             ),
@@ -346,14 +366,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ],
       ),
       body: _isLoading
-          ? const Center(
+          ? Center( // REMOVED: const from Center
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   CircularProgressIndicator(
                     color: AppTheme.secondary1,
                   ),
-                  SizedBox(height: 16),
+                  const SizedBox(height: 16),
                   Text(
                     'Loading your dashboard...',
                     style: TextStyle(

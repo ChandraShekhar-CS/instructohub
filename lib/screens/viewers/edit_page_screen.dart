@@ -1,6 +1,7 @@
-// lib/screens/viewers/edit_page_screen.dart
 import 'package:flutter/material.dart';
-import '../../theme/app_theme.dart';
+import '../../services/icon_service.dart';
+import '../../theme/dynamic_app_theme.dart';
+typedef AppTheme = DynamicAppTheme;
 
 class EditPageScreen extends StatefulWidget {
   final String initialTitle;
@@ -27,7 +28,6 @@ class _EditPageScreenState extends State<EditPageScreen> {
   void initState() {
     super.initState();
     _titleController = TextEditingController(text: widget.initialTitle);
-    // Correctly initialize the content controller with the raw HTML content
     _contentController = TextEditingController(text: widget.initialContent);
   }
 
@@ -42,29 +42,28 @@ class _EditPageScreenState extends State<EditPageScreen> {
     if (_formKey.currentState!.validate()) {
       widget.onSave(
         _titleController.text,
-        _contentController.text, // In a real app, this would be HTML content from a rich text editor
+        _contentController.text,
       );
+      Navigator.pop(context); // Go back after saving
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.backgroundColor,
-      appBar: AppBar(
-        title: Text('Edit "${widget.initialTitle}"'),
-        backgroundColor: AppTheme.secondary2,
-        foregroundColor: AppTheme.offwhite,
+      backgroundColor: AppTheme.background,
+      appBar: AppTheme.buildDynamicAppBar(
+        title: 'Edit "${widget.initialTitle}"',
         actions: [
           IconButton(
-            icon: const Icon(Icons.save_alt_outlined),
+            icon: Icon(IconService.instance.getIcon('save')),
             onPressed: _handleSave,
             tooltip: 'Save Changes',
           ),
         ],
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
+        padding: EdgeInsets.all(AppTheme.spacingMd),
         child: Form(
           key: _formKey,
           child: Column(
@@ -72,14 +71,13 @@ class _EditPageScreenState extends State<EditPageScreen> {
             children: [
               Text(
                 'Page Title',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: AppTheme.fontSizeLg, color: AppTheme.textPrimary),
               ),
-              const SizedBox(height: 8),
+              SizedBox(height: AppTheme.spacingSm),
               TextFormField(
                 controller: _titleController,
                 decoration: const InputDecoration(
                   hintText: 'Enter the page title',
-                  border: OutlineInputBorder(),
                 ),
                 validator: (value) {
                   if (value == null || value.trim().isEmpty) {
@@ -88,17 +86,16 @@ class _EditPageScreenState extends State<EditPageScreen> {
                   return null;
                 },
               ),
-              const SizedBox(height: 24),
+              SizedBox(height: AppTheme.spacingLg),
               Text(
                 'Page Content',
-                 style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: AppTheme.fontSizeLg, color: AppTheme.textPrimary),
               ),
-              const SizedBox(height: 8),
+              SizedBox(height: AppTheme.spacingSm),
               TextFormField(
                 controller: _contentController,
                 decoration: const InputDecoration(
-                  hintText: 'Enter the page content',
-                  border: OutlineInputBorder(),
+                  hintText: 'Enter the page content (HTML)',
                   alignLabelWithHint: true,
                 ),
                  maxLines: 15,
@@ -110,15 +107,12 @@ class _EditPageScreenState extends State<EditPageScreen> {
                   return null;
                 },
               ),
-               const SizedBox(height: 24),
-               ElevatedButton.icon(
+              SizedBox(height: AppTheme.spacingLg),
+              AppTheme.buildActionButton(
                 onPressed: _handleSave,
-                icon: const Icon(Icons.save),
-                label: const Text('Save Changes'),
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 16)
-                ),
-               )
+                iconKey: 'save',
+                text: 'Save Changes',
+              )
             ],
           ),
         ),

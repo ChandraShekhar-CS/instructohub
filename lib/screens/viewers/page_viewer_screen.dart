@@ -1,10 +1,10 @@
-// lib/screens/viewers/page_viewer_screen.dart
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
+import '../../theme/dynamic_app_theme.dart';
 
-/// Renders raw HTML content responsively in a full-screen WebView on mobile,
-/// with a native AppBar and optional intro section.
+typedef AppTheme = DynamicAppTheme;
+
 class PageViewerScreen extends StatefulWidget {
   final dynamic module;
   final dynamic foundContent;
@@ -38,6 +38,10 @@ class _PageViewerScreenState extends State<PageViewerScreen> {
     final source = widget.foundContent ?? widget.module;
     _pageTitle = source['name'] as String? ?? 'Page';
     _pageIntro = source['intro'] as String? ?? '';
+    
+    final String contentBackgroundColor = AppTheme.background.value.toRadixString(16).substring(2);
+    final String contentTextColor = AppTheme.textPrimary.value.toRadixString(16).substring(2);
+    final String linkColor = AppTheme.secondary1.value.toRadixString(16).substring(2);
 
     final rawHtml = (source['content'] as String?)
             ?.replaceAll(
@@ -46,29 +50,42 @@ class _PageViewerScreenState extends State<PageViewerScreen> {
             )
             ?? '<p>No content available.</p>';
 
-    // Added responsive CSS for images, tables, pre/code, and embeddings (iframe, video, etc.)
     final fullHtml = '''
-<!DOCTYPE html>
-<html>
-  <head>
-    <meta name="viewport" content="width=device-width, initial-scale=0.5">
-    <style>
-      body { margin:0; padding:0; }
-      img, table { max-width: 100%; height: auto; }
-      pre, code { white-space: pre-wrap; word-wrap: break-word; }
-      iframe, embed, video, object {
-        display: block;
-        max-width: 100% !important;
-        height: auto !important;
-        margin: 0 auto;
-      }
-    </style>
-  </head>
-  <body>
-    $rawHtml
-  </body>
-</html>
-''';
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <style>
+          :root {
+            --bg-color: #${contentBackgroundColor};
+            --text-color: #${contentTextColor};
+            --link-color: #${linkColor};
+          }
+          body { 
+            margin: 16px; 
+            padding: 0; 
+            font-family: sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            line-height: 1.6;
+          }
+          img, table { max-width: 100%; height: auto; }
+          pre, code { white-space: pre-wrap; word-wrap: break-word; }
+          a { color: var(--link-color); text-decoration: none; }
+          iframe, embed, video, object {
+            display: block;
+            max-width: 100% !important;
+            height: auto !important;
+            margin: 0 auto;
+            border-radius: 12px;
+          }
+        </style>
+      </head>
+      <body>
+        $rawHtml
+      </body>
+    </html>
+    ''';
 
     final uri = Uri.dataFromString(
       fullHtml,
@@ -76,25 +93,20 @@ class _PageViewerScreenState extends State<PageViewerScreen> {
       encoding: Encoding.getByName('utf-8'),
     );
 
-    _controller.loadRequest(Uri.parse(uri.toString()));
+    _controller.loadRequest(uri);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text(_pageTitle, overflow: TextOverflow.ellipsis),
-        backgroundColor: Theme.of(context).primaryColor,
-      ),
+      backgroundColor: AppTheme.background,
+      appBar: AppTheme.buildDynamicAppBar(title: _pageTitle),
       body: Column(
         children: [
           if (_pageIntro.isNotEmpty) ...[
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-              child: Text(
-                _pageIntro,
-                style: Theme.of(context).textTheme.bodyMedium,
-              ),
+              padding: EdgeInsets.symmetric(horizontal: AppTheme.spacingMd, vertical: AppTheme.spacingSm),
+              child: Text(_pageIntro, style: TextStyle(color: AppTheme.textSecondary)),
             ),
             const Divider(height: 1),
           ],

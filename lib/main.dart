@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 import 'splash/splash_screen.dart';
 import 'screens/login/login_screen.dart';
 import 'screens/domain_config_screen.dart';
-import 'theme/app_theme.dart';
+import 'theme/dynamic_app_theme.dart';
+
+typedef AppTheme = DynamicAppTheme;
+
 
 void main() {
   runApp(const MyApp());

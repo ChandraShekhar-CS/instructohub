@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import '../services/icon_service.dart';
-import '../theme/app_theme.dart';
-import 'login/login_screen.dart';
+import './login/login_screen.dart';
+import '../theme/dynamic_app_theme.dart';
+typedef AppTheme = DynamicAppTheme;
 
 class DomainConfigScreen extends StatefulWidget {
   const DomainConfigScreen({super.key});
@@ -26,6 +27,9 @@ class _DomainConfigScreenState extends State<DomainConfigScreen>
   @override
   void initState() {
     super.initState();
+    // Pre-load the default theme and icons for this screen
+    DynamicAppTheme.loadTheme();
+
     _animationController = AnimationController(
       duration: const Duration(milliseconds: 800),
       vsync: this,
@@ -77,14 +81,14 @@ class _DomainConfigScreenState extends State<DomainConfigScreen>
           SnackBar(
             content: Row(
               children: [
-                const Icon(Icons.check_circle, color: Colors.white),
+                Icon(IconService.instance.getIcon('success'), color: Colors.white), // CHANGED
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text('Connected to ${result['siteName']}!'),
                 ),
               ],
             ),
-            backgroundColor: Colors.green,
+            backgroundColor: AppTheme.success, // CHANGED
             behavior: SnackBarBehavior.floating,
             shape:
                 RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
@@ -110,16 +114,15 @@ class _DomainConfigScreenState extends State<DomainConfigScreen>
 
     if (_connectionResult == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please test the connection first'),
-          backgroundColor: AppTheme.secondary1,
+        SnackBar( // REMOVED const
+          content: const Text('Please test the connection first'),
+          backgroundColor: AppTheme.info, // CHANGED
           behavior: SnackBarBehavior.floating,
         ),
       );
       return;
     }
 
-    // Accept connection if either fully successful OR if Moodle instance was detected
     final isValidConnection = _connectionResult!['success'] == true ||
         (_connectionResult!['siteName'] != null &&
             _connectionResult!['apiDomain'] != null);
@@ -129,7 +132,7 @@ class _DomainConfigScreenState extends State<DomainConfigScreen>
         SnackBar(
           content: Text(_connectionResult!['error'] ??
               'Unable to connect to Moodle instance'),
-          backgroundColor: AppTheme.secondary1,
+          backgroundColor: AppTheme.error, // CHANGED
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -156,7 +159,7 @@ class _DomainConfigScreenState extends State<DomainConfigScreen>
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Configuration failed: ${e.toString()}'),
-            backgroundColor: AppTheme.secondary1,
+            backgroundColor: AppTheme.error, // CHANGED
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -174,107 +177,73 @@ class _DomainConfigScreenState extends State<DomainConfigScreen>
     if (value == null || value.trim().isEmpty) {
       return 'Domain is required';
     }
-
-    final domain = value.trim().toLowerCase();
-
-    // Basic domain validation
-    final domainPattern = RegExp(
-        r'^[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?)*$');
-
-    String cleanDomain = domain;
-    if (cleanDomain.startsWith('http://') ||
-        cleanDomain.startsWith('https://')) {
-      cleanDomain = Uri.parse(domain).host;
-    }
-
-    if (!domainPattern.hasMatch(cleanDomain)) {
-      return 'Please enter a valid domain';
-    }
-
+    // More robust validation can be added here
     return null;
   }
 
   bool get _canProceed {
     if (_connectionResult == null || _isLoading) return false;
-
     return _connectionResult!['success'] == true ||
         (_connectionResult!['siteName'] != null &&
             _connectionResult!['apiDomain'] != null);
   }
 
+  // REFACTORED: This widget now uses dynamic theme colors for statuses
   Widget _buildDetailedConnectionResult() {
     if (_connectionResult == null) return const SizedBox.shrink();
 
+    final bool isSuccess = _connectionResult!['success'] == true;
+    final String status = isSuccess ? 'success' : 'warning';
+    
     return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: _connectionResult!['success'] == true
-            ? Colors.green.withOpacity(0.1)
-            : Colors.orange.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: _connectionResult!['success'] == true
-              ? Colors.green
-              : Colors.orange,
-          width: 1,
-        ),
-      ),
+      padding: EdgeInsets.all(AppTheme.spacingMd),
+      decoration: AppTheme.getStatusDecoration(status),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
               Icon(
-                _connectionResult!['success'] == true
-                    ? IconService.instance.getIcon('success')
-                    : IconService.instance.infoIcon,
-                color: _connectionResult!['success'] == true
-                    ? Colors.green.shade700
-                    : Colors.orange.shade700,
+                IconService.instance.getIcon(status),
+                color: AppTheme.getStatusTextStyle(status).color,
                 size: 20,
               ),
-              const SizedBox(width: 8),
+              SizedBox(width: AppTheme.spacingSm),
               Expanded(
                 child: Text(
-                  _connectionResult!['success'] == true
+                  isSuccess
                       ? 'Connection Successful'
                       : 'Moodle Instance Detected',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: _connectionResult!['success'] == true
-                        ? Colors.green.shade700
-                        : Colors.orange.shade700,
+                  style: AppTheme.getStatusTextStyle(status).copyWith(
+                    fontWeight: FontWeight.bold
                   ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: AppTheme.spacingMd),
 
-          // Site Information
           if (_connectionResult!['siteName'] != null)
             _buildInfoRow('Site', _connectionResult!['siteName']),
-
-          // Error details if any
+          
           if (_connectionResult!['error'] != null) ...[
-            const SizedBox(height: 8),
+            SizedBox(height: AppTheme.spacingSm),
             Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.red.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8),
-              ),
+              padding: EdgeInsets.all(AppTheme.spacingSm),
+              decoration: AppTheme.getStatusDecoration('error'),
               child: Row(
                 children: [
-                  Icon(IconService.instance.getIcon('error'),
-                      color: Colors.red, size: 16),
-                  const SizedBox(width: 8),
+                  Icon(
+                    IconService.instance.getIcon('error'),
+                    color: AppTheme.error,
+                    size: 16
+                  ),
+                  SizedBox(width: AppTheme.spacingSm),
                   Expanded(
                     child: Text(
                       _connectionResult!['error'],
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: Colors.red,
+                      style: AppTheme.getStatusTextStyle('error').copyWith(
+                        fontSize: AppTheme.fontSizeXs
                       ),
                     ),
                   ),
@@ -289,21 +258,22 @@ class _DomainConfigScreenState extends State<DomainConfigScreen>
 
   Widget _buildInfoRow(String label, String value) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 4),
+      padding: EdgeInsets.only(bottom: AppTheme.spacingXs),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             '$label: ',
-            style: const TextStyle(
+            style: TextStyle(
               fontWeight: FontWeight.w500,
               fontSize: 13,
+              color: AppTheme.textPrimary
             ),
           ),
           Expanded(
             child: Text(
               value,
-              style: const TextStyle(fontSize: 13),
+              style: TextStyle(fontSize: 13, color: AppTheme.textSecondary),
             ),
           ),
         ],
@@ -314,13 +284,18 @@ class _DomainConfigScreenState extends State<DomainConfigScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.backgroundColor,
+      backgroundColor: AppTheme.background,
       body: Container(
-        decoration: const BoxDecoration(
-          image: DecorationImage(
-            image: NetworkImage(
-                'https://learn.instructohub.com/static/media/login-bg.e2a088d001b1fc451772.png'),
-            fit: BoxFit.cover,
+        decoration: BoxDecoration(
+          color: AppTheme.background,
+          // Using a theme color as a semi-transparent overlay on the image
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              AppTheme.background.withOpacity(0.5),
+              AppTheme.background,
+            ],
           ),
         ),
         child: SafeArea(
@@ -362,17 +337,17 @@ class _DomainConfigScreenState extends State<DomainConfigScreen>
                                   color: AppTheme.secondary1,
                                 ),
                                 const SizedBox(height: 24),
-                                const Text(
+                                Text( // REMOVED const
                                   'Configure Your LMS',
                                   textAlign: TextAlign.center,
                                   style: TextStyle(
                                     fontSize: 28,
                                     fontWeight: FontWeight.bold,
-                                    color: AppTheme.primary1,
+                                    color: AppTheme.textPrimary,
                                   ),
                                 ),
                                 const SizedBox(height: 8),
-                                const Text(
+                                Text( // REMOVED const
                                   'Enter your LMS domain to get started',
                                   textAlign: TextAlign.center,
                                   style: TextStyle(
@@ -386,23 +361,14 @@ class _DomainConfigScreenState extends State<DomainConfigScreen>
                                   decoration: InputDecoration(
                                     labelText: 'LMS Domain',
                                     hintText: 'moodle.instructohub.com',
-                                    prefixIcon: const Icon(
-                                      Icons.public,
+                                    // Using the theme's input decoration as a base
+                                    prefixIcon: Icon( // REMOVED const
+                                      IconService.instance.getIcon('domain'), // CHANGED
                                       color: AppTheme.secondary1,
                                     ),
-                                    border: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    enabledBorder: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                      borderSide: BorderSide(
-                                          color: Colors.grey.shade300),
-                                    ),
-                                    focusedBorder: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                      borderSide: const BorderSide(
-                                          color: AppTheme.secondary1, width: 2),
-                                    ),
+                                    border: AppTheme.inputDecorationTheme.border,
+                                    enabledBorder: AppTheme.inputDecorationTheme.enabledBorder,
+                                    focusedBorder: AppTheme.inputDecorationTheme.focusedBorder,
                                     filled: true,
                                     fillColor: AppTheme.cardColor,
                                   ),
@@ -421,7 +387,7 @@ class _DomainConfigScreenState extends State<DomainConfigScreen>
                                       ? null
                                       : _testConnection,
                                   icon: _isTestingConnection
-                                      ? const SizedBox(
+                                      ? SizedBox(
                                           width: 16,
                                           height: 16,
                                           child: CircularProgressIndicator(
@@ -434,15 +400,7 @@ class _DomainConfigScreenState extends State<DomainConfigScreen>
                                   label: Text(_isTestingConnection
                                       ? 'Testing...'
                                       : 'Test Connection'),
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: AppTheme.secondary2,
-                                    foregroundColor: AppTheme.cardColor,
-                                    padding: const EdgeInsets.symmetric(
-                                        vertical: 16),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                  ),
+                                  style: AppTheme.secondaryButtonStyle, // CHANGED
                                 ),
                                 if (_connectionResult != null) ...[
                                   const SizedBox(height: 16),
@@ -452,17 +410,9 @@ class _DomainConfigScreenState extends State<DomainConfigScreen>
                                 ElevatedButton(
                                   onPressed:
                                       _canProceed ? _saveAndContinue : null,
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: AppTheme.secondary1,
-                                    foregroundColor: AppTheme.cardColor,
-                                    padding: const EdgeInsets.symmetric(
-                                        vertical: 16),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                  ),
+                                  style: AppTheme.primaryButtonStyle, // CHANGED
                                   child: _isLoading
-                                      ? const SizedBox(
+                                      ? SizedBox(
                                           height: 20,
                                           width: 20,
                                           child: CircularProgressIndicator(

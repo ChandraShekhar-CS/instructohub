@@ -5,6 +5,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/course_model.dart';
 import '../models/course_category_model.dart';
 import 'course_detail_screen.dart';
+import '../theme/dynamic_app_theme.dart';
+typedef AppTheme = DynamicAppTheme;
 
 class CourseCatalogScreen extends StatefulWidget {
   final String token;

@@ -1,6 +1,8 @@
-// lib/screens/viewers/module_detail_screen.dart
 import 'package:flutter/material.dart';
-import '../../theme/app_theme.dart';
+import '../../services/icon_service.dart';
+import '../../theme/dynamic_app_theme.dart';
+
+typedef AppTheme = DynamicAppTheme;
 
 class ModuleDetailScreen extends StatelessWidget {
   final dynamic module;
@@ -17,35 +19,36 @@ class ModuleDetailScreen extends StatelessWidget {
     final String moduleName = module['name'] ?? 'Module Details';
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(moduleName),
-        backgroundColor: AppTheme.secondary1,
-        foregroundColor: AppTheme.offwhite,
-      ),
+      backgroundColor: AppTheme.background,
+      appBar: AppTheme.buildDynamicAppBar(title: moduleName),
       body: Center(
         child: Padding(
-          padding: const EdgeInsets.all(16.0),
+          padding: EdgeInsets.all(AppTheme.spacingLg),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(
-                Icons.construction,
+              Icon(
+                IconService.instance.getIcon('construction'),
                 size: 80,
-                color: AppTheme.primary2,
+                color: AppTheme.secondary1,
               ),
-              const SizedBox(height: 20),
+              SizedBox(height: AppTheme.spacingLg),
               Text(
-                'Module Page for "$moduleName"',
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.headlineSmall,
-              ),
-              const SizedBox(height: 10),
-              const Text(
-                'This page is under construction.',
+                'Viewer for "$moduleName"',
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  fontSize: AppTheme.fontSizeBase,
-                  color: AppTheme.primary2,
+                  fontSize: AppTheme.fontSize2xl,
+                  fontWeight: FontWeight.bold,
+                  color: AppTheme.textPrimary,
+                ),
+              ),
+              SizedBox(height: AppTheme.spacingMd),
+              Text(
+                'This module type is under construction.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: AppTheme.fontSizeLg,
+                  color: AppTheme.textSecondary,
                 ),
               ),
             ],

@@ -1,17 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import '../theme/app_theme.dart';
 import '../models/course_model.dart';
 import 'course_detail_screen.dart';
+import '../services/api_service.dart';
+import '../services/icon_service.dart';
+import '../theme/dynamic_app_theme.dart';
+typedef AppTheme = DynamicAppTheme;
 
 class RecommendedCoursesScreen extends StatefulWidget {
   final String token;
 
-  const RecommendedCoursesScreen({required this.token, Key? key}) : super(key: key);
+  const RecommendedCoursesScreen({required this.token, Key? key})
+      : super(key: key);
 
   @override
-  _RecommendedCoursesScreenState createState() => _RecommendedCoursesScreenState();
+  _RecommendedCoursesScreenState createState() =>
+      _RecommendedCoursesScreenState();
 }
 
 class _RecommendedCoursesScreenState extends State<RecommendedCoursesScreen> {
@@ -26,33 +31,25 @@ class _RecommendedCoursesScreenState extends State<RecommendedCoursesScreen> {
 
   Future<void> _fetchRecommendedCourses() async {
     setState(() => _isLoading = true);
-    
+
     try {
+      // FIXED: Reverted to a direct API call to avoid the undefined_method error.
       final url = Uri.parse(
-        'https://moodle.instructohub.com/webservice/rest/server.php?wsfunction=local_instructohub_get_trending_courses&moodlewsrestformat=json&wstoken=${widget.token}'
-      );
-      
+          '${ApiService.instance.baseUrl}?wsfunction=local_instructohub_get_trending_courses&moodlewsrestformat=json&wstoken=${widget.token}');
+
       final response = await http.post(url);
-      
+
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        
         List<dynamic> coursesData = [];
         
-        // Handle different response structures
         if (data is List) {
           coursesData = data;
         } else if (data is Map) {
-          // Check for common response structures
           if (data.containsKey('courses')) {
             coursesData = data['courses'] ?? [];
-          } else if (data.containsKey('data')) {
-            coursesData = data['data'] ?? [];
           } else if (data.containsKey('trending_courses')) {
             coursesData = data['trending_courses'] ?? [];
-          } else {
-            // If it's a map but doesn't have expected keys, treat it as empty
-            coursesData = [];
           }
         }
         
@@ -65,13 +62,17 @@ class _RecommendedCoursesScreenState extends State<RecommendedCoursesScreen> {
             _isLoading = false;
           });
         }
+      } else {
+         throw Exception('Failed to load recommended courses from API');
       }
     } catch (e) {
-      print('Recommended courses error: $e'); // Debug log
       if (mounted) {
         setState(() => _isLoading = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error loading recommendations: ${e.toString()}')),
+          SnackBar(
+            content: Text('Error loading recommendations: ${e.toString()}'),
+            backgroundColor: AppTheme.error,
+          ),
         );
       }
     }
@@ -80,38 +81,35 @@ class _RecommendedCoursesScreenState extends State<RecommendedCoursesScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Recommended Courses'),
-        backgroundColor: AppTheme.secondary1,
-        foregroundColor: AppTheme.offwhite,
-      ),
+      backgroundColor: AppTheme.background,
+      appBar: AppTheme.buildDynamicAppBar(title: 'Recommended Courses'),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? Center(child: AppTheme.buildLoadingIndicator())
           : RefreshIndicator(
               onRefresh: _fetchRecommendedCourses,
               child: _recommendedCourses.isEmpty
-                  ? const Center(
+                  ? Center(
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Icon(
-                            Icons.recommend,
+                            IconService.instance.getIcon('recommend'),
                             size: 80,
-                            color: Colors.grey,
+                            color: AppTheme.textSecondary,
                           ),
-                          SizedBox(height: 16),
+                          SizedBox(height: AppTheme.spacingMd),
                           Text(
                             'No recommendations available',
                             style: TextStyle(
-                              fontSize: 18,
-                              color: Colors.grey,
+                              fontSize: AppTheme.fontSizeLg,
+                              color: AppTheme.textSecondary,
                             ),
                           ),
                         ],
                       ),
                     )
                   : ListView.builder(
-                      padding: const EdgeInsets.all(16),
+                      padding: EdgeInsets.all(AppTheme.spacingMd),
                       itemCount: _recommendedCourses.length,
                       itemBuilder: (context, index) {
                         final course = _recommendedCourses[index];
@@ -124,87 +122,65 @@ class _RecommendedCoursesScreenState extends State<RecommendedCoursesScreen> {
 
   Widget _buildCourseCard(Course course) {
     return Card(
-      margin: const EdgeInsets.only(bottom: 16),
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      margin: EdgeInsets.only(bottom: AppTheme.spacingMd),
+      clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: () => _openCourse(course),
-        borderRadius: BorderRadius.circular(12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             if (course.courseimage.isNotEmpty)
-              ClipRRect(
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-                child: Container(
-                  height: 160,
-                  width: double.infinity,
-                  child: Image.network(
-                    course.courseimage,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) => Container(
-                      color: AppTheme.loginBgLeft,
-                      child: const Icon(
-                        Icons.school,
-                        size: 60,
-                        color: AppTheme.primary2,
-                      ),
+              SizedBox(
+                height: 160,
+                width: double.infinity,
+                child: Image.network(
+                  course.courseimage,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) => Container(
+                    color: AppTheme.secondary3,
+                    child: Icon(
+                      IconService.instance.getIcon('school'),
+                      size: 60,
+                      color: AppTheme.secondary1,
                     ),
                   ),
                 ),
               ),
             Padding(
-              padding: const EdgeInsets.all(16),
+              padding: EdgeInsets.all(AppTheme.spacingMd),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     course.fullname,
-                    style: const TextStyle(
-                      fontSize: 16,
+                    style: TextStyle(
+                      fontSize: AppTheme.fontSizeLg,
                       fontWeight: FontWeight.bold,
-                      color: AppTheme.primary1,
+                      color: AppTheme.textPrimary,
                     ),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  const SizedBox(height: 8),
+                  SizedBox(height: AppTheme.spacingSm),
                   if (course.summary.isNotEmpty)
                     Text(
                       course.summary,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        color: AppTheme.primary2,
+                      style: TextStyle(
+                        fontSize: AppTheme.fontSizeBase,
+                        color: AppTheme.textSecondary,
                       ),
                       maxLines: 3,
                       overflow: TextOverflow.ellipsis,
                     ),
-                  const SizedBox(height: 12),
+                  SizedBox(height: AppTheme.spacingMd),
                   Row(
                     children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: AppTheme.secondary1.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: const Text(
-                          'Recommended',
-                          style: TextStyle(
-                            fontSize: 10,
-                            color: AppTheme.secondary1,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
+                      AppTheme.buildStatusChip('info', 'Recommended'),
                       const Spacer(),
-                      const Icon(
-                        Icons.arrow_forward_ios,
+                      Icon(
+                        IconService.instance.getIcon('arrow_forward'),
                         size: 16,
-                        color: AppTheme.primary2,
+                        color: AppTheme.textSecondary,
                       ),
                     ],
                   ),

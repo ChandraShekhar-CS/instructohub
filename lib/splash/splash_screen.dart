@@ -5,7 +5,10 @@ import '../screens/dashboard_screen.dart';
 import '../screens/domain_config_screen.dart';
 import '../services/api_service.dart';
 import '../services/icon_service.dart';
-import '../theme/app_theme.dart';
+import '../theme/dynamic_app_theme.dart';
+
+typedef AppTheme = DynamicAppTheme;
+
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -55,18 +58,16 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
   }
 
   Future<void> _initializeApp() async {
+    // Load default theme settings first to style the splash screen itself
+    await DynamicAppTheme.loadTheme();
     await Future.delayed(const Duration(seconds: 3));
     
     if (!mounted) return;
 
     try {
-      // First, try to load API configuration
       final isConfigured = await ApiService.instance.loadConfiguration();
       
       if (!isConfigured) {
-        // Load default icons before going to domain config
-        await IconService.instance.loadIcons();
-        
         // No domain configured, go to domain config screen
         Navigator.pushReplacement(
           context,
@@ -77,15 +78,13 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
         return;
       }
 
-      // Domain is configured, check for existing auth token
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('authToken');
       
       if (token != null && token.isNotEmpty) {
-        // Load icons with token for customization
-        await IconService.instance.loadIcons(token: token);
+        // Load theme/icons with token for customization
+        await DynamicAppTheme.loadTheme(token: token);
         
-        // Verify the token is still valid
         final verificationResult = await ApiService.instance.verifyToken(token);
         
         if (verificationResult['success'] == true) {
@@ -96,7 +95,6 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
             ),
           );
         } else {
-          // Token is invalid, remove it and go to login
           await prefs.remove('authToken');
           Navigator.pushReplacement(
             context,
@@ -106,9 +104,6 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
           );
         }
       } else {
-        // Load default icons since no token available
-        await IconService.instance.loadIcons();
-        
         // No token, go to login
         Navigator.pushReplacement(
           context,
@@ -118,8 +113,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
         );
       }
     } catch (e) {
-      // Error occurred, load default icons and go to domain config to reconfigure
-      await IconService.instance.loadIcons();
+      // On any error, go to domain config to be safe
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
@@ -132,13 +126,16 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.backgroundColor,
+      backgroundColor: AppTheme.background,
       body: Container(
-        decoration: const BoxDecoration(
-          image: DecorationImage(
-            image: NetworkImage('https://learn.instructohub.com/static/media/login-bg.e2a088d001b1fc451772.png'),
-            fit: BoxFit.cover,
-          ),
+        decoration: BoxDecoration( // REMOVED const
+          gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                AppTheme.secondary2.withOpacity(0.8),
+                AppTheme.secondary1.withOpacity(0.9),
+              ]),
         ),
         child: Center(
           child: AnimatedBuilder(
@@ -177,28 +174,28 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                                   height: 80,
                                   width: 200,
                                   decoration: BoxDecoration(
-                                    color: AppTheme.secondary1,
+                                    color: AppTheme.secondary3,
                                     borderRadius: BorderRadius.circular(12),
                                   ),
-                                  child: const Icon(
-                                    Icons.school,
-                                    color: AppTheme.cardColor,
+                                  child: Icon( // REMOVED const
+                                    IconService.instance.getIcon('school'), // CHANGED
+                                    color: AppTheme.secondary1, // CHANGED
                                     size: 40,
                                   ),
                                 );
                               },
                             ),
                             const SizedBox(height: 24),
-                            const Text(
+                            Text( // REMOVED const
                               'InstructoHub',
                               style: TextStyle(
                                 fontSize: 28,
                                 fontWeight: FontWeight.bold,
-                                color: AppTheme.primary1,
+                                color: AppTheme.textPrimary, // CHANGED
                               ),
                             ),
                             const SizedBox(height: 8),
-                            const Text(
+                            Text( // REMOVED const
                               'Experience the future of education',
                               style: TextStyle(
                                 fontSize: 16,
@@ -209,12 +206,12 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                         ),
                       ),
                       const SizedBox(height: 40),
-                      const CircularProgressIndicator(
-                        color: AppTheme.secondary1,
+                      CircularProgressIndicator( // REMOVED const
+                        color: AppTheme.cardColor, // CHANGED
                         strokeWidth: 3,
                       ),
                       const SizedBox(height: 16),
-                      const Text(
+                      Text( // REMOVED const
                         'Initializing...',
                         style: TextStyle(
                           color: AppTheme.cardColor,
