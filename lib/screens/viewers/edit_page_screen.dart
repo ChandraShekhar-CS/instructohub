@@ -44,7 +44,7 @@ class _EditPageScreenState extends State<EditPageScreen> {
         _titleController.text,
         _contentController.text,
       );
-      Navigator.pop(context); // Go back after saving
+      Navigator.pop(context); 
     }
   }
 

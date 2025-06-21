@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import '../dashboard_screen.dart';
-import '../domain_config_screen.dart';
-import '../../services/api_service.dart';
-import '../../services/icon_service.dart'; // Assuming this is the correct path for icon_service.dart
-import '../../theme/dynamic_app_theme.dart';
+import 'package:InstructoHub/screens/dashboard_screen.dart';
+import 'package:InstructoHub/screens/domain_config_screen.dart';
+import 'package:InstructoHub/services/api_service.dart';
+import 'package:InstructoHub/services/icon_service.dart';
+import 'package:InstructoHub/theme/dynamic_app_theme.dart';
 typedef AppTheme = DynamicAppTheme;
 
 class LoginScreen extends StatefulWidget {
@@ -55,7 +55,6 @@ class _LoginScreenState extends State<LoginScreen> {
       return;
     }
     
-    // Load icons and then fetch branding
     await IconService.instance.loadIcons();
     _fetchBrandAssets();
   }
@@ -66,26 +65,21 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     try {
-      // Try to get site info using a basic webservice call
-      // This will likely fail but might give us some site information
       final url = '${ApiService.instance.baseUrl}?wsfunction=core_webservice_get_site_info&moodlewsrestformat=json';
       final response = await http.get(Uri.parse(url));
 
       if (mounted && response.statusCode == 200) {
         final result = json.decode(response.body);
         
-        // Even if there's an error, try to extract site name
         if (result != null && result is Map) {
           setState(() {
             _siteName = result['sitename'] ?? 'LMS Portal';
-            // Don't try to get logo without proper token
             _logoUrl = 'https://static.instructohub.com/staticfiles/assets/images/website/Instructo_hub_logo.png';
           });
           return;
         }
       }
       
-      // Fallback if API call fails
       if (mounted) {
         setState(() {
           _logoUrl = 'https://static.instructohub.com/staticfiles/assets/images/website/Instructo_hub_logo.png';
@@ -131,10 +125,9 @@ class _LoginScreenState extends State<LoginScreen> {
               await prefs.remove('authToken');
             }
 
-            // Fetch and save user info
             final userInfoResult = await ApiService.instance.getUserInfo(token);
             if (userInfoResult['success'] == true) {
-              await prefs.setString('userInfo', userInfoResult['data'].toString());
+              await prefs.setString('userInfo', json.encode(userInfoResult['data']));
             }
 
             Navigator.pushReplacement(
@@ -147,7 +140,7 @@ class _LoginScreenState extends State<LoginScreen> {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text(loginResult['error'] ?? 'Login failed'),
-                backgroundColor: AppTheme.secondary1,
+                backgroundColor: AppTheme.error,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                 behavior: SnackBarBehavior.floating,
               ),
@@ -159,7 +152,7 @@ class _LoginScreenState extends State<LoginScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text('An error occurred: ${e.toString()}'),
-              backgroundColor: AppTheme.secondary1,
+              backgroundColor: AppTheme.error,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
               behavior: SnackBarBehavior.floating,
             ),
@@ -260,7 +253,7 @@ class _LoginScreenState extends State<LoginScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text( // <-- REMOVED const
+            child: Text(
               'Cancel',
               style: TextStyle(color: AppTheme.textSecondary),
             ),
@@ -349,7 +342,7 @@ class _LoginScreenState extends State<LoginScreen> {
             children: [
               Icon(IconService.instance.schoolIcon, color: AppTheme.secondary1, size: 24),
               const SizedBox(width: 8),
-              Text( // <-- REMOVED const
+              Text(
                 'LMS',
                 style: TextStyle(
                   color: AppTheme.secondary1,
@@ -367,9 +360,9 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.backgroundColor,
+      backgroundColor: AppTheme.background,
       body: Container(
-        decoration: BoxDecoration( // <-- Can't be const because of AppTheme colors
+        decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
@@ -382,13 +375,11 @@ class _LoginScreenState extends State<LoginScreen> {
         child: SafeArea(
           child: Column(
             children: [
-              // Top bar with logo and domain settings
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    // Logo
                     Expanded(
                       child: Container(
                         height: 50,
@@ -396,7 +387,6 @@ class _LoginScreenState extends State<LoginScreen> {
                         child: _buildNetworkImage(_logoUrl, height: 50, width: 150),
                       ),
                     ),
-                    // Domain settings button
                     Container(
                       decoration: BoxDecoration(
                         color: AppTheme.cardColor,
@@ -424,7 +414,6 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
               ),
               
-              // Site name if available
               if (_isLoadingBranding) ...[
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -458,7 +447,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                         child: Text(
                           _siteName!,
-                          style: TextStyle( // <-- Can't be const because of AppTheme color
+                          style: TextStyle(
                             fontSize: AppTheme.fontSizeSm,
                             fontWeight: FontWeight.w600,
                             color: AppTheme.secondary1,
@@ -471,7 +460,6 @@ class _LoginScreenState extends State<LoginScreen> {
                 const SizedBox(height: 24),
               ],
               
-              // Main login form
               Expanded(
                 child: Center(
                   child: SingleChildScrollView(
@@ -495,8 +483,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
-                            // Welcome text
-                            Text( // <-- REMOVED const
+                            Text(
                               'Welcome Back!',
                               textAlign: TextAlign.center,
                               style: TextStyle(
@@ -506,7 +493,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               ),
                             ),
                             const SizedBox(height: 8),
-                            Text( // <-- REMOVED const
+                            Text(
                               'Login to continue your learning journey',
                               textAlign: TextAlign.center,
                               style: TextStyle(
@@ -516,13 +503,11 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                             const SizedBox(height: 32),
                             
-                            // Login form
                             Form(
                               key: _formKey,
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.stretch,
                                 children: [
-                                  // Username field
                                   TextFormField(
                                     controller: _usernameController,
                                     decoration: InputDecoration(
@@ -575,7 +560,6 @@ class _LoginScreenState extends State<LoginScreen> {
                                   ),
                                   const SizedBox(height: 20),
                                   
-                                  // Password field
                                   TextFormField(
                                     controller: _passwordController,
                                     obscureText: _obscurePassword,
@@ -642,7 +626,6 @@ class _LoginScreenState extends State<LoginScreen> {
                                   ),
                                   const SizedBox(height: 24),
                                   
-                                  // Remember me and forgot password
                                   Row(
                                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                     children: [
@@ -678,7 +661,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                             ),
                                             const SizedBox(width: 8),
                                             Flexible(
-                                              child: Text( // <-- REMOVED const
+                                              child: Text(
                                                 'Stay signed in',
                                                 style: TextStyle(
                                                   color: AppTheme.primary1,
@@ -695,7 +678,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                         style: TextButton.styleFrom(
                                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                         ),
-                                        child: Text( // <-- REMOVED const
+                                        child: Text(
                                           'Forgot password?',
                                           style: TextStyle(
                                             color: AppTheme.loginTextLink,
@@ -708,13 +691,12 @@ class _LoginScreenState extends State<LoginScreen> {
                                   ),
                                   const SizedBox(height: 32),
                                   
-                                  // Login button - Fixed overflow issue
                                   Container(
                                     width: double.infinity,
                                     height: 56,
                                     decoration: BoxDecoration(
                                       borderRadius: BorderRadius.circular(16),
-                                      gradient: LinearGradient( // <-- Can't be const
+                                      gradient: LinearGradient(
                                         colors: [AppTheme.secondary1, AppTheme.secondary2],
                                       ),
                                       boxShadow: [
@@ -745,7 +727,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                                 strokeWidth: 2,
                                               ),
                                             )
-                                          : Text( // <-- REMOVED const
+                                          : Text(
                                               'LOGIN',
                                               style: TextStyle(
                                                 fontWeight: FontWeight.bold,
@@ -758,11 +740,10 @@ class _LoginScreenState extends State<LoginScreen> {
                                   ),
                                   const SizedBox(height: 24),
                                   
-                                  // Sign up link
                                   Row(
                                     mainAxisAlignment: MainAxisAlignment.center,
                                     children: [
-                                      Text( // <-- REMOVED const
+                                      Text(
                                         "New User? ",
                                         style: TextStyle(
                                           color: AppTheme.loginTextBody,
@@ -776,7 +757,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                           minimumSize: Size.zero,
                                           tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                                         ),
-                                        child: Text( // <-- REMOVED const
+                                        child: Text(
                                           'Create Account',
                                           style: TextStyle(
                                             color: AppTheme.secondary1,

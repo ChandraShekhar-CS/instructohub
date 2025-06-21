@@ -1,14 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../screens/login/login_screen.dart';
-import '../screens/dashboard_screen.dart';
-import '../screens/domain_config_screen.dart';
-import '../services/api_service.dart';
-import '../services/icon_service.dart';
-import '../theme/dynamic_app_theme.dart';
+import 'package:InstructoHub/screens/login/login_screen.dart';
+import 'package:InstructoHub/screens/dashboard_screen.dart';
+import 'package:InstructoHub/screens/domain_config_screen.dart';
+import 'package:InstructoHub/services/api_service.dart';
+import 'package:InstructoHub/services/icon_service.dart';
+import 'package:InstructoHub/theme/dynamic_app_theme.dart';
 
 typedef AppTheme = DynamicAppTheme;
-
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -58,7 +57,6 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
   }
 
   Future<void> _initializeApp() async {
-    // Load default theme settings first to style the splash screen itself
     await DynamicAppTheme.loadTheme();
     await Future.delayed(const Duration(seconds: 3));
     
@@ -68,7 +66,6 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
       final isConfigured = await ApiService.instance.loadConfiguration();
       
       if (!isConfigured) {
-        // No domain configured, go to domain config screen
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
@@ -82,7 +79,6 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
       final token = prefs.getString('authToken');
       
       if (token != null && token.isNotEmpty) {
-        // Load theme/icons with token for customization
         await DynamicAppTheme.loadTheme(token: token);
         
         final verificationResult = await ApiService.instance.verifyToken(token);
@@ -104,7 +100,6 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
           );
         }
       } else {
-        // No token, go to login
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
@@ -113,7 +108,6 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
         );
       }
     } catch (e) {
-      // On any error, go to domain config to be safe
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
@@ -128,7 +122,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     return Scaffold(
       backgroundColor: AppTheme.background,
       body: Container(
-        decoration: BoxDecoration( // REMOVED const
+        decoration: BoxDecoration(
           gradient: LinearGradient(
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
@@ -177,25 +171,25 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                                     color: AppTheme.secondary3,
                                     borderRadius: BorderRadius.circular(12),
                                   ),
-                                  child: Icon( // REMOVED const
-                                    IconService.instance.getIcon('school'), // CHANGED
-                                    color: AppTheme.secondary1, // CHANGED
+                                  child: Icon(
+                                    IconService.instance.getIcon('school'),
+                                    color: AppTheme.secondary1,
                                     size: 40,
                                   ),
                                 );
                               },
                             ),
                             const SizedBox(height: 24),
-                            Text( // REMOVED const
+                            Text(
                               'InstructoHub',
                               style: TextStyle(
                                 fontSize: 28,
                                 fontWeight: FontWeight.bold,
-                                color: AppTheme.textPrimary, // CHANGED
+                                color: AppTheme.textPrimary,
                               ),
                             ),
                             const SizedBox(height: 8),
-                            Text( // REMOVED const
+                            Text(
                               'Experience the future of education',
                               style: TextStyle(
                                 fontSize: 16,
@@ -206,12 +200,12 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                         ),
                       ),
                       const SizedBox(height: 40),
-                      CircularProgressIndicator( // REMOVED const
-                        color: AppTheme.cardColor, // CHANGED
+                      CircularProgressIndicator(
+                        color: AppTheme.cardColor,
                         strokeWidth: 3,
                       ),
                       const SizedBox(height: 16),
-                      Text( // REMOVED const
+                      Text(
                         'Initializing...',
                         style: TextStyle(
                           color: AppTheme.cardColor,
