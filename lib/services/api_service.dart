@@ -1,6 +1,3 @@
-// File: lib/services/api_service.dart (Corrected Version)
-// REPLACE your existing api_service.dart with this corrected version
-
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -11,6 +8,7 @@ class ApiService {
   String? _baseUrl;
   String? _loginUrl;
   String? _uploadUrl;
+  String? _tenantName;
 
   ApiService._internal();
 
@@ -24,105 +22,88 @@ class ApiService {
   String get baseUrl => _baseUrl ?? '';
   String get loginUrl => _loginUrl ?? '';
   String get uploadUrl => _uploadUrl ?? '';
+  String get tenantName => _tenantName ?? '';
 
-  // Enhanced configure method with configuration service integration
   Future<void> configure(String domain) async {
     try {
-      // Initialize configuration service
       await ConfigurationService.instance.initialize();
       
-      // Load configuration for this domain
-      await ConfigurationService.instance.loadForDomain(domain);
+      String tenantDomain = domain;
+      String? extractedTenant;
       
-      // Get configuration
+      if (domain.contains('.mdl.instructohub.com')) {
+        extractedTenant = domain.split('.mdl.instructohub.com')[0];
+        if (extractedTenant.startsWith('https://')) {
+          extractedTenant = extractedTenant.replaceFirst('https://', '');
+        }
+        if (extractedTenant.startsWith('http://')) {
+          extractedTenant = extractedTenant.replaceFirst('http://', '');
+        }
+        tenantDomain = 'https://$domain';
+      } else {
+        tenantDomain = 'https://$domain.mdl.instructohub.com';
+        extractedTenant = domain;
+      }
+
+      if (!tenantDomain.startsWith('http://') && !tenantDomain.startsWith('https://')) {
+        tenantDomain = 'https://$tenantDomain';
+      }
+
+      if (tenantDomain.endsWith('/')) {
+        tenantDomain = tenantDomain.substring(0, tenantDomain.length - 1);
+      }
+
+      _tenantName = extractedTenant;
+      await ConfigurationService.instance.loadForDomain(tenantDomain);
+      
       final config = ConfigurationService.instance.currentConfig;
       
       if (config != null && config.apiEndpoints['base']?.isNotEmpty == true) {
-        // Use configuration service endpoints
         _baseUrl = config.apiEndpoints['base'];
         _loginUrl = config.apiEndpoints['login'];
         _uploadUrl = config.apiEndpoints['upload'];
         
-        print('✅ Using dynamic configuration for $domain');
+        print('✅ Using dynamic configuration for tenant: $_tenantName');
       } else {
-        // Fallback to original logic (exactly your existing code)
-        await _configureWithOriginalLogic(domain);
-        print('⚠️ Using fallback configuration for $domain');
+        _baseUrl = '$tenantDomain/webservice/rest/server.php';
+        _loginUrl = '$tenantDomain/login/token.php';
+        _uploadUrl = '$tenantDomain/webservice/upload.php';
+        print('✅ Using standard configuration for tenant: $_tenantName');
       }
 
-      // Save to SharedPreferences (keep existing behavior)
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('api_domain', domain);
+      await prefs.setString('api_tenant', _tenantName ?? '');
+      await prefs.setString('api_domain', tenantDomain);
       await prefs.setString('api_base_url', _baseUrl!);
       await prefs.setString('api_login_url', _loginUrl!);
       await prefs.setString('api_upload_url', _uploadUrl!);
       
     } catch (e) {
-      print('Error in enhanced configure, falling back to original: $e');
-      // If anything fails, use original logic as fallback
-      await _configureWithOriginalLogic(domain);
+      print('Error in tenant configuration: $e');
+      rethrow;
     }
-  }
-
-  // Original configuration logic (unchanged - your existing code)
-  Future<void> _configureWithOriginalLogic(String domain) async {
-    if (!domain.startsWith('http://') && !domain.startsWith('https://')) {
-      domain = 'https://$domain';
-    }
-
-    if (domain.endsWith('/')) {
-      domain = domain.substring(0, domain.length - 1);
-    }
-
-    // Handle different domain patterns (your existing logic)
-    String apiDomain = domain;
-
-    // Convert frontend domains to API domains
-    if (domain.contains('learn.instructohub.com')) {
-      apiDomain = domain.replaceAll(
-          'learn.instructohub.com', 'moodle.instructohub.com');
-    } else if (domain.contains('//learn.')) {
-      apiDomain = domain.replaceAll('//learn.', '//moodle.');
-    } else if (domain.contains('//www.')) {
-      apiDomain = domain.replaceAll('//www.', '//moodle.');
-    } else if (!domain.contains('moodle') && !domain.contains('webservice')) {
-      final uri = Uri.parse(domain);
-      if (uri.host.split('.').length >= 2) {
-        final parts = uri.host.split('.');
-        parts[0] = 'moodle';
-        apiDomain = '${uri.scheme}://${parts.join('.')}';
-      }
-    }
-
-    _baseUrl = '$apiDomain/webservice/rest/server.php';
-    _loginUrl = '$apiDomain/login/token.php';
-    _uploadUrl = '$apiDomain/webservice/upload.php';
-
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('api_computed_domain', apiDomain);
   }
 
   Future<bool> loadConfiguration() async {
     try {
-      // Try to initialize configuration service
       await ConfigurationService.instance.initialize();
     } catch (e) {
       print('Configuration service initialization failed: $e');
     }
 
-    // Load from SharedPreferences (your existing logic)
     final prefs = await SharedPreferences.getInstance();
+    final tenant = prefs.getString('api_tenant');
     final domain = prefs.getString('api_domain');
     final baseUrl = prefs.getString('api_base_url');
     final loginUrl = prefs.getString('api_login_url');
     final uploadUrl = prefs.getString('api_upload_url');
 
-    if (domain != null && baseUrl != null && loginUrl != null && uploadUrl != null) {
+    if (tenant != null && domain != null && baseUrl != null && loginUrl != null && uploadUrl != null) {
+      _tenantName = tenant;
       _baseUrl = baseUrl;
       _loginUrl = loginUrl;
       _uploadUrl = uploadUrl;
       
-      // If we have a domain, try to load its configuration
       if (domain.isNotEmpty) {
         try {
           await ConfigurationService.instance.loadForDomain(domain);
@@ -144,11 +125,14 @@ class ApiService {
     }
 
     final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('api_tenant');
     await prefs.remove('api_domain');
     await prefs.remove('api_computed_domain');
     await prefs.remove('api_base_url');
     await prefs.remove('api_login_url');
     await prefs.remove('api_upload_url');
+    
+    _tenantName = null;
     _baseUrl = null;
     _loginUrl = null;
     _uploadUrl = null;
@@ -160,7 +144,6 @@ class ApiService {
     }
   }
 
-  // Enhanced API function name resolution
   String _getAPIFunction(String functionKey) {
     try {
       final config = ConfigurationService.instance.currentConfig;
@@ -174,7 +157,6 @@ class ApiService {
       print('Error getting API function from config: $e');
     }
     
-    // Fallback to mapping or original function name
     const fallbackMappings = {
       'get_site_info': 'core_webservice_get_site_info',
       'get_user_courses': 'core_enrol_get_users_courses',
@@ -188,7 +170,6 @@ class ApiService {
   Future<dynamic> _post(String functionKey, String token, Map<String, String> params, {String? customUrl}) async {
     _ensureConfigured();
 
-    // Get the actual API function name (dynamic or fallback)
     final wsfunction = _getAPIFunction(functionKey);
     final url = Uri.parse('${customUrl ?? _baseUrl}?wsfunction=$wsfunction&moodlewsrestformat=json&wstoken=$token');
 
@@ -236,8 +217,6 @@ class ApiService {
       rethrow;
     }
   }
-
-  // All your existing methods remain exactly the same
 
   Future<Map<String, dynamic>> login(String username, String password) async {
     _ensureConfigured();
@@ -437,7 +416,6 @@ class ApiService {
     return await _post('get_upcoming_events', token, {});
   }
 
-  // Enhanced getUserProgress method with dynamic function resolution
   Future<dynamic> getUserProgress(String token) async {
     try {
       return await _post('get_user_progress', token, {});
@@ -496,9 +474,34 @@ class ApiService {
 
   Future<Map<String, dynamic>> testConnection(String domain) async {
     try {
-      // Use configuration service for testing if available
       await ConfigurationService.instance.initialize();
-      await ConfigurationService.instance.loadForDomain(domain);
+      
+      String testDomain = domain;
+      String? tenantName;
+      
+      if (domain.contains('.mdl.instructohub.com')) {
+        tenantName = domain.split('.mdl.instructohub.com')[0];
+        if (tenantName.startsWith('https://')) {
+          tenantName = tenantName.replaceFirst('https://', '');
+        }
+        if (tenantName.startsWith('http://')) {
+          tenantName = tenantName.replaceFirst('http://', '');
+        }
+        testDomain = 'https://$domain';
+      } else {
+        testDomain = 'https://$domain.mdl.instructohub.com';
+        tenantName = domain;
+      }
+
+      if (!testDomain.startsWith('http://') && !testDomain.startsWith('https://')) {
+        testDomain = 'https://$testDomain';
+      }
+
+      if (testDomain.endsWith('/')) {
+        testDomain = testDomain.substring(0, testDomain.length - 1);
+      }
+
+      await ConfigurationService.instance.loadForDomain(testDomain);
       
       final config = ConfigurationService.instance.currentConfig;
       String testUrl;
@@ -506,21 +509,7 @@ class ApiService {
       if (config != null && config.apiEndpoints['base']?.isNotEmpty == true) {
         testUrl = '${config.apiEndpoints['base']}?wsfunction=${_getAPIFunction('get_site_info')}&moodlewsrestformat=json';
       } else {
-        // Fallback to original logic
-        if (!domain.startsWith('http://') && !domain.startsWith('https://')) {
-          domain = 'https://$domain';
-        }
-
-        if (domain.endsWith('/')) {
-          domain = domain.substring(0, domain.length - 1);
-        }
-
-        String apiDomain = domain;
-        if (domain.contains('learn.instructohub.com')) {
-          apiDomain = domain.replaceAll('learn.instructohub.com', 'moodle.instructohub.com');
-        }
-
-        testUrl = '$apiDomain/webservice/rest/server.php?wsfunction=core_webservice_get_site_info&moodlewsrestformat=json';
+        testUrl = '$testDomain/webservice/rest/server.php?wsfunction=core_webservice_get_site_info&moodlewsrestformat=json';
       }
 
       final response = await http.get(Uri.parse(testUrl));
@@ -531,11 +520,12 @@ class ApiService {
         if (data['message'] != null && data['message'].toString().contains('Invalid token')) {
           return {
             'success': true,
-            'siteName': 'LMS Instance',
-            'siteUrl': config?.apiEndpoints['api'] ?? domain,
+            'siteName': tenantName?.toUpperCase() ?? 'LMS Instance',
+            'siteUrl': config?.apiEndpoints['api'] ?? testDomain,
             'version': 'Connected',
             'originalDomain': domain,
-            'apiDomain': config?.apiEndpoints['api'] ?? domain,
+            'apiDomain': config?.apiEndpoints['api'] ?? testDomain,
+            'tenantName': tenantName,
             'message': 'Perfect! LMS API is working. The "Invalid token" error is expected during testing.',
           };
         }
@@ -543,11 +533,12 @@ class ApiService {
         if (data['errorcode'] != null || data['exception'] != null) {
           return {
             'success': true,
-            'siteName': 'LMS Instance',
-            'siteUrl': config?.apiEndpoints['api'] ?? domain,
+            'siteName': tenantName?.toUpperCase() ?? 'LMS Instance',
+            'siteUrl': config?.apiEndpoints['api'] ?? testDomain,
             'version': 'Connected',
             'originalDomain': domain,
-            'apiDomain': config?.apiEndpoints['api'] ?? domain,
+            'apiDomain': config?.apiEndpoints['api'] ?? testDomain,
+            'tenantName': tenantName,
             'message': 'LMS API detected and responding.',
           };
         }
@@ -556,24 +547,26 @@ class ApiService {
           return {
             'success': true,
             'siteName': data['sitename'],
-            'siteUrl': data['siteurl'] ?? config?.apiEndpoints['api'] ?? domain,
+            'siteUrl': data['siteurl'] ?? config?.apiEndpoints['api'] ?? testDomain,
             'version': data['release'] ?? 'LMS',
             'originalDomain': domain,
-            'apiDomain': config?.apiEndpoints['api'] ?? domain,
+            'apiDomain': config?.apiEndpoints['api'] ?? testDomain,
+            'tenantName': tenantName,
           };
         }
       }
 
       return {
         'success': false,
-        'error': 'Server responded with status ${response.statusCode}',
+        'error': 'Not registered. Please try again or contact your admin.',
         'originalDomain': domain,
-        'apiDomain': config?.apiEndpoints['api'] ?? domain,
+        'apiDomain': config?.apiEndpoints['api'] ?? testDomain,
+        'tenantName': tenantName,
       };
     } catch (e) {
       return {
         'success': false,
-        'error': 'Connection failed: $e',
+        'error': 'Not registered. Please try again or contact your admin.',
         'originalDomain': domain,
       };
     }
