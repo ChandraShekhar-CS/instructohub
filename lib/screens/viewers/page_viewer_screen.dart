@@ -9,11 +9,13 @@ class PageViewerScreen extends StatefulWidget {
   final dynamic module;
   final dynamic foundContent;
   final String token;
+  final bool isOffline; // ADDED: To handle offline mode
 
   const PageViewerScreen({
     required this.module,
     this.foundContent,
     required this.token,
+    this.isOffline = false, // ADDED: Default to false
     Key? key,
   }) : super(key: key);
 
@@ -30,7 +32,15 @@ class _PageViewerScreenState extends State<PageViewerScreen> {
   void initState() {
     super.initState();
     _controller = WebViewController()
-      ..setJavaScriptMode(JavaScriptMode.unrestricted);
+      ..setJavaScriptMode(JavaScriptMode.unrestricted)
+      ..setNavigationDelegate(
+        NavigationDelegate(
+          onNavigationRequest: (NavigationRequest request) {
+            // Prevent all navigation within the webview for simplicity
+            return NavigationDecision.prevent;
+          },
+        ),
+      );
     _prepareContent();
   }
 
@@ -43,12 +53,20 @@ class _PageViewerScreenState extends State<PageViewerScreen> {
     final String contentTextColor = AppTheme.textPrimary.value.toRadixString(16).substring(2);
     final String linkColor = AppTheme.secondary1.value.toRadixString(16).substring(2);
 
-    final rawHtml = (source['content'] as String?)
-            ?.replaceAll(
-              '@@PLUGINFILE@@',
-              'https://moodle.instructohub.com/pluginfile.php?token=${widget.token}',
-            )
-            ?? '<p>No content available.</p>';
+    String rawHtml = source['content'] as String? ?? '<p>No content available.</p>';
+    
+    // MODIFIED: Replace pluginfile URLs differently for online vs. offline
+    if (!widget.isOffline) {
+        rawHtml = rawHtml.replaceAll(
+            '@@PLUGINFILE@@',
+            'https://moodle.instructohub.com/pluginfile.php?token=${widget.token}',
+        );
+    } else {
+        // In offline mode, URLs should already be local file paths. 
+        // We just need to ensure the placeholder isn't there.
+        rawHtml = rawHtml.replaceAll('@@PLUGINFILE@@', '');
+    }
+
 
     final fullHtml = '''
     <!DOCTYPE html>
@@ -69,16 +87,9 @@ class _PageViewerScreenState extends State<PageViewerScreen> {
             color: var(--text-color);
             line-height: 1.6;
           }
-          img, table { max-width: 100%; height: auto; }
+          img, table, video, iframe { max-width: 100%; height: auto; border-radius: 8px; }
           pre, code { white-space: pre-wrap; word-wrap: break-word; }
           a { color: var(--link-color); text-decoration: none; }
-          iframe, embed, video, object {
-            display: block;
-            max-width: 100% !important;
-            height: auto !important;
-            margin: 0 auto;
-            border-radius: 12px;
-          }
         </style>
       </head>
       <body>

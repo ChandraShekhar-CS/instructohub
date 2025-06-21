@@ -1,10 +1,12 @@
-import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
+import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
+import 'package:flutter/material.dart';
+import 'package:path_provider/path_provider.dart';
 import '../models/course_model.dart';
-// import '../theme/app_theme.dart'; // REMOVED: Old theme import
-import '../services/api_service.dart';
-import 'viewers/module_detail_screen.dart'; 
+import '../services/api_service.dart'; 
+import '../services/download_service.dart';
+import 'viewers/module_detail_screen.dart';
 import 'viewers/page_viewer_screen.dart';
 import 'viewers/assignment_viewer_screen.dart';
 import 'viewers/quiz_viewer_screen.dart';
@@ -13,6 +15,7 @@ import 'viewers/resource_viewer_screen.dart';
 import 'course_catalog_screen.dart';
 import '../services/icon_service.dart';
 import '../theme/dynamic_app_theme.dart';
+
 typedef AppTheme = DynamicAppTheme;
 
 class CourseDetailScreen extends StatefulWidget {
@@ -36,20 +39,76 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
   List<dynamic> _courseContents = [];
   Map<String, dynamic>? _courseDetails;
   int? _expandedSectionIndex;
-  
+
+  // --- State for download functionality ---
+  final DownloadService _downloadService = DownloadService();
+  bool _isDownloaded = false;
+  double? _downloadProgress;
+  StreamSubscription? _progressSubscription;
+
   @override
   void initState() {
     super.initState();
-    _fetchCourseDetails();
+    _checkDownloadStatus().then((_) {
+      _fetchCourseDetails();
+    });
+    _listenToDownloadProgress();
+  }
+
+  void _listenToDownloadProgress() {
+    _progressSubscription =
+        _downloadService.getDownloadProgress(widget.course.id).listen(
+      (progress) {
+        if (!mounted) return;
+        setState(() {
+          _downloadProgress = progress;
+          if (progress == 1.0) {
+            _isDownloaded = true;
+            _downloadProgress = null;
+          }
+        });
+      },
+      onError: (error) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Download failed: $error')));
+        setState(() {
+          _downloadProgress = null;
+        });
+      },
+    );
+  }
+
+  Future<void> _checkDownloadStatus() async {
+    final status = await _downloadService.isCourseDownloaded(widget.course.id);
+    if (mounted) {
+      setState(() {
+        _isDownloaded = status;
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _progressSubscription?.cancel();
+    super.dispose();
   }
 
   Future<void> _fetchCourseDetails() async {
+    if (!mounted) return;
     setState(() => _isLoading = true);
 
     try {
-      final contents = await ApiService.instance.getCourseContent(widget.course.id.toString(), widget.token);
+      List<dynamic> contents;
+      if (_isDownloaded) {
+        contents = await _loadCourseContentFromLocal();
+      } else {
+        // CORRECTED: Was 'MoodleApiService'
+        contents = await ApiService.instance
+            .getCourseContent(widget.course.id.toString(), widget.token);
+      }
       
-      await _fetchExtendedCourseInfo(); 
+      await _fetchExtendedCourseInfo();
 
       if (mounted) {
         setState(() {
@@ -62,32 +121,46 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
         setState(() => _isLoading = false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-              content: Text('Error fetching course details: ${e.toString()}'),
-              backgroundColor: AppTheme.error, // CHANGED: Using theme color
+            content: Text('Error fetching course details: ${e.toString()}'),
+            backgroundColor: AppTheme.error,
           ),
         );
       }
     }
   }
 
-  Future<void> _fetchExtendedCourseInfo() async {
-    final url = Uri.parse(
-        '${ApiService.instance.baseUrl}?wsfunction=core_course_get_courses_by_field&moodlewsrestformat=json&wstoken=${widget.token}&field=id&value=${widget.course.id}');
+  Future<List<dynamic>> _loadCourseContentFromLocal() async {
+    final appDir = await getApplicationDocumentsDirectory();
+    final courseDir = Directory('${appDir.path}/offline_courses/${widget.course.id}');
+    final metadataFile = File('${courseDir.path}/course_data.json');
 
-    final response = await http.post(url);
-
-    if (response.statusCode == 200) {
-      final data = json.decode(response.body);
-      if (data['courses'] != null && data['courses'].isNotEmpty) {
-        if (mounted) {
-          setState(() {
-            _courseDetails = data['courses'][0];
-          });
-        }
-      }
+    if (await metadataFile.exists()) {
+      final jsonString = await metadataFile.readAsString();
+      return json.decode(jsonString) as List<dynamic>;
+    } else {
+      throw Exception('Offline data not found, please re-download.');
     }
   }
 
+  Future<void> _fetchExtendedCourseInfo() async {
+     try {
+      // CORRECTED: Was 'MoodleApiService'
+      final response = await ApiService.instance.callCustomAPI(
+        'core_course_get_courses_by_field',
+        widget.token,
+        {'field': 'id', 'value': widget.course.id.toString()},
+        method: 'GET'
+      );
+      if (mounted && response['courses'] != null && response['courses'].isNotEmpty) {
+        setState(() {
+          _courseDetails = response['courses'][0];
+        });
+      }
+    } catch(e) {
+        print('Could not fetch extended course info: $e');
+    }
+  }
+  
   void _navigateToCatalog() {
     Navigator.push(
       context,
@@ -97,25 +170,23 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
     );
   }
 
-  // REFACTORED: This widget now uses the dynamic icon service
   Widget _buildModuleItem(dynamic module) {
     Widget destinationScreen;
     final dynamic foundContent = module['foundContent'];
 
-    // Use a helper map for cleaner assignment
     final modScreenMap = {
       'forum': ForumViewerScreen(module: module, foundContent: foundContent, token: widget.token),
       'assign': AssignmentViewerScreen(module: module, foundContent: foundContent, token: widget.token),
       'quiz': QuizViewerScreen(module: module, foundContent: foundContent, token: widget.token),
-      'resource': ResourceViewerScreen(module: module, foundContent: foundContent, token: widget.token),
-      'page': PageViewerScreen(module: module, foundContent: foundContent, token: widget.token),
+      'resource': ResourceViewerScreen(module: module, isOffline: _isDownloaded, foundContent: foundContent, token: widget.token),
+      'page': PageViewerScreen(module: module, isOffline: _isDownloaded, foundContent: foundContent, token: widget.token),
     };
 
     destinationScreen = modScreenMap[module['modname']] ?? ModuleDetailScreen(module: module, token: widget.token);
 
     return ListTile(
       leading: Icon(
-        IconService.instance.getIcon(module['modname']), // CHANGED: Dynamic icon
+        IconService.instance.getIcon(module['modname']),
         color: AppTheme.textSecondary
       ),
       title: Text(
@@ -135,8 +206,7 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
       },
     );
   }
-
-  // REFACTORED: This widget now uses DynamicAppTheme helpers for styling
+  
   Widget _buildProgressBar() {
     final double progress = widget.course.progress ?? 0.0;
     
@@ -146,7 +216,7 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
     } else if (progress > 0) {
       status = 'in_progress';
     } else {
-      status = 'draft'; // Or another default status like 'not_started'
+      status = 'draft';
     }
 
     return Padding(
@@ -190,51 +260,94 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
     );
   }
 
+  Widget _buildDownloadButton() {
+    if (_isDownloaded) {
+      return IconButton(
+        icon: Icon(IconService.instance.getIcon('delete')),
+        tooltip: 'Delete Download',
+        onPressed: () async {
+          await _downloadService.deleteCourse(widget.course.id);
+          setState(() {
+            _isDownloaded = false;
+          });
+          _fetchCourseDetails();
+        },
+      );
+    }
+
+    if (_downloadProgress != null &&
+        _downloadProgress! > 0 &&
+        _downloadProgress! < 1) {
+      return Container(
+        padding: const EdgeInsets.all(8.0),
+        width: 40,
+        height: 40,
+        child: CircularProgressIndicator(
+          value: _downloadProgress,
+          strokeWidth: 3,
+          color: AppTheme.secondary1,
+        ),
+      );
+    }
+
+    return IconButton(
+      icon: Icon(IconService.instance.getIcon('download')),
+      tooltip: 'Download Course',
+      onPressed: () {
+        _downloadService.downloadCourse(widget.course, widget.token);
+      },
+    );
+  }
+
+  Widget _buildCourseImage() {
+    if (widget.course.courseimage.isNotEmpty) {
+        return SizedBox(
+            height: 200,
+            width: double.infinity,
+            child: Image.network(
+                widget.course.courseimage,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) =>
+                    Container(
+                        color: AppTheme.secondary3,
+                        child: Icon(
+                            IconService.instance.getIcon('course'),
+                            size: 80,
+                            color: AppTheme.secondary1,
+                        ),
+                    ),
+            ),
+        );
+    }
+    return const SizedBox.shrink();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.background, // CHANGED
+      backgroundColor: AppTheme.background,
       appBar: AppBar(
-        // Using the theme's pre-defined AppBar style
         title: Text(widget.course.fullname, overflow: TextOverflow.ellipsis),
-        actions: widget.showCatalogButton ? [
-          IconButton(
-            icon: Icon(IconService.instance.getIcon('catalog')), // CHANGED: Dynamic icon
-            onPressed: _navigateToCatalog,
-            tooltip: 'Browse Courses',
-          ),
-        ] : null,
+        actions: [
+          _buildDownloadButton(),
+          if (widget.showCatalogButton)
+            IconButton(
+              icon: Icon(IconService.instance.getIcon('catalog')),
+              onPressed: _navigateToCatalog,
+              tooltip: 'Browse Courses',
+            ),
+        ],
       ),
       body: _isLoading
-          ? Center( // REMOVED const
-              child: CircularProgressIndicator(color: AppTheme.secondary1),
-            )
+          ? Center(child: CircularProgressIndicator(color: AppTheme.secondary1))
           : SingleChildScrollView(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  if (widget.course.courseimage.isNotEmpty)
-                    SizedBox(
-                      height: 200,
-                      width: double.infinity,
-                      child: Image.network(
-                        widget.course.courseimage,
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) =>
-                            Container(
-                          color: AppTheme.secondary3, // CHANGED
-                          child: Icon( // REMOVED const
-                            IconService.instance.getIcon('course'), // CHANGED
-                            size: 80,
-                            color: AppTheme.secondary1, // CHANGED
-                          ),
-                        ),
-                      ),
-                    ),
+                  _buildCourseImage(),
                   _buildProgressBar(),
-                  if (widget.showCatalogButton) 
                   Padding(
-                    padding: EdgeInsets.all(AppTheme.spacingMd), // CHANGED
+                    padding: EdgeInsets.all(AppTheme.spacingMd),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -246,9 +359,8 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
                             color: AppTheme.textPrimary
                           ),
                         ),
-                        if (widget.course.summary.isNotEmpty)
-                          SizedBox(height: AppTheme.spacingSm), // CHANGED
-                        if (widget.course.summary.isNotEmpty)
+                        if (widget.course.summary.isNotEmpty) ...[
+                          SizedBox(height: AppTheme.spacingSm),
                           Text(
                             widget.course.summary,
                             style: TextStyle(
@@ -256,17 +368,18 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
                               color: AppTheme.textSecondary,
                             ),
                           ),
-                        SizedBox(height: AppTheme.spacingMd), // CHANGED
+                        ],
+                        SizedBox(height: AppTheme.spacingMd),
                         if (_courseDetails != null &&
                             _courseDetails!['enrolledusercount'] != null)
                           Row(
                             children: [
                               Icon(
-                                IconService.instance.getIcon('people'), // CHANGED
-                                size: AppTheme.fontSizeBase, // CHANGED
-                                color: AppTheme.textSecondary, // CHANGED
+                                IconService.instance.getIcon('people'),
+                                size: AppTheme.fontSizeBase,
+                                color: AppTheme.textSecondary,
                               ),
-                              SizedBox(width: AppTheme.spacingSm), // CHANGED
+                              SizedBox(width: AppTheme.spacingSm),
                               Text(
                                 '${_courseDetails!['enrolledusercount']} enrolled',
                                 style: TextStyle(
@@ -279,23 +392,15 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
                       ],
                     ),
                   ),
-                  Padding( // CHANGED
+                  Padding(
                     padding: EdgeInsets.symmetric(horizontal: AppTheme.spacingMd),
                     child: const Divider(),
                   ),
-                  if (_courseContents.isEmpty)
-                    Padding( // REMOVED const
-                      padding: EdgeInsets.all(AppTheme.spacingMd), // CHANGED
-                      child: Center(
-                        child: Text(
-                          'No course content available.',
-                          style: TextStyle(
-                            fontSize: AppTheme.fontSizeBase,
-                            color: AppTheme.textSecondary, // CHANGED
-                          ),
-                        ),
-                      ),
-                    )
+                   if (_courseContents.isEmpty)
+                    const Center(child: Padding(
+                      padding: EdgeInsets.all(16.0),
+                      child: Text('No course content available.'),
+                    ))
                   else
                     Builder(
                       builder: (context) {
@@ -303,10 +408,9 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
                             .asMap()
                             .entries
                             .where((entry) {
-                              final sectionIndex = entry.key;
                               final section = entry.value;
                               final modules = section['modules'] as List<dynamic>? ?? [];
-                              return !(sectionIndex == 0 || section['name'] == 'General' || modules.isEmpty);
+                              return !(section['name'] == 'General' && modules.isEmpty);
                             })
                             .toList();
 
@@ -319,11 +423,10 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
                             final section = entry.value;
                             final modules = section['modules'] as List<dynamic>? ?? [];
 
-                            // Using the theme's CardTheme implicitly
                             return Card(
                               key: Key('card_$index'),
                               margin: EdgeInsets.symmetric(
-                                  horizontal: AppTheme.spacingMd, vertical: AppTheme.spacingSm), // CHANGED
+                                  horizontal: AppTheme.spacingMd, vertical: AppTheme.spacingSm),
                               clipBehavior: Clip.antiAlias,
                               child: Column(
                                 children: [
@@ -331,16 +434,16 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
                                     title: Text(
                                       section['name'] ?? 'Unnamed Section',
                                       style: TextStyle(
-                                        color: AppTheme.textPrimary, // CHANGED
+                                        color: AppTheme.textPrimary,
                                         fontWeight: FontWeight.bold,
                                         fontSize: AppTheme.fontSizeLg,
                                       ),
                                     ),
                                     trailing: Icon(
                                       _expandedSectionIndex == index 
-                                          ? IconService.instance.getIcon('expand_less') // CHANGED
-                                          : IconService.instance.getIcon('expand_more'), // CHANGED
-                                      color: AppTheme.textPrimary, // CHANGED
+                                          ? IconService.instance.getIcon('expand_less')
+                                          : IconService.instance.getIcon('expand_more'),
+                                      color: AppTheme.textPrimary,
                                     ),
                                     onTap: () {
                                       setState(() {
@@ -354,11 +457,16 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
                                   ),
                                   if (_expandedSectionIndex == index)
                                     Container(
-                                      // The Card's color is set by the CardTheme in the main theme file
                                       child: Column(
                                         children: [
                                           const Divider(height: 1),
-                                          ...modules.map((module) => _buildModuleItem(module)).toList()
+                                          if (modules.isEmpty)
+                                            const Padding(
+                                                padding: EdgeInsets.all(16.0),
+                                                child: Text('No modules in this section.'),
+                                            )
+                                          else
+                                            ...modules.map((module) => _buildModuleItem(module)).toList()
                                         ],
                                       ),
                                     ),
@@ -369,7 +477,7 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
                         );
                       },
                     ),
-                  SizedBox(height: AppTheme.spacingLg), // CHANGED
+                  SizedBox(height: AppTheme.spacingLg),
                 ],
               ),
             ),

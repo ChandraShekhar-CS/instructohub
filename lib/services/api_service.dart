@@ -28,33 +28,39 @@ class ApiService {
     try {
       await ConfigurationService.instance.initialize();
       
-      String tenantDomain = domain;
-      String? extractedTenant;
+      // Clean and normalize the domain
+      String cleanDomain = domain.trim();
       
-      if (domain.contains('.mdl.instructohub.com')) {
-        extractedTenant = domain.split('.mdl.instructohub.com')[0];
-        if (extractedTenant.startsWith('https://')) {
-          extractedTenant = extractedTenant.replaceFirst('https://', '');
-        }
-        if (extractedTenant.startsWith('http://')) {
-          extractedTenant = extractedTenant.replaceFirst('http://', '');
-        }
-        tenantDomain = 'https://$domain';
+      // Remove protocol if present
+      if (cleanDomain.startsWith('https://')) {
+        cleanDomain = cleanDomain.replaceFirst('https://', '');
+      }
+      if (cleanDomain.startsWith('http://')) {
+        cleanDomain = cleanDomain.replaceFirst('http://', '');
+      }
+      
+      // Remove trailing slash
+      if (cleanDomain.endsWith('/')) {
+        cleanDomain = cleanDomain.substring(0, cleanDomain.length - 1);
+      }
+      
+      // Construct the full domain URL
+      String fullDomain = 'https://$cleanDomain';
+      
+      // Extract tenant name for future use
+      String? extractedTenant;
+      if (cleanDomain.contains('.mdl.instructohub.com')) {
+        extractedTenant = cleanDomain.split('.mdl.instructohub.com')[0];
+      } else if (cleanDomain.contains('learn.instructohub.com')) {
+        extractedTenant = 'learn';
+        // For learn.instructohub.com, we need to convert to moodle.instructohub.com
+        fullDomain = 'https://moodle.instructohub.com';
       } else {
-        tenantDomain = 'https://$domain.mdl.instructohub.com';
-        extractedTenant = domain;
-      }
-
-      if (!tenantDomain.startsWith('http://') && !tenantDomain.startsWith('https://')) {
-        tenantDomain = 'https://$tenantDomain';
-      }
-
-      if (tenantDomain.endsWith('/')) {
-        tenantDomain = tenantDomain.substring(0, tenantDomain.length - 1);
+        extractedTenant = cleanDomain;
       }
 
       _tenantName = extractedTenant;
-      await ConfigurationService.instance.loadForDomain(tenantDomain);
+      await ConfigurationService.instance.loadForDomain(fullDomain);
       
       final config = ConfigurationService.instance.currentConfig;
       
@@ -64,16 +70,19 @@ class ApiService {
         _uploadUrl = config.apiEndpoints['upload'];
         
         print('✅ Using dynamic configuration for tenant: $_tenantName');
+        print('✅ Base URL: $_baseUrl');
       } else {
-        _baseUrl = '$tenantDomain/webservice/rest/server.php';
-        _loginUrl = '$tenantDomain/login/token.php';
-        _uploadUrl = '$tenantDomain/webservice/upload.php';
+        _baseUrl = '$fullDomain/webservice/rest/server.php';
+        _loginUrl = '$fullDomain/login/token.php';
+        _uploadUrl = '$fullDomain/webservice/upload.php';
         print('✅ Using standard configuration for tenant: $_tenantName');
+        print('✅ Base URL: $_baseUrl');
+        print('✅ Login URL: $_loginUrl');
       }
 
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('api_tenant', _tenantName ?? '');
-      await prefs.setString('api_domain', tenantDomain);
+      await prefs.setString('api_domain', fullDomain);
       await prefs.setString('api_base_url', _baseUrl!);
       await prefs.setString('api_login_url', _loginUrl!);
       await prefs.setString('api_upload_url', _uploadUrl!);

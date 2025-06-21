@@ -1,21 +1,87 @@
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_html/flutter_html.dart';
+import '../../models/offline_submission_model.dart';
 import '../../services/icon_service.dart';
+import '../../services/sync_service.dart';
 import '../../theme/dynamic_app_theme.dart';
 
 typedef AppTheme = DynamicAppTheme;
 
-class AssignmentViewerScreen extends StatelessWidget {
+// MODIFIED: Converted to a StatefulWidget to manage submission state
+class AssignmentViewerScreen extends StatefulWidget {
   final dynamic module;
   final dynamic foundContent;
   final String token;
+  final bool isOffline;
 
   const AssignmentViewerScreen({
     required this.module,
     this.foundContent,
     required this.token,
+    this.isOffline = false,
     Key? key,
   }) : super(key: key);
+
+  @override
+  _AssignmentViewerScreenState createState() => _AssignmentViewerScreenState();
+}
+
+class _AssignmentViewerScreenState extends State<AssignmentViewerScreen> {
+  final SyncService _syncService = SyncService();
+  SubmissionStatus _submissionStatus = SubmissionStatus.notSubmitted;
+  String? _pickedFilePath;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkSubmissionStatus();
+  }
+
+  Future<void> _checkSubmissionStatus() async {
+    final status = await _syncService.getSubmissionStatus(widget.module['id']);
+    if (mounted) {
+      setState(() {
+        _submissionStatus = status;
+      });
+    }
+  }
+
+  Future<void> _pickAndQueueFile() async {
+    FilePickerResult? result = await FilePicker.platform.pickFiles();
+
+    if (result != null && result.files.single.path != null) {
+      // FIXED: Added robust parsing for the contextid to prevent crashes.
+      int? contextId;
+      final rawContextId = widget.module['contextid'];
+      if (rawContextId is int) {
+        contextId = rawContextId;
+      } else if (rawContextId is String) {
+        contextId = int.tryParse(rawContextId);
+      }
+
+      final submission = OfflineSubmission(
+        assignmentId: widget.module['id'],
+        filePath: result.files.single.path!,
+        contextId: contextId,
+      );
+      
+      await _syncService.queueAssignmentSubmission(submission);
+      
+      if(mounted) {
+        setState(() {
+          _pickedFilePath = result.files.single.path;
+          _submissionStatus = SubmissionStatus.pendingSync;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Submission saved and will sync when online.')),
+        );
+      }
+
+    } else {
+      // User canceled the picker
+    }
+  }
 
   String _formatDate(int timestamp) {
     if (timestamp == 0) return 'No due date';
@@ -25,27 +91,13 @@ class AssignmentViewerScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final String moduleName = module['name'] ?? 'Assignment';
-    final assignmentData = foundContent ?? module;
+    final String moduleName = widget.module['name'] ?? 'Assignment';
+    final assignmentData = widget.foundContent ?? widget.module;
 
     return Scaffold(
       backgroundColor: AppTheme.background,
       appBar: AppTheme.buildDynamicAppBar(title: moduleName),
-      body: foundContent == null
-          ? Center(
-              child: Padding(
-                padding: EdgeInsets.all(AppTheme.spacingLg),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(IconService.instance.getIcon('assign'), size: 80, color: AppTheme.textSecondary),
-                    SizedBox(height: AppTheme.spacingLg),
-                    Text('Assignment content not available', style: TextStyle(fontSize: AppTheme.fontSizeLg, color: AppTheme.textSecondary)),
-                  ],
-                ),
-              ),
-            )
-          : SingleChildScrollView(
+      body: SingleChildScrollView(
               padding: EdgeInsets.all(AppTheme.spacingMd),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -53,9 +105,7 @@ class AssignmentViewerScreen extends StatelessWidget {
                   AppTheme.buildInfoCard(
                     iconKey: 'assign',
                     title: moduleName,
-                    subtitle: (assignmentData['intro'] != null && assignmentData['intro'].isNotEmpty)
-                        ? 'See description below'
-                        : null,
+                    subtitle: 'Review the assignment details below',
                   ),
                   if (assignmentData['intro'] != null && assignmentData['intro'].isNotEmpty) ...[
                     SizedBox(height: AppTheme.spacingMd),
@@ -85,7 +135,7 @@ class AssignmentViewerScreen extends StatelessWidget {
                   ],
                   if (assignmentData['allowsubmissionsfromdate'] != null && assignmentData['allowsubmissionsfromdate'] != 0) ...[
                     _buildInfoCard(
-                      iconKey: 'event',
+                      iconKey: 'event_available',
                       title: 'Available From',
                       content: _formatDate(assignmentData['allowsubmissionsfromdate']),
                       color: AppTheme.textSecondary,
@@ -125,26 +175,28 @@ class AssignmentViewerScreen extends StatelessWidget {
         children: [
           Icon(IconService.instance.getIcon(iconKey), color: color, size: 20),
           SizedBox(width: AppTheme.spacingMd),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: TextStyle(
-                  fontSize: AppTheme.fontSizeSm,
-                  color: color,
-                  fontWeight: FontWeight.w600,
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: AppTheme.fontSizeSm,
+                    color: color,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
-              ),
-              Text(
-                content,
-                style: TextStyle(
-                  fontSize: AppTheme.fontSizeBase,
-                  color: AppTheme.textPrimary,
-                  fontWeight: FontWeight.w500,
+                Text(
+                  content,
+                  style: TextStyle(
+                    fontSize: AppTheme.fontSizeBase,
+                    color: AppTheme.textPrimary,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ],
       ),
@@ -159,7 +211,7 @@ class AssignmentViewerScreen extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text(
-              'Submission',
+              'Your Submission',
               style: TextStyle(
                 fontSize: AppTheme.fontSizeLg,
                 fontWeight: FontWeight.bold,
@@ -167,14 +219,24 @@ class AssignmentViewerScreen extends StatelessWidget {
               ),
             ),
             SizedBox(height: AppTheme.spacingMd),
+            if (_submissionStatus == SubmissionStatus.submitted)
+              AppTheme.buildStatusChip('success', 'Submitted'),
+            if (_submissionStatus == SubmissionStatus.pendingSync) ...[
+                AppTheme.buildStatusChip('warning', 'Pending Sync'),
+                SizedBox(height: AppTheme.spacingSm),
+                Text(
+                  _pickedFilePath != null 
+                    ? 'File ready for upload: ${_pickedFilePath!.split('/').last}'
+                    : 'This submission will be uploaded automatically when you are back online.', 
+                  style: TextStyle(color: AppTheme.textSecondary, fontSize: AppTheme.fontSizeXs)
+                ),
+                SizedBox(height: AppTheme.spacingMd),
+            ],
             AppTheme.buildActionButton(
-              text: 'Submit Assignment',
+              text: _submissionStatus == SubmissionStatus.pendingSync ? 'Change File' : 'Add Submission',
               iconKey: 'upload',
-              onPressed: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Submission feature coming soon!')),
-                );
-              },
+              isEnabled: _submissionStatus != SubmissionStatus.submitted,
+              onPressed: _pickAndQueueFile,
             ),
           ],
         ),

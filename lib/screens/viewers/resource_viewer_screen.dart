@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_html/flutter_html.dart';
+import 'package:open_filex/open_filex.dart'; // NEW: For opening local files
 import 'package:url_launcher/url_launcher.dart';
 import '../../services/icon_service.dart';
 import '../../theme/dynamic_app_theme.dart';
@@ -9,11 +10,13 @@ class ResourceViewerScreen extends StatelessWidget {
   final dynamic module;
   final dynamic foundContent;
   final String token;
+  final bool isOffline;
 
   const ResourceViewerScreen({
     required this.module,
     this.foundContent,
     required this.token,
+    this.isOffline = false,
     Key? key,
   }) : super(key: key);
 
@@ -32,11 +35,24 @@ class ResourceViewerScreen extends StatelessWidget {
     return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
   }
 
-  Future<void> _launchURL(String url, BuildContext context) async {
+  // MODIFIED: This function now handles both web URLs and local file paths
+  Future<void> _openResource(String url, BuildContext context) async {
     try {
       final Uri uri = Uri.parse(url);
-      if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
-        throw 'Could not launch $url';
+      
+      if (uri.scheme.startsWith('http')) {
+         // Online mode: launch URL in external app
+         if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+            throw 'Could not launch $url';
+         }
+      } else if (uri.scheme == 'file') {
+        // Offline mode: use open_filex to open the local file
+        final result = await OpenFilex.open(uri.path);
+        if (result.type != ResultType.done) {
+            throw 'Could not open file: ${result.message}';
+        }
+      } else {
+        throw 'Unsupported URL scheme: ${uri.scheme}';
       }
     } catch (e) {
       if (context.mounted) {
@@ -96,13 +112,14 @@ class ResourceViewerScreen extends StatelessWidget {
         leading: Icon(IconService.instance.getIcon(fileExtension), size: 32, color: AppTheme.secondary1),
         title: Text(filename, style: TextStyle(fontWeight: FontWeight.w600, color: AppTheme.textPrimary)),
         subtitle: Text(_formatFileSize(file['filesize'] ?? 0), style: TextStyle(color: AppTheme.textSecondary)),
-        trailing: Icon(IconService.instance.getIcon('download'), color: AppTheme.textSecondary),
+        trailing: Icon(IconService.instance.getIcon(isOffline ? 'launch' : 'download'), color: AppTheme.textSecondary),
         onTap: () {
           if (fileurl.isNotEmpty) {
-            _launchURL('$fileurl&token=$token', context);
+            final urlToOpen = isOffline ? fileurl : '$fileurl&token=$token';
+            _openResource(urlToOpen, context);
           } else {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Download link not available')),
+              const SnackBar(content: Text('File URL not available')),
             );
           }
         },

@@ -8,16 +8,18 @@ class QuizViewerScreen extends StatelessWidget {
   final dynamic module;
   final dynamic foundContent;
   final String token;
+  final bool isOffline;
 
   const QuizViewerScreen({
     required this.module,
     this.foundContent,
     required this.token,
+    this.isOffline = false,
     Key? key,
   }) : super(key: key);
 
   String _formatDate(int timestamp) {
-    if (timestamp == 0) return 'No time limit';
+    if (timestamp == 0) return 'Not set';
     final date = DateTime.fromMillisecondsSinceEpoch(timestamp * 1000);
     return '${date.day}/${date.month}/${date.year} at ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
   }
@@ -33,39 +35,21 @@ class QuizViewerScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final String moduleName = module['name'] ?? 'Quiz';
+    // When offline, foundContent is the source of truth.
     final quizData = foundContent ?? module;
 
     return Scaffold(
       backgroundColor: AppTheme.background,
       appBar: AppTheme.buildDynamicAppBar(title: moduleName),
-      body: foundContent == null
-          ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(IconService.instance.getIcon('quiz'), size: 80, color: AppTheme.textSecondary),
-                  SizedBox(height: AppTheme.spacingMd),
-                  Text('Quiz content not available', style: TextStyle(fontSize: AppTheme.fontSizeLg, color: AppTheme.textSecondary)),
-                ],
-              ),
-            )
-          : SingleChildScrollView(
+      body: SingleChildScrollView(
               padding: EdgeInsets.all(AppTheme.spacingMd),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  AppTheme.buildInfoCard(iconKey: 'quiz', title: moduleName),
+                  AppTheme.buildInfoCard(iconKey: 'quiz', title: moduleName, subtitle: "Review the quiz details below"),
                   SizedBox(height: AppTheme.spacingMd),
                   if (quizData['intro'] != null && quizData['intro'].isNotEmpty)
                     Html(data: quizData['intro'], style: {"body": Style(fontSize: FontSize(AppTheme.fontSizeBase), color: AppTheme.textSecondary)}),
-                  SizedBox(height: AppTheme.spacingMd),
-                  Row(
-                    children: [
-                      Expanded(child: AppTheme.buildStatCard(iconKey: 'quiz', title: 'Questions', value: '${quizData['questions'] ?? 0}')),
-                      SizedBox(width: AppTheme.spacingMd),
-                      Expanded(child: AppTheme.buildStatCard(iconKey: 'grades', title: 'Max Grade', value: '${quizData['grade'] ?? 0}')),
-                    ],
-                  ),
                   SizedBox(height: AppTheme.spacingMd),
                   _buildInfoSection(quizData),
                   SizedBox(height: AppTheme.spacingMd),
@@ -87,14 +71,14 @@ class QuizViewerScreen extends StatelessWidget {
             SizedBox(height: AppTheme.spacingSm),
             if (quizData['timelimit'] != null)
               _buildInfoRow(iconKey: 'time', label: 'Time Limit', value: _formatDuration(quizData['timelimit'])),
-            if (quizData['timeopen'] != null && quizData['timeopen'] != 0)
-              _buildInfoRow(iconKey: 'event', label: 'Opens', value: _formatDate(quizData['timeopen'])),
-            if (quizData['timeclose'] != null && quizData['timeclose'] != 0)
+            if (quizData['timeopen'] != null)
+              _buildInfoRow(iconKey: 'event_available', label: 'Opens', value: _formatDate(quizData['timeopen'])),
+            if (quizData['timeclose'] != null)
               _buildInfoRow(
                 iconKey: 'event_busy',
                 label: 'Closes',
                 value: _formatDate(quizData['timeclose']),
-                valueColor: DateTime.fromMillisecondsSinceEpoch(quizData['timeclose'] * 1000).isBefore(DateTime.now()) ? AppTheme.error : AppTheme.textPrimary,
+                valueColor: (quizData['timeclose'] * 1000) < DateTime.now().millisecondsSinceEpoch ? AppTheme.error : AppTheme.textPrimary,
               ),
             if (quizData['attempts'] != null)
               _buildInfoRow(iconKey: 'repeat', label: 'Attempts allowed', value: quizData['attempts'] == 0 ? 'Unlimited' : '${quizData['attempts']}'),
@@ -130,19 +114,17 @@ class QuizViewerScreen extends StatelessWidget {
         : null;
 
     bool canStart = true;
-    String buttonText = 'Start Quiz';
-    VoidCallback? onPressed = () {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Quiz functionality coming soon!')));
-    };
+    String buttonText = 'Attempt Quiz';
     
-    if (timeOpen != null && now.isBefore(timeOpen)) {
+    if (isOffline) {
+        buttonText = 'Offline: Start Quiz';
+    } else if (timeOpen != null && now.isBefore(timeOpen)) {
       canStart = false;
       buttonText = 'Quiz Not Yet Available';
     } else if (timeClose != null && now.isAfter(timeClose)) {
       canStart = false;
       buttonText = 'Quiz Closed';
     }
-    if (!canStart) onPressed = null;
 
     return Card(
       child: Padding(
@@ -154,7 +136,9 @@ class QuizViewerScreen extends StatelessWidget {
             AppTheme.buildActionButton(
               text: buttonText,
               iconKey: 'play_arrow',
-              onPressed: onPressed!,
+              onPressed: () {
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Offline quiz attempts coming soon!')));
+              },
               isEnabled: canStart,
             ),
           ],
