@@ -44,7 +44,8 @@ class ApiService {
   }
 
   /// Fetches all messages for a specific conversation.
-  Future<List<dynamic>> getConversationMessages(String token, int conversationId) async {
+  Future<List<dynamic>> getConversationMessages(
+      String token, int conversationId) async {
     try {
       final response = await _post('local_chat_get_messages', token, {
         'conversationid': conversationId.toString(),
@@ -52,13 +53,15 @@ class ApiService {
       // The API is expected to return a list under the 'messages' key
       return response['messages'] is List ? response['messages'] : [];
     } catch (e) {
-      print('Error fetching messages for conversation $conversationId: ${e.toString()}');
+      print(
+          'Error fetching messages for conversation $conversationId: ${e.toString()}');
       rethrow;
     }
   }
 
   /// Sends a message to another user.
-  Future<dynamic> sendMessage(String token, int recipientId, String text) async {
+  Future<dynamic> sendMessage(
+      String token, int recipientId, String text) async {
     try {
       return await _post('local_chat_send_message', token, {
         'recipientid': recipientId.toString(),
@@ -100,23 +103,22 @@ class ApiService {
       final response = await _post('local_chat_search_users', token, {
         'query': query,
       });
-       return response is List ? response : [];
+      return response is List ? response : [];
     } catch (e) {
       print('Error searching users: ${e.toString()}');
       rethrow;
     }
   }
 
-
   // --- KEEP ALL YOUR EXISTING METHODS BELOW ---
 
   Future<void> configure(String domain) async {
     try {
       await ConfigurationService.instance.initialize();
-      
+
       // Clean and normalize the domain
       String cleanDomain = domain.trim();
-      
+
       // Remove protocol if present
       if (cleanDomain.startsWith('https://')) {
         cleanDomain = cleanDomain.replaceFirst('https://', '');
@@ -124,37 +126,33 @@ class ApiService {
       if (cleanDomain.startsWith('http://')) {
         cleanDomain = cleanDomain.replaceFirst('http://', '');
       }
-      
+
       // Remove trailing slash
       if (cleanDomain.endsWith('/')) {
         cleanDomain = cleanDomain.substring(0, cleanDomain.length - 1);
       }
-      
+
       // Construct the full domain URL
       String fullDomain = 'https://$cleanDomain';
-      
+
       // Extract tenant name for future use
       String? extractedTenant;
       if (cleanDomain.contains('.mdl.instructohub.com')) {
         extractedTenant = cleanDomain.split('.mdl.instructohub.com')[0];
-      } else if (cleanDomain.contains('learn.instructohub.com')) {
-        extractedTenant = 'learn';
-        // For learn.instructohub.com, we need to convert to moodle.instructohub.com
-        fullDomain = 'https://moodle.instructohub.com';
       } else {
         extractedTenant = cleanDomain;
       }
 
       _tenantName = extractedTenant;
       await ConfigurationService.instance.loadForDomain(fullDomain);
-      
+
       final config = ConfigurationService.instance.currentConfig;
-      
+
       if (config != null && config.apiEndpoints['base']?.isNotEmpty == true) {
         _baseUrl = config.apiEndpoints['base'];
         _loginUrl = config.apiEndpoints['login'];
         _uploadUrl = config.apiEndpoints['upload'];
-        
+
         print('✅ Using dynamic configuration for tenant: $_tenantName');
         print('✅ Base URL: $_baseUrl');
       } else {
@@ -172,7 +170,6 @@ class ApiService {
       await prefs.setString('api_base_url', _baseUrl!);
       await prefs.setString('api_login_url', _loginUrl!);
       await prefs.setString('api_upload_url', _uploadUrl!);
-      
     } catch (e) {
       print('Error in tenant configuration: $e');
       rethrow;
@@ -193,12 +190,16 @@ class ApiService {
     final loginUrl = prefs.getString('api_login_url');
     final uploadUrl = prefs.getString('api_upload_url');
 
-    if (tenant != null && domain != null && baseUrl != null && loginUrl != null && uploadUrl != null) {
+    if (tenant != null &&
+        domain != null &&
+        baseUrl != null &&
+        loginUrl != null &&
+        uploadUrl != null) {
       _tenantName = tenant;
       _baseUrl = baseUrl;
       _loginUrl = loginUrl;
       _uploadUrl = uploadUrl;
-      
+
       if (domain.isNotEmpty) {
         try {
           await ConfigurationService.instance.loadForDomain(domain);
@@ -206,7 +207,7 @@ class ApiService {
           print('Failed to load configuration for cached domain: $e');
         }
       }
-      
+
       return true;
     }
     return false;
@@ -226,7 +227,7 @@ class ApiService {
     await prefs.remove('api_base_url');
     await prefs.remove('api_login_url');
     await prefs.remove('api_upload_url');
-    
+
     _tenantName = null;
     _baseUrl = null;
     _loginUrl = null;
@@ -251,22 +252,25 @@ class ApiService {
     } catch (e) {
       print('Error getting API function from config: $e');
     }
-    
+
     const fallbackMappings = {
       'get_site_info': 'core_webservice_get_site_info',
       'get_user_courses': 'core_enrol_get_users_courses',
       'get_course_contents': 'core_course_get_contents',
       'get_user_progress': 'local_instructohub_get_user_course_progress',
     };
-    
+
     return fallbackMappings[functionKey] ?? functionKey;
   }
 
-  Future<dynamic> _post(String functionKey, String token, Map<String, String> params, {String? customUrl}) async {
+  Future<dynamic> _post(
+      String functionKey, String token, Map<String, String> params,
+      {String? customUrl}) async {
     _ensureConfigured();
 
     final wsfunction = _getAPIFunction(functionKey);
-    final url = Uri.parse('${customUrl ?? _baseUrl}?wsfunction=$wsfunction&moodlewsrestformat=json&wstoken=$token');
+    final url = Uri.parse(
+        '${customUrl ?? _baseUrl}?wsfunction=$wsfunction&moodlewsrestformat=json&wstoken=$token');
 
     try {
       final response = await http.post(url, body: params);
@@ -277,14 +281,16 @@ class ApiService {
         }
         return decoded;
       } else {
-        throw Exception('Failed to connect to the server. Status code: ${response.statusCode}');
+        throw Exception(
+            'Failed to connect to the server. Status code: ${response.statusCode}');
       }
     } catch (e) {
       rethrow;
     }
   }
 
-  Future<dynamic> _get(String functionKey, String token, Map<String, String> params) async {
+  Future<dynamic> _get(
+      String functionKey, String token, Map<String, String> params) async {
     _ensureConfigured();
 
     final wsfunction = _getAPIFunction(functionKey);
@@ -306,7 +312,8 @@ class ApiService {
         }
         return decoded;
       } else {
-        throw Exception('Failed to connect to the server. Status code: ${response.statusCode}');
+        throw Exception(
+            'Failed to connect to the server. Status code: ${response.statusCode}');
       }
     } catch (e) {
       rethrow;
@@ -346,7 +353,8 @@ class ApiService {
       } else {
         return {
           'success': false,
-          'error': 'Failed to connect to server. Status code: ${response.statusCode}',
+          'error':
+              'Failed to connect to server. Status code: ${response.statusCode}',
         };
       }
     } catch (e) {
@@ -405,11 +413,13 @@ class ApiService {
 
       if (courses is List) {
         for (var course in courses) {
-          if (course['courseimage'] != null && course['courseimage'].contains('.svg')) {
+          if (course['courseimage'] != null &&
+              course['courseimage'].contains('.svg')) {
             course['courseimage'] = '/assets/defaults/course.svg';
           }
           if (course['summary'] != null) {
-            course['summary'] = course['summary'].replaceAll(RegExp(r'<[^>]*>'), '');
+            course['summary'] =
+                course['summary'].replaceAll(RegExp(r'<[^>]*>'), '');
           }
         }
       }
@@ -421,12 +431,15 @@ class ApiService {
   }
 
   Future<List<dynamic>> getCoursePages(String courseId, String token) async {
-    final response = await _post('get_page_content', token, {'courseids[0]': courseId});
+    final response =
+        await _post('get_page_content', token, {'courseids[0]': courseId});
     return response['pages'] ?? [];
   }
 
-  Future<List<dynamic>> getCourseAssignments(String courseId, String token) async {
-    final response = await _post('get_assignments', token, {'courseids[0]': courseId});
+  Future<List<dynamic>> getCourseAssignments(
+      String courseId, String token) async {
+    final response =
+        await _post('get_assignments', token, {'courseids[0]': courseId});
     return response['courses']?[0]?['assignments'] ?? [];
   }
 
@@ -434,18 +447,22 @@ class ApiService {
     return await _post('get_forums', token, {'courseids[0]': courseId});
   }
 
-  Future<List<dynamic>> getQuizzesInCourse(String courseId, String token) async {
-    final response = await _post('get_quizzes', token, {'courseids[0]': courseId});
+  Future<List<dynamic>> getQuizzesInCourse(
+      String courseId, String token) async {
+    final response =
+        await _post('get_quizzes', token, {'courseids[0]': courseId});
     return response['quizzes'] ?? [];
   }
 
   Future<List<dynamic>> getCourseResource(String courseId, String token) async {
-    final response = await _post('get_resources', token, {'courseids[0]': courseId});
+    final response =
+        await _post('get_resources', token, {'courseids[0]': courseId});
     return response['resources'] ?? [];
   }
 
   Future<List<dynamic>> getCourseContent(String courseId, String token) async {
-    final modules = await _post('get_course_contents', token, {'courseid': courseId});
+    final modules =
+        await _post('get_course_contents', token, {'courseid': courseId});
 
     final results = await Future.wait([
       getCoursePages(courseId, token),
@@ -524,7 +541,8 @@ class ApiService {
     return await _post('get_categories', token, {});
   }
 
-  Future<dynamic> uploadFile(String token, Map<String, dynamic> fileData) async {
+  Future<dynamic> uploadFile(
+      String token, Map<String, dynamic> fileData) async {
     _ensureConfigured();
 
     try {
@@ -552,14 +570,17 @@ class ApiService {
       if (response.statusCode == 200) {
         return json.decode(responseBody);
       } else {
-        throw Exception('Upload failed with status code: ${response.statusCode}');
+        throw Exception(
+            'Upload failed with status code: ${response.statusCode}');
       }
     } catch (e) {
       throw Exception('File upload error: ${e.toString()}');
     }
   }
 
-  Future<dynamic> callCustomAPI(String functionKey, String token, Map<String, String> params, {String method = 'POST'}) async {
+  Future<dynamic> callCustomAPI(
+      String functionKey, String token, Map<String, String> params,
+      {String method = 'POST'}) async {
     if (method.toUpperCase() == 'GET') {
       return await _get(functionKey, token, params);
     } else {
@@ -570,10 +591,10 @@ class ApiService {
   Future<Map<String, dynamic>> testConnection(String domain) async {
     try {
       await ConfigurationService.instance.initialize();
-      
+
       String testDomain = domain;
       String? tenantName;
-      
+
       if (domain.contains('.mdl.instructohub.com')) {
         tenantName = domain.split('.mdl.instructohub.com')[0];
         if (tenantName.startsWith('https://')) {
@@ -588,7 +609,8 @@ class ApiService {
         tenantName = domain;
       }
 
-      if (!testDomain.startsWith('http://') && !testDomain.startsWith('https://')) {
+      if (!testDomain.startsWith('http://') &&
+          !testDomain.startsWith('https://')) {
         testDomain = 'https://$testDomain';
       }
 
@@ -597,22 +619,27 @@ class ApiService {
       }
 
       await ConfigurationService.instance.loadForDomain(testDomain);
-      
+
       final config = ConfigurationService.instance.currentConfig;
       String testUrl;
-      
+
       if (config != null && config.apiEndpoints['base']?.isNotEmpty == true) {
-        testUrl = '${config.apiEndpoints['base']}?wsfunction=${_getAPIFunction('get_site_info')}&moodlewsrestformat=json';
+        testUrl =
+            '${config.apiEndpoints['base']}?wsfunction=${_getAPIFunction('get_site_info')}&moodlewsrestformat=json';
       } else {
-        testUrl = '$testDomain/webservice/rest/server.php?wsfunction=core_webservice_get_site_info&moodlewsrestformat=json';
+        testUrl =
+            '$testDomain/webservice/rest/server.php?wsfunction=core_webservice_get_site_info&moodlewsrestformat=json';
       }
+      print('Testing connection to: $testUrl');
+      print('Testing connection to: $testDomain');
 
       final response = await http.get(Uri.parse(testUrl));
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
 
-        if (data['message'] != null && data['message'].toString().contains('Invalid token')) {
+        if (data['message'] != null &&
+            data['message'].toString().contains('Invalid token')) {
           return {
             'success': true,
             'siteName': tenantName?.toUpperCase() ?? 'LMS Instance',
@@ -621,7 +648,8 @@ class ApiService {
             'originalDomain': domain,
             'apiDomain': config?.apiEndpoints['api'] ?? testDomain,
             'tenantName': tenantName,
-            'message': 'Perfect! LMS API is working. The "Invalid token" error is expected during testing.',
+            'message':
+                'Perfect! LMS API is working. The "Invalid token" error is expected during testing.',
           };
         }
 
@@ -642,7 +670,8 @@ class ApiService {
           return {
             'success': true,
             'siteName': data['sitename'],
-            'siteUrl': data['siteurl'] ?? config?.apiEndpoints['api'] ?? testDomain,
+            'siteUrl':
+                data['siteurl'] ?? config?.apiEndpoints['api'] ?? testDomain,
             'version': data['release'] ?? 'LMS',
             'originalDomain': domain,
             'apiDomain': config?.apiEndpoints['api'] ?? testDomain,

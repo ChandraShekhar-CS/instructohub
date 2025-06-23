@@ -4,6 +4,7 @@ import '../services/api_service.dart';
 import '../services/icon_service.dart';
 import './login/login_screen.dart';
 import '../theme/dynamic_app_theme.dart';
+
 typedef AppTheme = DynamicAppTheme;
 
 class DomainConfigScreen extends StatefulWidget {
@@ -90,10 +91,18 @@ class _DomainConfigScreenState extends State<DomainConfigScreen>
   }
 
   Future<void> _testTenantConnection() async {
-    if (!_formKey.currentState!.validate()) return;
+    print('[DEBUG] Starting tenant connection test...');
+
+    if (!_formKey.currentState!.validate()) {
+      print('[DEBUG] Form validation failed.');
+      return;
+    }
 
     final tenantName = _tenantController.text.trim();
+    print('[DEBUG] Tenant name input: "$tenantName"');
+
     final constructedUrl = _constructTenantUrl(tenantName);
+    print('[DEBUG] Constructed URL: $constructedUrl');
 
     setState(() {
       _isTestingConnection = true;
@@ -102,14 +111,23 @@ class _DomainConfigScreenState extends State<DomainConfigScreen>
     });
 
     try {
-      final result = await ApiService.instance.testConnection(constructedUrl).timeout(
+      print('[DEBUG] Attempting connection to $constructedUrl');
+
+      final result =
+          await ApiService.instance.testConnection(constructedUrl).timeout(
         const Duration(seconds: 10),
-        onTimeout: () => {
-          'success': false,
-          'error': 'Connection timeout. Please check your internet connection.',
-          'originalDomain': constructedUrl,
+        onTimeout: () {
+          print('[ERROR] Connection timeout for $constructedUrl');
+          return {
+            'success': false,
+            'error':
+                'Connection timeout. Please check your internet connection.',
+            'originalDomain': constructedUrl,
+          };
         },
       );
+
+      print('[DEBUG] Connection test result for $constructedUrl: $result');
 
       setState(() {
         _connectionResult = result;
@@ -117,41 +135,50 @@ class _DomainConfigScreenState extends State<DomainConfigScreen>
 
       if (result['success'] == true) {
         final siteName = result['siteName'] ?? tenantName;
+        print(
+            '[INFO] Successfully connected to tenant: $siteName at $constructedUrl');
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Row(
               children: [
-                Icon(IconService.instance.getIcon('success'), color: Colors.white),
+                Icon(IconService.instance.getIcon('success'),
+                    color: Colors.white),
                 const SizedBox(width: 8),
-                Expanded(
-                  child: Text('Connected to $tenantName LMS!'),
-                ),
+                Expanded(child: Text('Connected to $tenantName LMS!')),
               ],
             ),
             backgroundColor: AppTheme.success,
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
           ),
         );
       } else {
+        print(
+            '[WARN] Failed to connect to tenant: $tenantName at $constructedUrl. Reason: ${result['error']}');
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Row(
               children: [
-                Icon(IconService.instance.getIcon('error'), color: Colors.white),
+                Icon(IconService.instance.getIcon('error'),
+                    color: Colors.white),
                 const SizedBox(width: 8),
                 const Expanded(
-                  child: Text('Not registered. Please try again or contact your admin.'),
-                ),
+                    child: Text(
+                        'Not registered. Please try again or contact your admin.')),
               ],
             ),
             backgroundColor: AppTheme.error,
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
           ),
         );
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
+      print(
+          '[EXCEPTION] Error while testing connection for $tenantName at $constructedUrl: $e');
+      print('[STACKTRACE] $stackTrace');
       setState(() {
         _connectionResult = {
           'success': false,
@@ -167,8 +194,8 @@ class _DomainConfigScreenState extends State<DomainConfigScreen>
               Icon(IconService.instance.getIcon('error'), color: Colors.white),
               const SizedBox(width: 8),
               const Expanded(
-                child: Text('Not registered. Please try again or contact your admin.'),
-              ),
+                  child: Text(
+                      'Not registered. Please try again or contact your admin.')),
             ],
           ),
           backgroundColor: AppTheme.error,
@@ -180,6 +207,8 @@ class _DomainConfigScreenState extends State<DomainConfigScreen>
       setState(() {
         _isTestingConnection = false;
       });
+      print(
+          '[DEBUG] Connection test finished for $tenantName at $constructedUrl');
     }
   }
 
@@ -243,9 +272,9 @@ class _DomainConfigScreenState extends State<DomainConfigScreen>
   }
 
   bool get _canProceed {
-    return _connectionResult != null && 
-           _connectionResult!['success'] == true && 
-           !_isLoading;
+    return _connectionResult != null &&
+        _connectionResult!['success'] == true &&
+        !_isLoading;
   }
 
   Widget _buildConnectionStatus() {
@@ -264,38 +293,34 @@ class _DomainConfigScreenState extends State<DomainConfigScreen>
             children: [
               Icon(
                 IconService.instance.getIcon(isSuccess ? 'success' : 'error'),
-                color: AppTheme.getStatusTextStyle(isSuccess ? 'success' : 'error').color,
+                color:
+                    AppTheme.getStatusTextStyle(isSuccess ? 'success' : 'error')
+                        .color,
                 size: 20,
               ),
               SizedBox(width: AppTheme.spacingSm),
               Expanded(
                 child: Text(
-                  isSuccess
-                      ? 'Connected to $tenantName LMS'
-                      : 'Not Registered',
-                  style: AppTheme.getStatusTextStyle(isSuccess ? 'success' : 'error').copyWith(
-                    fontWeight: FontWeight.bold
-                  ),
+                  isSuccess ? 'Connected to $tenantName LMS' : 'Not Registered',
+                  style: AppTheme.getStatusTextStyle(
+                          isSuccess ? 'success' : 'error')
+                      .copyWith(fontWeight: FontWeight.bold),
                 ),
               ),
             ],
           ),
-          
           if (!isSuccess) ...[
             SizedBox(height: AppTheme.spacingSm),
             Text(
               'Please try again or contact your admin.',
-              style: AppTheme.getStatusTextStyle('error').copyWith(
-                fontSize: 13
-              ),
+              style:
+                  AppTheme.getStatusTextStyle('error').copyWith(fontSize: 13),
             ),
           ],
         ],
       ),
     );
   }
-
-
 
   @override
   Widget build(BuildContext context) {
@@ -376,19 +401,24 @@ class _DomainConfigScreenState extends State<DomainConfigScreen>
                                   decoration: InputDecoration(
                                     labelText: 'LMS Domain',
                                     hintText: 'instructohub.com',
-                                    helperText: 'Enter only your organization name',
+                                    helperText:
+                                        'Enter only your organization name',
                                     prefixIcon: Icon(
                                       IconService.instance.getIcon('domain'),
                                       color: AppTheme.secondary1,
                                     ),
-                                    border: AppTheme.inputDecorationTheme.border,
-                                    enabledBorder: AppTheme.inputDecorationTheme.enabledBorder,
-                                    focusedBorder: AppTheme.inputDecorationTheme.focusedBorder,
+                                    border:
+                                        AppTheme.inputDecorationTheme.border,
+                                    enabledBorder: AppTheme
+                                        .inputDecorationTheme.enabledBorder,
+                                    focusedBorder: AppTheme
+                                        .inputDecorationTheme.focusedBorder,
                                     filled: true,
                                     fillColor: AppTheme.cardColor,
                                   ),
                                   inputFormatters: [
-                                    FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9]')),
+                                    FilteringTextInputFormatter.allow(
+                                        RegExp(r'[a-zA-Z0-9]')),
                                     LengthLimitingTextInputFormatter(20),
                                   ],
                                   validator: _validateTenant,
@@ -403,7 +433,9 @@ class _DomainConfigScreenState extends State<DomainConfigScreen>
                                 ),
                                 const SizedBox(height: 16),
                                 ElevatedButton.icon(
-                                  onPressed: _isTestingConnection ? null : _testTenantConnection,
+                                  onPressed: _isTestingConnection
+                                      ? null
+                                      : _testTenantConnection,
                                   icon: _isTestingConnection
                                       ? SizedBox(
                                           width: 16,
@@ -413,7 +445,8 @@ class _DomainConfigScreenState extends State<DomainConfigScreen>
                                             color: AppTheme.cardColor,
                                           ),
                                         )
-                                      : Icon(IconService.instance.getIcon('wifi')),
+                                      : Icon(
+                                          IconService.instance.getIcon('wifi')),
                                   label: Text(_isTestingConnection
                                       ? 'Checking Registration...'
                                       : 'Check Registration'),
@@ -425,7 +458,8 @@ class _DomainConfigScreenState extends State<DomainConfigScreen>
                                 ],
                                 const SizedBox(height: 24),
                                 ElevatedButton(
-                                  onPressed: _canProceed ? _saveAndContinue : null,
+                                  onPressed:
+                                      _canProceed ? _saveAndContinue : null,
                                   style: AppTheme.primaryButtonStyle,
                                   child: _isLoading
                                       ? SizedBox(

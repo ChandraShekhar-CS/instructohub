@@ -6,8 +6,7 @@ import 'package:http/http.dart' as http;
 import '../theme/dynamic_app_theme.dart';
 typedef AppTheme = DynamicAppTheme;
 
-// Import domain resolver only if it exists, otherwise we'll handle it
-// import 'domain_resolver_service.dart';
+
 
 class ConfigurationService {
   static ConfigurationService? _instance;
@@ -237,13 +236,7 @@ class LMSConfiguration {
 
     // Simple domain transformation (like your existing logic)
     String apiDomain = domain;
-    if (domain.contains('learn.instructohub.com')) {
-      apiDomain = domain.replaceAll('learn.instructohub.com', 'moodle.instructohub.com');
-    } else if (domain.contains('//learn.')) {
-      apiDomain = domain.replaceAll('//learn.', '//moodle.');
-    } else if (domain.contains('//www.')) {
-      apiDomain = domain.replaceAll('//www.', '//moodle.');
-    }
+    
 
     final defaultConfig = LMSConfiguration.createDefault();
     return LMSConfiguration(

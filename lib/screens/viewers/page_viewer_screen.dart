@@ -48,31 +48,34 @@ class _PageViewerScreenState extends State<PageViewerScreen> {
     final source = widget.foundContent ?? widget.module;
     _pageTitle = source['name'] as String? ?? 'Page';
     _pageIntro = source['intro'] as String? ?? '';
-    
-    final String contentBackgroundColor = AppTheme.background.value.toRadixString(16).substring(2);
-    final String contentTextColor = AppTheme.textPrimary.value.toRadixString(16).substring(2);
-    final String linkColor = AppTheme.secondary1.value.toRadixString(16).substring(2);
 
-    String rawHtml = source['content'] as String? ?? '<p>No content available.</p>';
-    
+    final String contentBackgroundColor =
+        AppTheme.background.value.toRadixString(16).substring(2);
+    final String contentTextColor =
+        AppTheme.textPrimary.value.toRadixString(16).substring(2);
+    final String linkColor =
+        AppTheme.secondary1.value.toRadixString(16).substring(2);
+
+    String rawHtml =
+        source['content'] as String? ?? '<p>No content available.</p>';
+
     // MODIFIED: Replace pluginfile URLs differently for online vs. offline
     if (!widget.isOffline) {
-        rawHtml = rawHtml.replaceAll(
-            '@@PLUGINFILE@@',
-            'https://moodle.instructohub.com/pluginfile.php?token=${widget.token}',
-        );
+      rawHtml = rawHtml.replaceAll(
+        '@@PLUGINFILE@@',
+        'https://learn.mdl.instructohub.com/pluginfile.php?token=${widget.token}',
+      );
     } else {
-        // In offline mode, URLs should already be local file paths. 
-        // We just need to ensure the placeholder isn't there.
-        rawHtml = rawHtml.replaceAll('@@PLUGINFILE@@', '');
+      // In offline mode, URLs should already be local file paths.
+      // We just need to ensure the placeholder isn't there.
+      rawHtml = rawHtml.replaceAll('@@PLUGINFILE@@', '');
     }
-
 
     final fullHtml = '''
     <!DOCTYPE html>
     <html>
       <head>
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="viewport" content="width=device-width, initial-scale=0.5">
         <style>
           :root {
             --bg-color: #${contentBackgroundColor};
@@ -116,8 +119,10 @@ class _PageViewerScreenState extends State<PageViewerScreen> {
         children: [
           if (_pageIntro.isNotEmpty) ...[
             Padding(
-              padding: EdgeInsets.symmetric(horizontal: AppTheme.spacingMd, vertical: AppTheme.spacingSm),
-              child: Text(_pageIntro, style: TextStyle(color: AppTheme.textSecondary)),
+              padding: EdgeInsets.symmetric(
+                  horizontal: AppTheme.spacingMd, vertical: AppTheme.spacingSm),
+              child: Text(_pageIntro,
+                  style: TextStyle(color: AppTheme.textSecondary)),
             ),
             const Divider(height: 1),
           ],
