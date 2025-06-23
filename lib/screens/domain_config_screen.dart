@@ -20,6 +20,7 @@ class _DomainConfigScreenState extends State<DomainConfigScreen>
   bool _isLoading = false;
   bool _isTestingConnection = false;
   Map<String, dynamic>? _connectionResult;
+  String? _constructedUrl;
 
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
@@ -29,9 +30,6 @@ class _DomainConfigScreenState extends State<DomainConfigScreen>
   void initState() {
     super.initState();
     DynamicAppTheme.loadTheme();
-
-    // Set default domain for development
-    _tenantController.text = 'learn.instructohub.com';
 
     _animationController = AnimationController(
       duration: const Duration(milliseconds: 800),
@@ -55,11 +53,6 @@ class _DomainConfigScreenState extends State<DomainConfigScreen>
     ));
 
     _animationController.forward();
-
-    // Auto-test the default domain
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _testConnection();
-    });
   }
 
   @override
@@ -69,36 +62,52 @@ class _DomainConfigScreenState extends State<DomainConfigScreen>
     super.dispose();
   }
 
-  String? _validateDomain(String? value) {
+  String _constructTenantUrl(String tenantName) {
+    final cleanTenant = tenantName.toLowerCase().trim();
+    return '$cleanTenant.mdl.instructohub.com';
+  }
+
+  String? _validateTenant(String? value) {
     if (value == null || value.trim().isEmpty) {
-      return 'Domain is required';
+      return 'Organization name is required';
     }
 
     final cleanValue = value.trim();
 
     if (cleanValue.length < 3) {
-      return 'Domain must be at least 3 characters';
+      return 'Name must be at least 3 characters';
+    }
+
+    if (cleanValue.length > 20) {
+      return 'Name must be less than 20 characters';
+    }
+
+    if (!RegExp(r'^[a-zA-Z0-9]+$').hasMatch(cleanValue)) {
+      return 'Only letters and numbers allowed';
     }
 
     return null;
   }
 
-  Future<void> _testConnection() async {
+  Future<void> _testTenantConnection() async {
     if (!_formKey.currentState!.validate()) return;
+
+    final tenantName = _tenantController.text.trim();
+    final constructedUrl = _constructTenantUrl(tenantName);
 
     setState(() {
       _isTestingConnection = true;
       _connectionResult = null;
+      _constructedUrl = constructedUrl;
     });
 
     try {
-      final domain = _tenantController.text.trim();
-      final result = await ApiService.instance.testConnection(domain).timeout(
+      final result = await ApiService.instance.testConnection(constructedUrl).timeout(
         const Duration(seconds: 10),
         onTimeout: () => {
           'success': false,
           'error': 'Connection timeout. Please check your internet connection.',
-          'originalDomain': domain,
+          'originalDomain': constructedUrl,
         },
       );
 
@@ -107,7 +116,7 @@ class _DomainConfigScreenState extends State<DomainConfigScreen>
       });
 
       if (result['success'] == true) {
-        final siteName = result['siteName'] ?? 'LMS Portal';
+        final siteName = result['siteName'] ?? tenantName;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Row(
@@ -115,7 +124,7 @@ class _DomainConfigScreenState extends State<DomainConfigScreen>
                 Icon(IconService.instance.getIcon('success'), color: Colors.white),
                 const SizedBox(width: 8),
                 Expanded(
-                  child: Text('Connected to $siteName!'),
+                  child: Text('Connected to $tenantName LMS!'),
                 ),
               ],
             ),
@@ -129,14 +138,14 @@ class _DomainConfigScreenState extends State<DomainConfigScreen>
           SnackBar(
             content: Row(
               children: [
-                Icon(IconService.instance.getIcon('warning'), color: Colors.white),
+                Icon(IconService.instance.getIcon('error'), color: Colors.white),
                 const SizedBox(width: 8),
-                Expanded(
-                  child: Text(result['error'] ?? 'Connection failed'),
+                const Expanded(
+                  child: Text('Not registered. Please try again or contact your admin.'),
                 ),
               ],
             ),
-            backgroundColor: AppTheme.warning,
+            backgroundColor: AppTheme.error,
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
           ),
@@ -146,10 +155,27 @@ class _DomainConfigScreenState extends State<DomainConfigScreen>
       setState(() {
         _connectionResult = {
           'success': false,
-          'error': 'Connection failed: ${e.toString()}',
-          'originalDomain': _tenantController.text.trim(),
+          'error': 'Not registered. Please try again or contact your admin.',
+          'originalDomain': constructedUrl,
         };
       });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              Icon(IconService.instance.getIcon('error'), color: Colors.white),
+              const SizedBox(width: 8),
+              const Expanded(
+                child: Text('Not registered. Please try again or contact your admin.'),
+              ),
+            ],
+          ),
+          backgroundColor: AppTheme.error,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        ),
+      );
     } finally {
       setState(() {
         _isTestingConnection = false;
@@ -160,12 +186,34 @@ class _DomainConfigScreenState extends State<DomainConfigScreen>
   Future<void> _saveAndContinue() async {
     if (!_formKey.currentState!.validate()) return;
 
+    if (_connectionResult == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Please test the connection first'),
+          backgroundColor: AppTheme.info,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    if (_connectionResult!['success'] != true) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Please establish a successful connection first'),
+          backgroundColor: AppTheme.error,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
     setState(() {
       _isLoading = true;
     });
 
     try {
-      await ApiService.instance.configure(_tenantController.text.trim());
+      await ApiService.instance.configure(_constructedUrl!);
 
       if (mounted) {
         Navigator.pushReplacement(
@@ -195,86 +243,49 @@ class _DomainConfigScreenState extends State<DomainConfigScreen>
   }
 
   bool get _canProceed {
-    return !_isLoading;
+    return _connectionResult != null && 
+           _connectionResult!['success'] == true && 
+           !_isLoading;
   }
 
   Widget _buildConnectionStatus() {
-    if (_connectionResult == null && !_isTestingConnection) return const SizedBox.shrink();
-
-    if (_isTestingConnection) {
-      return Container(
-        padding: EdgeInsets.all(AppTheme.spacingMd),
-        decoration: BoxDecoration(
-          color: AppTheme.info.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppTheme.info.withOpacity(0.3)),
-        ),
-        child: Row(
-          children: [
-            SizedBox(
-              width: 16,
-              height: 16,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                color: AppTheme.info,
-              ),
-            ),
-            SizedBox(width: AppTheme.spacingSm),
-            Text(
-              'Testing connection...',
-              style: TextStyle(
-                color: AppTheme.info,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ],
-        ),
-      );
-    }
+    if (_connectionResult == null) return const SizedBox.shrink();
 
     final bool isSuccess = _connectionResult!['success'] == true;
+    final String tenantName = _tenantController.text.trim();
 
     return Container(
       padding: EdgeInsets.all(AppTheme.spacingMd),
-      decoration: AppTheme.getStatusDecoration(isSuccess ? 'success' : 'warning'),
+      decoration: AppTheme.getStatusDecoration(isSuccess ? 'success' : 'error'),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
               Icon(
-                IconService.instance.getIcon(isSuccess ? 'success' : 'warning'),
-                color: AppTheme.getStatusTextStyle(isSuccess ? 'success' : 'warning').color,
+                IconService.instance.getIcon(isSuccess ? 'success' : 'error'),
+                color: AppTheme.getStatusTextStyle(isSuccess ? 'success' : 'error').color,
                 size: 20,
               ),
               SizedBox(width: AppTheme.spacingSm),
               Expanded(
                 child: Text(
                   isSuccess
-                      ? 'Connection Successful'
-                      : 'Connection Issues',
-                  style: AppTheme.getStatusTextStyle(isSuccess ? 'success' : 'warning').copyWith(
+                      ? 'Connected to $tenantName LMS'
+                      : 'Not Registered',
+                  style: AppTheme.getStatusTextStyle(isSuccess ? 'success' : 'error').copyWith(
                     fontWeight: FontWeight.bold
                   ),
                 ),
               ),
             ],
           ),
-          if (_connectionResult!['siteName'] != null) ...[
+          
+          if (!isSuccess) ...[
             SizedBox(height: AppTheme.spacingSm),
             Text(
-              'Site: ${_connectionResult!['siteName']}',
-              style: TextStyle(
-                fontSize: 13,
-                color: AppTheme.textSecondary,
-              ),
-            ),
-          ],
-          if (!isSuccess && _connectionResult!['error'] != null) ...[
-            SizedBox(height: AppTheme.spacingSm),
-            Text(
-              _connectionResult!['error'],
-              style: AppTheme.getStatusTextStyle('warning').copyWith(
+              'Please try again or contact your admin.',
+              style: AppTheme.getStatusTextStyle('error').copyWith(
                 fontSize: 13
               ),
             ),
@@ -283,6 +294,8 @@ class _DomainConfigScreenState extends State<DomainConfigScreen>
       ),
     );
   }
+
+
 
   @override
   Widget build(BuildContext context) {
@@ -340,7 +353,7 @@ class _DomainConfigScreenState extends State<DomainConfigScreen>
                                 ),
                                 const SizedBox(height: 24),
                                 Text(
-                                  'Connect to LMS',
+                                  'Connect to Your LMS',
                                   textAlign: TextAlign.center,
                                   style: TextStyle(
                                     fontSize: 28,
@@ -350,7 +363,7 @@ class _DomainConfigScreenState extends State<DomainConfigScreen>
                                 ),
                                 const SizedBox(height: 8),
                                 Text(
-                                  'Configure your learning management system',
+                                  'Enter your organization name to get started',
                                   textAlign: TextAlign.center,
                                   style: TextStyle(
                                     fontSize: 16,
@@ -362,8 +375,8 @@ class _DomainConfigScreenState extends State<DomainConfigScreen>
                                   controller: _tenantController,
                                   decoration: InputDecoration(
                                     labelText: 'LMS Domain',
-                                    hintText: 'learn.instructohub.com',
-                                    helperText: 'Enter your LMS domain URL',
+                                    hintText: 'instructohub.com',
+                                    helperText: 'Enter only your organization name',
                                     prefixIcon: Icon(
                                       IconService.instance.getIcon('domain'),
                                       color: AppTheme.secondary1,
@@ -374,18 +387,23 @@ class _DomainConfigScreenState extends State<DomainConfigScreen>
                                     filled: true,
                                     fillColor: AppTheme.cardColor,
                                   ),
-                                  validator: _validateDomain,
+                                  inputFormatters: [
+                                    FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9]')),
+                                    LengthLimitingTextInputFormatter(20),
+                                  ],
+                                  validator: _validateTenant,
                                   onChanged: (value) {
                                     if (_connectionResult != null) {
                                       setState(() {
                                         _connectionResult = null;
+                                        _constructedUrl = null;
                                       });
                                     }
                                   },
                                 ),
                                 const SizedBox(height: 16),
                                 ElevatedButton.icon(
-                                  onPressed: _isTestingConnection ? null : _testConnection,
+                                  onPressed: _isTestingConnection ? null : _testTenantConnection,
                                   icon: _isTestingConnection
                                       ? SizedBox(
                                           width: 16,
@@ -397,12 +415,14 @@ class _DomainConfigScreenState extends State<DomainConfigScreen>
                                         )
                                       : Icon(IconService.instance.getIcon('wifi')),
                                   label: Text(_isTestingConnection
-                                      ? 'Testing Connection...'
-                                      : 'Test Connection'),
+                                      ? 'Checking Registration...'
+                                      : 'Check Registration'),
                                   style: AppTheme.secondaryButtonStyle,
                                 ),
-                                const SizedBox(height: 16),
-                                _buildConnectionStatus(),
+                                if (_connectionResult != null) ...[
+                                  const SizedBox(height: 16),
+                                  _buildConnectionStatus(),
+                                ],
                                 const SizedBox(height: 24),
                                 ElevatedButton(
                                   onPressed: _canProceed ? _saveAndContinue : null,
@@ -423,35 +443,6 @@ class _DomainConfigScreenState extends State<DomainConfigScreen>
                                             fontWeight: FontWeight.bold,
                                           ),
                                         ),
-                                ),
-                                const SizedBox(height: 16),
-                                Container(
-                                  padding: const EdgeInsets.all(12),
-                                  decoration: BoxDecoration(
-                                    color: AppTheme.info.withOpacity(0.1),
-                                    borderRadius: BorderRadius.circular(8),
-                                    border: Border.all(color: AppTheme.info.withOpacity(0.3)),
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      Icon(
-                                        IconService.instance.getIcon('info'),
-                                        size: 16,
-                                        color: AppTheme.info,
-                                      ),
-                                      const SizedBox(width: 8),
-                                      Expanded(
-                                        child: Text(
-                                          'Development Mode: Using learn.instructohub.com as default',
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            color: AppTheme.info,
-                                            fontWeight: FontWeight.w500,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
                                 ),
                               ],
                             ),

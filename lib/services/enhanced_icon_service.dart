@@ -41,6 +41,7 @@ class DynamicIconService {
     'delete': Icons.delete,
     'save': Icons.save,
     'cancel': Icons.cancel,
+    'quick_actions': Icons.arrow_forward_ios,
     
     // Navigation Icons
     'arrow_back': Icons.arrow_back,

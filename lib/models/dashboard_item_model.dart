@@ -4,16 +4,17 @@ import 'dart:convert';
 import '../models/course_model.dart';
 import '../services/icon_service.dart';
 import '../theme/dynamic_app_theme.dart';
+
 typedef AppTheme = DynamicAppTheme;
 
 enum DashboardWidgetType {
   continueLearning,
+  courseCatalog,
   quickActions,
   recommendedCourses,
   keyMetrics,
   upcomingEvents,
   recentActivity,
-  courseCatalog,
 }
 
 class DashboardItem {
@@ -31,6 +32,8 @@ class DashboardItem {
     switch (type) {
       case DashboardWidgetType.continueLearning:
         return const ContinueLearningWidget();
+      case DashboardWidgetType.courseCatalog:
+        return const CourseCatalogWidget();
       case DashboardWidgetType.quickActions:
         return const QuickActionsWidget();
       case DashboardWidgetType.recommendedCourses:
@@ -41,20 +44,25 @@ class DashboardItem {
         return const UpcomingEventsWidget();
       case DashboardWidgetType.recentActivity:
         return const RecentActivityWidget();
-      case DashboardWidgetType.courseCatalog:
-        return const CourseCatalogWidget();
     }
   }
 
   String get title {
-     switch (type) {
-      case DashboardWidgetType.continueLearning: return 'Continue Learning';
-      case DashboardWidgetType.quickActions: return 'Quick Actions';
-      case DashboardWidgetType.recommendedCourses: return 'Recommended Courses';
-      case DashboardWidgetType.keyMetrics: return 'Key Metrics';
-      case DashboardWidgetType.upcomingEvents: return 'Upcoming Events';
-      case DashboardWidgetType.recentActivity: return 'Recent Activity';
-      case DashboardWidgetType.courseCatalog: return 'My Courses';
+    switch (type) {
+      case DashboardWidgetType.continueLearning:
+        return 'Continue Learning';
+      case DashboardWidgetType.courseCatalog:
+        return 'My Courses';
+      case DashboardWidgetType.quickActions:
+        return 'Quick Actions';
+      case DashboardWidgetType.recommendedCourses:
+        return 'Recommended Courses';
+      case DashboardWidgetType.keyMetrics:
+        return 'Key Metrics';
+      case DashboardWidgetType.upcomingEvents:
+        return 'Upcoming Events';
+      case DashboardWidgetType.recentActivity:
+        return 'Recent Activity';
     }
   }
 }
@@ -87,7 +95,7 @@ class _ContinueLearningWidgetState extends State<ContinueLearningWidget> {
           });
         }
       } catch (_) {
-        // fail silently
+       
       }
     }
   }

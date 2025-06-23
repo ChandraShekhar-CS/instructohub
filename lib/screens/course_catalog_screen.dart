@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart'; // NEW: For image caching
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
@@ -201,6 +202,7 @@ class _CourseCatalogScreenState extends State<CourseCatalogScreen> {
                                     itemBuilder: (context, index) {
                                       return CourseCard(
                                         course: _filteredCourses[index],
+                                        token: widget.token, // Pass token for image URL
                                         onCoursePressed: _openCourse,
                                       );
                                     },
@@ -286,16 +288,23 @@ class _CourseCatalogScreenState extends State<CourseCatalogScreen> {
 
 class CourseCard extends StatelessWidget {
   final Course course;
+  final String token; // Token is needed for image URLs
   final Function(Course) onCoursePressed;
 
   const CourseCard({
     required this.course,
+    required this.token,
     required this.onCoursePressed,
     Key? key,
   }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
+    // MODIFIED: Construct the full image URL with the token
+    final imageUrl = course.courseimage.isNotEmpty 
+        ? '${course.courseimage}?token=$token' 
+        : '';
+
     return Card(
       elevation: 4.0,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.0)),
@@ -307,14 +316,23 @@ class CourseCard extends StatelessWidget {
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
+                SizedBox(
                   height: constraints.maxHeight * 0.55,
                   width: double.infinity,
-                  child: course.courseimage.isNotEmpty
-                      ? Image.network(
-                          course.courseimage,
+                  // MODIFIED: Replaced Image.network with CachedNetworkImage and added compression
+                  child: imageUrl.isNotEmpty
+                      ? CachedNetworkImage(
+                          imageUrl: imageUrl,
+                          httpHeaders: {'Connection': 'keep-alive'}, // Helps with some servers
                           fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) => Container(
+                          // NEW: These parameters create a smaller, compressed version in the cache
+                          maxWidthDiskCache: 400,
+                          //
+                          placeholder: (context, url) => Container(
+                            color: Colors.grey[200],
+                            child: const Center(child: CircularProgressIndicator()),
+                          ),
+                          errorWidget: (context, url, error) => Container(
                             color: Colors.grey[200],
                             child: const Icon(
                               Icons.school,
@@ -323,7 +341,7 @@ class CourseCard extends StatelessWidget {
                             ),
                           ),
                         )
-                      : Container(
+                      : Container( // Fallback for no image
                           color: Colors.grey[200],
                           child: const Icon(
                             Icons.school,
@@ -371,7 +389,7 @@ class CourseCard extends StatelessWidget {
                       ),
                       Expanded(
                         flex: 1,
-                        child: Container(
+                        child: SizedBox(
                           width: double.infinity,
                           child: ElevatedButton(
                             onPressed: () => onCoursePressed(course),

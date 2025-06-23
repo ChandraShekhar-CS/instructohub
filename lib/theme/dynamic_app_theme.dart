@@ -1,6 +1,3 @@
-// File: lib/theme/dynamic_app_theme.dart
-// REPLACE your existing app_theme.dart with this dynamic version
-
 import 'package:flutter/material.dart';
 import '../services/dynamic_theme_service.dart';
 import '../services/enhanced_icon_service.dart';
@@ -45,6 +42,7 @@ class DynamicAppTheme {
   static Color get loginTextLinkHover => textSecondary;
   static Color get loginButtonTextColor => Colors.white;
   static Color get backgroundColor => background;
+  static Color get textSecondaryColor => textSecondary;
 
   // Dynamic spacing getters
   static double get spacingXs => _themeService.getSpacing('xs');

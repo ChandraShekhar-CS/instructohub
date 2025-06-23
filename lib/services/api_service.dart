@@ -24,6 +24,92 @@ class ApiService {
   String get uploadUrl => _uploadUrl ?? '';
   String get tenantName => _tenantName ?? '';
 
+  // --- No changes to existing methods like configure, loadConfiguration, etc. ---
+  // --- Add the new methods below your existing ones. ---
+
+  //============================================================================
+  // --- NEW CHAT AND CONTACTS API METHODS ---
+  //============================================================================
+
+  /// Fetches all chat conversations for the current user.
+  Future<List<dynamic>> getConversations(String token) async {
+    try {
+      final response = await _post('local_chat_get_conversations', token, {});
+      // The API is expected to return a list under the 'conversations' key
+      return response['conversations'] is List ? response['conversations'] : [];
+    } catch (e) {
+      print('Error fetching conversations: ${e.toString()}');
+      rethrow;
+    }
+  }
+
+  /// Fetches all messages for a specific conversation.
+  Future<List<dynamic>> getConversationMessages(String token, int conversationId) async {
+    try {
+      final response = await _post('local_chat_get_messages', token, {
+        'conversationid': conversationId.toString(),
+      });
+      // The API is expected to return a list under the 'messages' key
+      return response['messages'] is List ? response['messages'] : [];
+    } catch (e) {
+      print('Error fetching messages for conversation $conversationId: ${e.toString()}');
+      rethrow;
+    }
+  }
+
+  /// Sends a message to another user.
+  Future<dynamic> sendMessage(String token, int recipientId, String text) async {
+    try {
+      return await _post('local_chat_send_message', token, {
+        'recipientid': recipientId.toString(),
+        'text': text,
+      });
+    } catch (e) {
+      print('Error sending message: ${e.toString()}');
+      rethrow;
+    }
+  }
+
+  /// Marks all messages in a conversation as read.
+  Future<dynamic> markMessagesAsRead(String token, int conversationId) async {
+    try {
+      return await _post('local_chat_mark_read', token, {
+        'conversationid': conversationId.toString(),
+      });
+    } catch (e) {
+      print('Error marking messages as read: ${e.toString()}');
+      rethrow;
+    }
+  }
+
+  /// Fetches the user's list of contacts.
+  Future<List<dynamic>> getContacts(String token) async {
+    try {
+      // Assuming you have an API function that returns the contact list
+      final response = await _post('local_chat_get_contacts', token, {});
+      return response is List ? response : [];
+    } catch (e) {
+      print('Error fetching contacts: ${e.toString()}');
+      rethrow;
+    }
+  }
+
+  /// Searches for users to add as contacts.
+  Future<List<dynamic>> searchUsers(String token, String query) async {
+    try {
+      final response = await _post('local_chat_search_users', token, {
+        'query': query,
+      });
+       return response is List ? response : [];
+    } catch (e) {
+      print('Error searching users: ${e.toString()}');
+      rethrow;
+    }
+  }
+
+
+  // --- KEEP ALL YOUR EXISTING METHODS BELOW ---
+
   Future<void> configure(String domain) async {
     try {
       await ConfigurationService.instance.initialize();
