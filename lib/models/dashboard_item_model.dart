@@ -2,10 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import '../models/course_model.dart';
-import '../services/icon_service.dart';
-import '../theme/dynamic_app_theme.dart';
-
-typedef AppTheme = DynamicAppTheme;
+import '../services/dynamic_theme_service.dart';
+import '../services/enhanced_icon_service.dart';
 
 enum DashboardWidgetType {
   continueLearning,
@@ -94,9 +92,7 @@ class _ContinueLearningWidgetState extends State<ContinueLearningWidget> {
             _lastViewedCourse = Course.fromJson(map);
           });
         }
-      } catch (_) {
-       
-      }
+      } catch (_) {}
     }
   }
 
@@ -105,11 +101,11 @@ class _ContinueLearningWidgetState extends State<ContinueLearningWidget> {
     if (_lastViewedCourse == null) {
       return const SizedBox.shrink();
     }
-    return AppTheme.buildInfoCard(
+    return _buildInfoCard(
+      context,
       iconKey: 'play_circle',
       title: 'Continue Learning',
       subtitle: _lastViewedCourse!.fullname,
-      trailing: Icon(IconService.instance.getIcon('arrow_forward'), size: 16),
     );
   }
 }
@@ -118,11 +114,11 @@ class QuickActionsWidget extends StatelessWidget {
   const QuickActionsWidget({super.key});
   @override
   Widget build(BuildContext context) {
-    return AppTheme.buildInfoCard(
+    return _buildInfoCard(
+      context,
       iconKey: 'quick_actions',
       title: 'Quick Actions',
       subtitle: 'Shortcuts to common tasks',
-      trailing: Icon(IconService.instance.getIcon('arrow_forward'), size: 16),
     );
   }
 }
@@ -131,11 +127,11 @@ class RecommendedCoursesWidget extends StatelessWidget {
   const RecommendedCoursesWidget({super.key});
   @override
   Widget build(BuildContext context) {
-    return AppTheme.buildInfoCard(
+    return _buildInfoCard(
+      context,
       iconKey: 'recommend',
       title: 'Recommended Courses',
       subtitle: 'Courses you might like',
-      trailing: Icon(IconService.instance.getIcon('arrow_forward'), size: 16),
     );
   }
 }
@@ -144,11 +140,11 @@ class KeyMetricsWidget extends StatelessWidget {
   const KeyMetricsWidget({super.key});
   @override
   Widget build(BuildContext context) {
-    return AppTheme.buildInfoCard(
+    return _buildInfoCard(
+      context,
       iconKey: 'metrics',
       title: 'Key Metrics',
       subtitle: 'Track your progress',
-      trailing: Icon(IconService.instance.getIcon('arrow_forward'), size: 16),
     );
   }
 }
@@ -157,11 +153,11 @@ class UpcomingEventsWidget extends StatelessWidget {
   const UpcomingEventsWidget({super.key});
   @override
   Widget build(BuildContext context) {
-    return AppTheme.buildInfoCard(
+    return _buildInfoCard(
+      context,
       iconKey: 'event',
       title: 'Upcoming Events',
       subtitle: 'View your calendar',
-      trailing: Icon(IconService.instance.getIcon('arrow_forward'), size: 16),
     );
   }
 }
@@ -170,11 +166,11 @@ class RecentActivityWidget extends StatelessWidget {
   const RecentActivityWidget({super.key});
   @override
   Widget build(BuildContext context) {
-    return AppTheme.buildInfoCard(
+    return _buildInfoCard(
+      context,
       iconKey: 'history',
       title: 'Recent Activity',
       subtitle: 'See what\'s new',
-      trailing: Icon(IconService.instance.getIcon('arrow_forward'), size: 16),
     );
   }
 }
@@ -184,11 +180,37 @@ class CourseCatalogWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AppTheme.buildInfoCard(
+    return _buildInfoCard(
+      context,
       iconKey: 'catalog',
       title: 'Course Catalog',
       subtitle: 'Browse all available courses',
-      trailing: Icon(IconService.instance.getIcon('arrow_forward'), size: 16),
     );
   }
+}
+
+// Helper method to build a consistently styled card
+Widget _buildInfoCard(BuildContext context,
+    {required String iconKey,
+    required String title,
+    required String subtitle}) {
+  final themeService = DynamicThemeService.instance;
+  final textTheme = Theme.of(context).textTheme;
+
+  return Card(
+    elevation: 2,
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(themeService.getBorderRadius('medium')),
+    ),
+    child: ListTile(
+      leading: Icon(
+        DynamicIconService.instance.getIcon(iconKey),
+        color: themeService.getColor('secondary1'),
+      ),
+      title: Text(title, style: textTheme.titleMedium),
+      subtitle: Text(subtitle, style: textTheme.bodySmall),
+      trailing: Icon(DynamicIconService.instance.getIcon('arrow_forward'),
+          size: 16, color: themeService.getColor('textSecondary')),
+    ),
+  );
 }

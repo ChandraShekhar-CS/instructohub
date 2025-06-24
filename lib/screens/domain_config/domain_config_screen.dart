@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import '../services/api_service.dart';
-import '../services/icon_service.dart';
-import './login/login_screen.dart';
-import '../theme/dynamic_app_theme.dart';
+import '../../services/api_service.dart';
+import '../../services/dynamic_theme_service.dart'; // Updated import
+import '../../services/enhanced_icon_service.dart';
+import '../login/login_screen.dart';
 
-typedef AppTheme = DynamicAppTheme;
+// The DynamicAppTheme class is no longer needed.
 
 class DomainConfigScreen extends StatefulWidget {
   const DomainConfigScreen({super.key});
@@ -30,7 +30,7 @@ class _DomainConfigScreenState extends State<DomainConfigScreen>
   @override
   void initState() {
     super.initState();
-    DynamicAppTheme.loadTheme();
+    // DynamicAppTheme.loadTheme(); // This should be loaded once when the app starts, not here.
 
     _animationController = AnimationController(
       duration: const Duration(milliseconds: 800),
@@ -72,37 +72,27 @@ class _DomainConfigScreenState extends State<DomainConfigScreen>
     if (value == null || value.trim().isEmpty) {
       return 'Organization name is required';
     }
-
     final cleanValue = value.trim();
-
     if (cleanValue.length < 3) {
       return 'Name must be at least 3 characters';
     }
-
     if (cleanValue.length > 20) {
       return 'Name must be less than 20 characters';
     }
-
     if (!RegExp(r'^[a-zA-Z0-9]+$').hasMatch(cleanValue)) {
       return 'Only letters and numbers allowed';
     }
-
     return null;
   }
 
   Future<void> _testTenantConnection() async {
-    print('[DEBUG] Starting tenant connection test...');
-
+    final themeService = DynamicThemeService.instance;
     if (!_formKey.currentState!.validate()) {
-      print('[DEBUG] Form validation failed.');
       return;
     }
 
     final tenantName = _tenantController.text.trim();
-    print('[DEBUG] Tenant name input: "$tenantName"');
-
     final constructedUrl = _constructTenantUrl(tenantName);
-    print('[DEBUG] Constructed URL: $constructedUrl');
 
     setState(() {
       _isTestingConnection = true;
@@ -111,145 +101,94 @@ class _DomainConfigScreenState extends State<DomainConfigScreen>
     });
 
     try {
-      print('[DEBUG] Attempting connection to $constructedUrl');
-
-      final result =
-          await ApiService.instance.testConnection(constructedUrl).timeout(
+      final result = await ApiService.instance.testConnection(constructedUrl).timeout(
         const Duration(seconds: 10),
-        onTimeout: () {
-          print('[ERROR] Connection timeout for $constructedUrl');
-          return {
-            'success': false,
-            'error':
-                'Connection timeout. Please check your internet connection.',
-            'originalDomain': constructedUrl,
-          };
+        onTimeout: () => {
+          'success': false,
+          'error': 'Connection timeout. Please check your internet connection.',
+          'originalDomain': constructedUrl,
         },
       );
 
-      print('[DEBUG] Connection test result for $constructedUrl: $result');
+      if (!mounted) return;
 
       setState(() {
         _connectionResult = result;
       });
-
-      if (result['success'] == true) {
-        final siteName = result['siteName'] ?? tenantName;
-        print(
-            '[INFO] Successfully connected to tenant: $siteName at $constructedUrl');
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                Icon(IconService.instance.getIcon('success'),
-                    color: Colors.white),
-                const SizedBox(width: 8),
-                Expanded(child: Text('Connected to $tenantName LMS!')),
-              ],
-            ),
-            backgroundColor: AppTheme.success,
-            behavior: SnackBarBehavior.floating,
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      
+      final snackBarContent = Row(
+        children: [
+          Icon(
+            DynamicIconService.instance.getIcon(result['success'] == true ? 'success' : 'error'),
+            color: Colors.white,
           ),
-        );
-      } else {
-        print(
-            '[WARN] Failed to connect to tenant: $tenantName at $constructedUrl. Reason: ${result['error']}');
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                Icon(IconService.instance.getIcon('error'),
-                    color: Colors.white),
-                const SizedBox(width: 8),
-                const Expanded(
-                    child: Text(
-                        'Not registered. Please try again or contact your admin.')),
-              ],
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              result['success'] == true
+                  ? 'Connected to $tenantName LMS!'
+                  : 'Not registered. Please try again or contact your admin.',
             ),
-            backgroundColor: AppTheme.error,
-            behavior: SnackBarBehavior.floating,
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
           ),
-        );
-      }
-    } catch (e, stackTrace) {
-      print(
-          '[EXCEPTION] Error while testing connection for $tenantName at $constructedUrl: $e');
-      print('[STACKTRACE] $stackTrace');
-      setState(() {
-        _connectionResult = {
-          'success': false,
-          'error': 'Not registered. Please try again or contact your admin.',
-          'originalDomain': constructedUrl,
-        };
-      });
+        ],
+      );
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Row(
-            children: [
-              Icon(IconService.instance.getIcon('error'), color: Colors.white),
-              const SizedBox(width: 8),
-              const Expanded(
-                  child: Text(
-                      'Not registered. Please try again or contact your admin.')),
-            ],
-          ),
-          backgroundColor: AppTheme.error,
+          content: snackBarContent,
+          backgroundColor: themeService.getColor(result['success'] == true ? 'success' : 'error'),
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(themeService.getBorderRadius('small'))),
+        ),
+      );
+
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _connectionResult = {
+          'success': false,
+          'error': 'An unexpected error occurred.',
+          'originalDomain': constructedUrl,
+        };
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('An error occurred. Please try again.'),
+          backgroundColor: themeService.getColor('error'),
         ),
       );
     } finally {
-      setState(() {
-        _isTestingConnection = false;
-      });
-      print(
-          '[DEBUG] Connection test finished for $tenantName at $constructedUrl');
+      if (mounted) {
+        setState(() {
+          _isTestingConnection = false;
+        });
+      }
     }
   }
 
   Future<void> _saveAndContinue() async {
+    final themeService = DynamicThemeService.instance;
     if (!_formKey.currentState!.validate()) return;
 
-    if (_connectionResult == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('Please test the connection first'),
-          backgroundColor: AppTheme.info,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-      return;
-    }
-
-    if (_connectionResult!['success'] != true) {
+    if (_connectionResult == null || _connectionResult!['success'] != true) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: const Text('Please establish a successful connection first'),
-          backgroundColor: AppTheme.error,
+          backgroundColor: themeService.getColor(_connectionResult == null ? 'info' : 'error'),
           behavior: SnackBarBehavior.floating,
         ),
       );
       return;
     }
 
-    setState(() {
-      _isLoading = true;
-    });
+    setState(() => _isLoading = true);
 
     try {
       await ApiService.instance.configure(_constructedUrl!);
-
       if (mounted) {
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(
-            builder: (context) => const LoginScreen(),
-          ),
+          MaterialPageRoute(builder: (context) => const LoginScreen()),
         );
       }
     } catch (e) {
@@ -257,64 +196,67 @@ class _DomainConfigScreenState extends State<DomainConfigScreen>
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Configuration failed: ${e.toString()}'),
-            backgroundColor: AppTheme.error,
+            backgroundColor: themeService.getColor('error'),
             behavior: SnackBarBehavior.floating,
           ),
         );
       }
     } finally {
       if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
+        setState(() => _isLoading = false);
       }
     }
   }
 
-  bool get _canProceed {
-    return _connectionResult != null &&
-        _connectionResult!['success'] == true &&
-        !_isLoading;
-  }
+  bool get _canProceed =>
+      _connectionResult != null &&
+      _connectionResult!['success'] == true &&
+      !_isLoading;
 
   Widget _buildConnectionStatus() {
+    final themeService = DynamicThemeService.instance;
     if (_connectionResult == null) return const SizedBox.shrink();
 
     final bool isSuccess = _connectionResult!['success'] == true;
     final String tenantName = _tenantController.text.trim();
+    final statusKey = isSuccess ? 'success' : 'error';
+    
+    final statusColor = themeService.getColor(statusKey);
+    final statusTextColor = statusColor.computeLuminance() > 0.5 ? Colors.black : Colors.white;
 
     return Container(
-      padding: EdgeInsets.all(AppTheme.spacingMd),
-      decoration: AppTheme.getStatusDecoration(isSuccess ? 'success' : 'error'),
+      padding: EdgeInsets.all(themeService.getSpacing('md')),
+      decoration: BoxDecoration(
+          color: statusColor.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(themeService.getBorderRadius('medium')),
+          border: Border.all(color: statusColor)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
               Icon(
-                IconService.instance.getIcon(isSuccess ? 'success' : 'error'),
-                color:
-                    AppTheme.getStatusTextStyle(isSuccess ? 'success' : 'error')
-                        .color,
+                DynamicIconService.instance.getIcon(statusKey),
+                color: statusColor,
                 size: 20,
               ),
-              SizedBox(width: AppTheme.spacingSm),
+              SizedBox(width: themeService.getSpacing('sm')),
               Expanded(
                 child: Text(
                   isSuccess ? 'Connected to $tenantName LMS' : 'Not Registered',
-                  style: AppTheme.getStatusTextStyle(
-                          isSuccess ? 'success' : 'error')
-                      .copyWith(fontWeight: FontWeight.bold),
+                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                        color: themeService.getColor('textPrimary'),
+                        fontWeight: FontWeight.bold,
+                      ),
                 ),
               ),
             ],
           ),
           if (!isSuccess) ...[
-            SizedBox(height: AppTheme.spacingSm),
+            SizedBox(height: themeService.getSpacing('sm')),
             Text(
               'Please try again or contact your admin.',
-              style:
-                  AppTheme.getStatusTextStyle('error').copyWith(fontSize: 13),
+              style: Theme.of(context).textTheme.bodyMedium,
             ),
           ],
         ],
@@ -324,17 +266,20 @@ class _DomainConfigScreenState extends State<DomainConfigScreen>
 
   @override
   Widget build(BuildContext context) {
+    final themeService = DynamicThemeService.instance;
+    final textTheme = Theme.of(context).textTheme;
+    final inputDecorationTheme = Theme.of(context).inputDecorationTheme;
+    
     return Scaffold(
-      backgroundColor: AppTheme.background,
+      backgroundColor: themeService.getColor('background'),
       body: Container(
         decoration: BoxDecoration(
-          color: AppTheme.background,
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: [
-              AppTheme.background.withOpacity(0.5),
-              AppTheme.background,
+              themeService.getColor('background').withOpacity(0.5),
+              themeService.getColor('background'),
             ],
           ),
         ),
@@ -353,18 +298,7 @@ class _DomainConfigScreenState extends State<DomainConfigScreen>
                         constraints: const BoxConstraints(maxWidth: 500),
                         child: Container(
                           padding: const EdgeInsets.all(32),
-                          decoration: BoxDecoration(
-                            color: AppTheme.cardColor.withOpacity(0.95),
-                            borderRadius: BorderRadius.circular(20),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.1),
-                                spreadRadius: 2,
-                                blurRadius: 20,
-                                offset: const Offset(0, 4),
-                              ),
-                            ],
-                          ),
+                          decoration: themeService.getDynamicCardDecoration(),
                           child: Form(
                             key: _formKey,
                             child: Column(
@@ -372,53 +306,42 @@ class _DomainConfigScreenState extends State<DomainConfigScreen>
                               crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
                                 Icon(
-                                  IconService.instance.cloudIcon,
+                                  DynamicIconService.instance.cloudIcon,
                                   size: 64,
-                                  color: AppTheme.secondary1,
+                                  color: themeService.getColor('secondary1'),
                                 ),
                                 const SizedBox(height: 24),
                                 Text(
                                   'Connect to Your LMS',
                                   textAlign: TextAlign.center,
-                                  style: TextStyle(
-                                    fontSize: 28,
-                                    fontWeight: FontWeight.bold,
-                                    color: AppTheme.textPrimary,
-                                  ),
+                                  style: textTheme.headlineMedium,
                                 ),
                                 const SizedBox(height: 8),
                                 Text(
                                   'Enter your organization name to get started',
                                   textAlign: TextAlign.center,
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    color: AppTheme.textSecondary,
-                                  ),
+                                  style: textTheme.bodyMedium,
                                 ),
                                 const SizedBox(height: 32),
                                 TextFormField(
                                   controller: _tenantController,
                                   decoration: InputDecoration(
                                     labelText: 'LMS Domain',
-                                    hintText: 'instructohub.com',
-                                    helperText:
-                                        'Enter only your organization name',
+                                    hintText: 'e.g., my-organization',
+                                    helperText: 'Enter only your organization name',
                                     prefixIcon: Icon(
-                                      IconService.instance.getIcon('domain'),
-                                      color: AppTheme.secondary1,
+                                      DynamicIconService.instance.getIcon('domain'),
+                                      color: themeService.getColor('secondary1'),
                                     ),
-                                    border:
-                                        AppTheme.inputDecorationTheme.border,
-                                    enabledBorder: AppTheme
-                                        .inputDecorationTheme.enabledBorder,
-                                    focusedBorder: AppTheme
-                                        .inputDecorationTheme.focusedBorder,
-                                    filled: true,
-                                    fillColor: AppTheme.cardColor,
+                                    // These properties are now inherited from the global theme
+                                    border: inputDecorationTheme.border,
+                                    enabledBorder: inputDecorationTheme.enabledBorder,
+                                    focusedBorder: inputDecorationTheme.focusedBorder,
+                                    filled: inputDecorationTheme.filled,
+                                    fillColor: inputDecorationTheme.fillColor,
                                   ),
                                   inputFormatters: [
-                                    FilteringTextInputFormatter.allow(
-                                        RegExp(r'[a-zA-Z0-9]')),
+                                    FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9]')),
                                     LengthLimitingTextInputFormatter(20),
                                   ],
                                   validator: _validateTenant,
@@ -433,24 +356,27 @@ class _DomainConfigScreenState extends State<DomainConfigScreen>
                                 ),
                                 const SizedBox(height: 16),
                                 ElevatedButton.icon(
-                                  onPressed: _isTestingConnection
-                                      ? null
-                                      : _testTenantConnection,
+                                  onPressed: _isTestingConnection ? null : _testTenantConnection,
                                   icon: _isTestingConnection
                                       ? SizedBox(
                                           width: 16,
                                           height: 16,
                                           child: CircularProgressIndicator(
                                             strokeWidth: 2,
-                                            color: AppTheme.cardColor,
+                                            color: themeService.getColor('primary1'),
                                           ),
                                         )
-                                      : Icon(
-                                          IconService.instance.getIcon('wifi')),
-                                  label: Text(_isTestingConnection
-                                      ? 'Checking Registration...'
-                                      : 'Check Registration'),
-                                  style: AppTheme.secondaryButtonStyle,
+                                      : Icon(DynamicIconService.instance.getIcon('wifi'), color: themeService.getColor('textPrimary')),
+                                  label: Text(
+                                    _isTestingConnection
+                                        ? 'Checking...'
+                                        : 'Check Registration',
+                                    style: textTheme.bodyLarge?.copyWith(color: themeService.getColor('textPrimary')),
+                                  ),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: themeService.getColor('cardColor'),
+                                    side: BorderSide(color: themeService.getColor('secondary1')),
+                                  ),
                                 ),
                                 if (_connectionResult != null) ...[
                                   const SizedBox(height: 16),
@@ -458,25 +384,18 @@ class _DomainConfigScreenState extends State<DomainConfigScreen>
                                 ],
                                 const SizedBox(height: 24),
                                 ElevatedButton(
-                                  onPressed:
-                                      _canProceed ? _saveAndContinue : null,
-                                  style: AppTheme.primaryButtonStyle,
+                                  onPressed: _canProceed ? _saveAndContinue : null,
+                                  // Style is inherited from the global theme
                                   child: _isLoading
                                       ? SizedBox(
                                           height: 20,
                                           width: 20,
                                           child: CircularProgressIndicator(
                                             strokeWidth: 2,
-                                            color: AppTheme.cardColor,
+                                            color: themeService.getColor('loginButtonTextColor'),
                                           ),
                                         )
-                                      : const Text(
-                                          'Continue to Login',
-                                          style: TextStyle(
-                                            fontSize: 16,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
+                                      : const Text('Continue to Login'),
                                 ),
                               ],
                             ),

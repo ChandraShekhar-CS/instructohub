@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 
+import '../../../services/dynamic_theme_service.dart';
 import '../../../services/enhanced_icon_service.dart';
-import '../../../theme/dynamic_app_theme.dart';
 import '../providers/messaging_provider.dart';
 import '../models/conversation_model.dart';
 import './conversation_screen.dart';
@@ -15,16 +15,13 @@ class ChatListScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // We use ChangeNotifierProvider to create and provide the MessagingProvider
-    // to this part of the widget tree.
+    final themeService = DynamicThemeService.instance;
+
     return ChangeNotifierProvider(
       create: (_) => MessagingProvider(token),
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Messages'),
-          backgroundColor: DynamicAppTheme.primary1,
-          foregroundColor: Colors.white,
-          elevation: 0.7,
         ),
         body: Consumer<MessagingProvider>(
           builder: (context, provider, child) {
@@ -33,11 +30,10 @@ class ChatListScreen extends StatelessWidget {
             }
 
             if (provider.conversations.isEmpty) {
-              // FIX: Removed 'const' keyword because the style uses a non-constant value.
               return Center(
                 child: Text(
                   'No conversations yet.',
-                  style: TextStyle(color: DynamicAppTheme.textSecondary),
+                  style: Theme.of(context).textTheme.bodyMedium,
                 ),
               );
             }
@@ -53,25 +49,28 @@ class ChatListScreen extends StatelessWidget {
         ),
         floatingActionButton: FloatingActionButton(
           onPressed: () {
-             Navigator.push(
-                context,
-                MaterialPageRoute(
-                    builder: (context) => ContactListScreen(token: token),
-                ),
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => ContactListScreen(token: token),
+              ),
             );
           },
-          backgroundColor: DynamicAppTheme.secondary1,
-          child: Icon(DynamicIconService.instance.getIcon('add'), color: Colors.white),
+          child: Icon(DynamicIconService.instance.getIcon('add'),
+              color: Colors.white),
         ),
       ),
     );
   }
 
-  Widget _buildConversationTile(BuildContext context, Conversation conversation, String token) {
-    // Helper to format the timestamp of the last message
+  Widget _buildConversationTile(
+      BuildContext context, Conversation conversation, String token) {
+    final themeService = DynamicThemeService.instance;
+    final textTheme = Theme.of(context).textTheme;
+
     String formatTimestamp(int timestamp) {
-        var dt = DateTime.fromMillisecondsSinceEpoch(timestamp * 1000);
-        return DateFormat('h:mm a').format(dt);
+      var dt = DateTime.fromMillisecondsSinceEpoch(timestamp * 1000);
+      return DateFormat('h:mm a').format(dt);
     }
 
     return Column(
@@ -79,27 +78,29 @@ class ChatListScreen extends StatelessWidget {
         ListTile(
           onTap: () {
             Navigator.push(
-                context,
-                MaterialPageRoute(
-                    builder: (context) => ConversationScreen(
-                        token: token,
-                        conversation: conversation,
-                    ),
+              context,
+              MaterialPageRoute(
+                builder: (context) => ConversationScreen(
+                  token: token,
+                  conversation: conversation,
                 ),
+              ),
             );
           },
           leading: CircleAvatar(
             radius: 28,
-            backgroundImage: NetworkImage(conversation.otherUser.profileimageurl),
+            backgroundImage:
+                NetworkImage(conversation.otherUser.profileimageurl),
           ),
           title: Text(
             conversation.otherUser.fullname,
-            style: const TextStyle(fontWeight: FontWeight.bold),
+            style: textTheme.titleMedium,
           ),
           subtitle: Text(
             conversation.lastMessage.text,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
+            style: textTheme.bodySmall,
           ),
           trailing: Column(
             crossAxisAlignment: CrossAxisAlignment.end,
@@ -107,19 +108,18 @@ class ChatListScreen extends StatelessWidget {
             children: [
               Text(
                 formatTimestamp(conversation.lastMessage.timecreated),
-                style: TextStyle(
+                style: textTheme.bodySmall?.copyWith(
                   color: conversation.unreadcount > 0
-                      ? DynamicAppTheme.secondary1
-                      : DynamicAppTheme.textSecondary,
-                  fontSize: 12,
+                      ? themeService.getColor('secondary1')
+                      : themeService.getColor('textSecondary'),
                 ),
               ),
               if (conversation.unreadcount > 0) ...[
                 const SizedBox(height: 4),
                 Container(
                   padding: const EdgeInsets.all(6),
-                  decoration: BoxDecoration( // FIX: Removed 'const' keyword
-                    color: DynamicAppTheme.secondary1,
+                  decoration: BoxDecoration(
+                    color: themeService.getColor('secondary1'),
                     shape: BoxShape.circle,
                   ),
                   child: Text(

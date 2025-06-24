@@ -1,21 +1,19 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
-import '../../theme/dynamic_app_theme.dart';
-
-typedef AppTheme = DynamicAppTheme;
+import '../../services/dynamic_theme_service.dart';
 
 class PageViewerScreen extends StatefulWidget {
   final dynamic module;
   final dynamic foundContent;
   final String token;
-  final bool isOffline; // ADDED: To handle offline mode
+  final bool isOffline;
 
   const PageViewerScreen({
     required this.module,
     this.foundContent,
     required this.token,
-    this.isOffline = false, // ADDED: Default to false
+    this.isOffline = false,
     Key? key,
   }) : super(key: key);
 
@@ -36,7 +34,6 @@ class _PageViewerScreenState extends State<PageViewerScreen> {
       ..setNavigationDelegate(
         NavigationDelegate(
           onNavigationRequest: (NavigationRequest request) {
-            // Prevent all navigation within the webview for simplicity
             return NavigationDecision.prevent;
           },
         ),
@@ -45,29 +42,36 @@ class _PageViewerScreenState extends State<PageViewerScreen> {
   }
 
   void _prepareContent() {
+    final themeService = DynamicThemeService.instance;
     final source = widget.foundContent ?? widget.module;
     _pageTitle = source['name'] as String? ?? 'Page';
     _pageIntro = source['intro'] as String? ?? '';
 
-    final String contentBackgroundColor =
-        AppTheme.background.value.toRadixString(16).substring(2);
-    final String contentTextColor =
-        AppTheme.textPrimary.value.toRadixString(16).substring(2);
-    final String linkColor =
-        AppTheme.secondary1.value.toRadixString(16).substring(2);
+    final String contentBackgroundColor = themeService
+        .getColor('background')
+        .value
+        .toRadixString(16)
+        .substring(2);
+    final String contentTextColor = themeService
+        .getColor('textPrimary')
+        .value
+        .toRadixString(16)
+        .substring(2);
+    final String linkColor = themeService
+        .getColor('secondary1')
+        .value
+        .toRadixString(16)
+        .substring(2);
 
     String rawHtml =
         source['content'] as String? ?? '<p>No content available.</p>';
 
-    // MODIFIED: Replace pluginfile URLs differently for online vs. offline
     if (!widget.isOffline) {
       rawHtml = rawHtml.replaceAll(
         '@@PLUGINFILE@@',
         'https://learn.mdl.instructohub.com/pluginfile.php?token=${widget.token}',
       );
     } else {
-      // In offline mode, URLs should already be local file paths.
-      // We just need to ensure the placeholder isn't there.
       rawHtml = rawHtml.replaceAll('@@PLUGINFILE@@', '');
     }
 
@@ -75,7 +79,7 @@ class _PageViewerScreenState extends State<PageViewerScreen> {
     <!DOCTYPE html>
     <html>
       <head>
-        <meta name="viewport" content="width=device-width, initial-scale=0.5">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <style>
           :root {
             --bg-color: #${contentBackgroundColor};
@@ -89,6 +93,7 @@ class _PageViewerScreenState extends State<PageViewerScreen> {
             background-color: var(--bg-color);
             color: var(--text-color);
             line-height: 1.6;
+            font-size: 16px;
           }
           img, table, video, iframe { max-width: 100%; height: auto; border-radius: 8px; }
           pre, code { white-space: pre-wrap; word-wrap: break-word; }
@@ -112,17 +117,19 @@ class _PageViewerScreenState extends State<PageViewerScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final themeService = DynamicThemeService.instance;
+    final textTheme = Theme.of(context).textTheme;
+
     return Scaffold(
-      backgroundColor: AppTheme.background,
-      appBar: AppTheme.buildDynamicAppBar(title: _pageTitle),
+      appBar: AppBar(title: Text(_pageTitle)),
       body: Column(
         children: [
           if (_pageIntro.isNotEmpty) ...[
             Padding(
               padding: EdgeInsets.symmetric(
-                  horizontal: AppTheme.spacingMd, vertical: AppTheme.spacingSm),
-              child: Text(_pageIntro,
-                  style: TextStyle(color: AppTheme.textSecondary)),
+                  horizontal: themeService.getSpacing('md'),
+                  vertical: themeService.getSpacing('sm')),
+              child: Text(_pageIntro, style: textTheme.bodySmall),
             ),
             const Divider(height: 1),
           ],

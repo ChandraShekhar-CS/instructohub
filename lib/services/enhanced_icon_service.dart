@@ -1,5 +1,4 @@
-// File: lib/services/enhanced_icon_service.dart
-// REPLACE your existing icon_service.dart with this enhanced version
+
 
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -42,7 +41,7 @@ class DynamicIconService {
     'save': Icons.save,
     'cancel': Icons.cancel,
     'quick_actions': Icons.arrow_forward_ios,
-    
+
     // Navigation Icons
     'arrow_back': Icons.arrow_back,
     'arrow_forward': Icons.arrow_forward,
@@ -52,7 +51,7 @@ class DynamicIconService {
     'expand_less': Icons.expand_less,
     'chevron_left': Icons.chevron_left,
     'chevron_right': Icons.chevron_right,
-    
+
     // User & Auth Icons
     'person': Icons.person,
     'person_outline': Icons.person_outline,
@@ -64,13 +63,13 @@ class DynamicIconService {
     'lock_outline': Icons.lock_outline,
     'security': Icons.security,
     'key': Icons.key,
-    
+
     // Visibility Icons
     'visibility': Icons.visibility,
     'visibility_outlined': Icons.visibility_outlined,
     'visibility_off': Icons.visibility_off,
     'visibility_off_outlined': Icons.visibility_off_outlined,
-    
+
     // Education Icons
     'school': Icons.school,
     'book': Icons.book,
@@ -83,7 +82,7 @@ class DynamicIconService {
     'quiz': Icons.quiz,
     'grade': Icons.grade,
     'psychology': Icons.psychology,
-    
+
     // Communication Icons
     'chat': Icons.chat,
     'chat_outlined': Icons.chat_outlined,
@@ -94,7 +93,7 @@ class DynamicIconService {
     'mail_outline': Icons.mail_outline,
     'send': Icons.send,
     'reply': Icons.reply,
-    
+
     // Media & Content Icons
     'play_arrow': Icons.play_arrow,
     'play_circle': Icons.play_circle,
@@ -110,7 +109,7 @@ class DynamicIconService {
     'cloud_download': Icons.cloud_download,
     'download': Icons.download,
     'upload': Icons.upload,
-    
+
     // Status & Feedback Icons
     'notifications': Icons.notifications,
     'notifications_outlined': Icons.notifications_outlined,
@@ -122,7 +121,7 @@ class DynamicIconService {
     'favorite_outline': Icons.favorite_outline,
     'thumb_up': Icons.thumb_up,
     'thumb_down': Icons.thumb_down,
-    
+
     // System & Settings Icons
     'settings': Icons.settings,
     'settings_outlined': Icons.settings_outlined,
@@ -133,7 +132,7 @@ class DynamicIconService {
     'light_mode': Icons.light_mode,
     'language': Icons.language,
     'translate': Icons.translate,
-    
+
     // Data & Analytics Icons
     'analytics': Icons.analytics,
     'analytics_outlined': Icons.analytics_outlined,
@@ -143,7 +142,7 @@ class DynamicIconService {
     'timeline': Icons.timeline,
     'trending_up': Icons.trending_up,
     'trending_down': Icons.trending_down,
-    
+
     // Time & Calendar Icons
     'schedule': Icons.schedule,
     'access_time': Icons.access_time,
@@ -156,7 +155,7 @@ class DynamicIconService {
     'date_range': Icons.date_range,
     'history': Icons.history,
     'history_outlined': Icons.history_outlined,
-    
+
     // Technology Icons
     'computer': Icons.computer,
     'laptop': Icons.laptop,
@@ -169,7 +168,7 @@ class DynamicIconService {
     'cloud_outlined': Icons.cloud_outlined,
     'storage': Icons.storage,
     'memory': Icons.memory,
-    
+
     // Action Icons
     'search': Icons.search,
     'filter_list': Icons.filter_list,
@@ -182,7 +181,7 @@ class DynamicIconService {
     'content_copy': Icons.content_copy,
     'link': Icons.link,
     'open_in_new': Icons.open_in_new,
-    
+
     // Status Icons
     'check_circle': Icons.check_circle,
     'check_circle_outline': Icons.check_circle_outline,
@@ -194,14 +193,14 @@ class DynamicIconService {
     'info_outline': Icons.info_outline,
     'help': Icons.help,
     'help_outline': Icons.help_outline,
-    
+
     // Progress & Loading Icons
     'hourglass_empty': Icons.hourglass_empty,
     'hourglass_full': Icons.hourglass_full,
     'pending': Icons.pending,
     'update': Icons.update,
     'autorenew': Icons.autorenew,
-    
+
     // Misc Icons
     'flag': Icons.flag,
     'bookmark': Icons.bookmark,
@@ -215,7 +214,7 @@ class DynamicIconService {
     'article': Icons.article,
     'note': Icons.note,
     'sticky_note_2': Icons.sticky_note_2,
-    
+
     // Special LMS Icons
     'groups': Icons.groups,
     'people': Icons.people,
@@ -232,6 +231,11 @@ class DynamicIconService {
     'biotech': Icons.biotech,
     'engineering': Icons.engineering,
     'architecture': Icons.architecture,
+
+    // Additional missing icons
+    'location_on': Icons.location_on,
+    'phone': Icons.phone,
+    'library_music': Icons.library_music,
   };
 
   // Legacy icon names mapping
@@ -299,14 +303,14 @@ class DynamicIconService {
 
     try {
       await ConfigurationService.instance.initialize();
-      
+
       Map<String, dynamic>? remoteConfig;
       if (token != null && ApiService.instance.isConfigured) {
         remoteConfig = await _fetchRemoteIconConfig(token);
       }
 
       final cachedConfig = await _loadCachedIconConfig();
-      
+
       Map<String, dynamic> finalIconConfig;
       if (remoteConfig != null) {
         finalIconConfig = remoteConfig;
@@ -377,6 +381,7 @@ class DynamicIconService {
         'messages': 'chat_outlined',
         'notifications': 'notifications_outlined',
         'profile': 'person_outline',
+        'person': 'person_outline',
         'settings': 'settings_outlined',
         'logout': 'logout',
         'search': 'search',
@@ -443,6 +448,9 @@ class DynamicIconService {
         'category': 'category',
         'tag': 'label',
         'flag': 'flag',
+        'domain': 'language',
+        'school': 'school',
+        'swap': 'sync',
       },
       'styles': {
         'default': 'outlined',
@@ -485,34 +493,34 @@ class DynamicIconService {
 
   IconData? _resolveIconFromString(String iconName) {
     String normalizedName = iconName.toLowerCase().trim();
-    
+
     if (_legacyMapping.containsKey(normalizedName)) {
       normalizedName = _legacyMapping[normalizedName]!;
     }
-    
+
     if (_materialIcons.containsKey(normalizedName)) {
       return _materialIcons[normalizedName];
     }
-    
+
     for (String key in _materialIcons.keys) {
       if (key.contains(normalizedName) || normalizedName.contains(key)) {
         return _materialIcons[key];
       }
     }
-    
+
     return null;
   }
 
   Map<String, IconData> _getDefaultIconMappings() {
     final defaultConfig = _getDefaultIconConfig();
     final Map<String, IconData> mappings = {};
-    
+
     final iconsMap = defaultConfig['icons'] as Map<String, dynamic>;
     iconsMap.forEach((key, value) {
       IconData? icon = _resolveIconFromString(value as String);
       mappings[key] = icon ?? Icons.help_outline;
     });
-    
+
     return mappings;
   }
 
@@ -544,7 +552,7 @@ class DynamicIconService {
     }
 
     IconData? icon = _iconMappings?[iconKey];
-    
+
     if (icon == null) {
       IconData? resolvedIcon = _resolveIconFromString(iconKey);
       if (resolvedIcon != null) {
@@ -578,7 +586,7 @@ class DynamicIconService {
 
   IconData? _getStyledIcon(String baseName, String style) {
     String styledName;
-    
+
     switch (style.toLowerCase()) {
       case 'outlined':
       case 'outline':
@@ -614,9 +622,10 @@ class DynamicIconService {
   }
 
   bool hasIcon(String iconKey) {
-    return _iconMappings?.containsKey(iconKey) ?? false ||
-           _materialIcons.containsKey(iconKey) ||
-           _resolveIconFromString(iconKey) != null;
+    return _iconMappings?.containsKey(iconKey) ??
+        false ||
+            _materialIcons.containsKey(iconKey) ||
+            _resolveIconFromString(iconKey) != null;
   }
 
   Map<String, dynamic> getIconDebugInfo() {
@@ -628,7 +637,11 @@ class DynamicIconService {
       'source': _iconConfig?['source'] ?? 'unknown',
       'lastUpdated': _iconConfig?['last_updated'] ?? 'unknown',
       'totalAvailableIcons': _materialIcons.length,
-      'sampleMappings': _iconMappings?.entries.take(5).map((e) => '${e.key}: ${_getIconNameFromData(e.value)}').toList() ?? [],
+      'sampleMappings': _iconMappings?.entries
+              .take(5)
+              .map((e) => '${e.key}: ${_getIconNameFromData(e.value)}')
+              .toList() ??
+          [],
     };
   }
 
@@ -652,6 +665,7 @@ class DynamicIconService {
   IconData get coursesIcon => getIcon('courses');
   IconData get settingsIcon => getIcon('settings');
   IconData get profileIcon => getIcon('profile');
+  IconData get personIcon => getIcon('person');
   IconData get logoutIcon => getIcon('logout');
   IconData get searchIcon => getIcon('search');
   IconData get menuIcon => getIcon('menu');
@@ -722,4 +736,7 @@ class DynamicIconService {
   IconData get messagesIcon => getIcon('messages');
   IconData get assignmentsIcon => getIcon('assignments');
   IconData get gradesIcon => getIcon('grades');
+  IconData get domainIcon => getIcon('domain');
+  IconData get schoolIcon => getIcon('school');
+  IconData get swapIcon => getIcon('swap');
 }

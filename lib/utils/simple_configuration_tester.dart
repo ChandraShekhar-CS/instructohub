@@ -8,7 +8,8 @@ class SimpleConfigurationTester extends StatefulWidget {
   const SimpleConfigurationTester({super.key});
 
   @override
-  State<SimpleConfigurationTester> createState() => _SimpleConfigurationTesterState();
+  State<SimpleConfigurationTester> createState() =>
+      _SimpleConfigurationTesterState();
 }
 
 class _SimpleConfigurationTesterState extends State<SimpleConfigurationTester> {
@@ -37,18 +38,20 @@ class _SimpleConfigurationTesterState extends State<SimpleConfigurationTester> {
     try {
       // Initialize configuration service
       await ConfigurationService.instance.initialize();
-      
+
       // Test domain configuration
-      await ConfigurationService.instance.loadForDomain(_domainController.text.trim());
-      
+      await ConfigurationService.instance
+          .loadForDomain(_domainController.text.trim());
+
       final config = ConfigurationService.instance.currentConfig;
-      
+
       setState(() {
         _config = config;
-        _status = config != null ? 'Configuration loaded successfully!' : 'Failed to load configuration';
+        _status = config != null
+            ? 'Configuration loaded successfully!'
+            : 'Failed to load configuration';
         _isLoading = false;
       });
-
     } catch (e) {
       setState(() {
         _status = 'Error: ${e.toString()}';
@@ -66,7 +69,7 @@ class _SimpleConfigurationTesterState extends State<SimpleConfigurationTester> {
     try {
       await ConfigurationService.instance.initialize();
       final config = ConfigurationService.instance.currentConfig;
-      
+
       setState(() {
         _config = config;
         _status = 'Default configuration loaded';
@@ -93,7 +96,7 @@ class _SimpleConfigurationTesterState extends State<SimpleConfigurationTester> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Configuration System Tester'),
-        backgroundColor: AppTheme.secondary1,
+        backgroundColor: DynamicThemeService.instance.getColor('secondary1'),
         foregroundColor: Colors.white,
       ),
       body: Padding(
@@ -120,7 +123,6 @@ class _SimpleConfigurationTesterState extends State<SimpleConfigurationTester> {
                       style: TextStyle(color: Colors.grey),
                     ),
                     const SizedBox(height: 16),
-                    
                     TextField(
                       controller: _domainController,
                       decoration: const InputDecoration(
@@ -130,24 +132,25 @@ class _SimpleConfigurationTesterState extends State<SimpleConfigurationTester> {
                         prefixIcon: Icon(Icons.language),
                       ),
                     ),
-                    
                     const SizedBox(height: 16),
-                    
                     Row(
                       children: [
                         Expanded(
                           child: ElevatedButton.icon(
                             onPressed: _isLoading ? null : _testConfiguration,
-                            icon: _isLoading 
+                            icon: _isLoading
                                 ? const SizedBox(
                                     width: 16,
                                     height: 16,
-                                    child: CircularProgressIndicator(strokeWidth: 2),
+                                    child: CircularProgressIndicator(
+                                        strokeWidth: 2),
                                   )
                                 : const Icon(Icons.play_arrow),
-                            label: Text(_isLoading ? 'Testing...' : 'Test Domain'),
+                            label:
+                                Text(_isLoading ? 'Testing...' : 'Test Domain'),
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: AppTheme.secondary1,
+                              backgroundColor: DynamicThemeService.instance
+                                  .getColor('secondary1'),
                               foregroundColor: Colors.white,
                             ),
                           ),
@@ -168,15 +171,14 @@ class _SimpleConfigurationTesterState extends State<SimpleConfigurationTester> {
                         ),
                       ],
                     ),
-                    
                     const SizedBox(height: 16),
-                    
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: _status.contains('Error') 
+                        color: _status.contains('Error')
                             ? Colors.red.withOpacity(0.1)
-                            : _status.contains('success') || _status.contains('loaded')
+                            : _status.contains('success') ||
+                                    _status.contains('loaded')
                                 ? Colors.green.withOpacity(0.1)
                                 : Colors.blue.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(8),
@@ -184,9 +186,10 @@ class _SimpleConfigurationTesterState extends State<SimpleConfigurationTester> {
                       child: Text(
                         'Status: $_status',
                         style: TextStyle(
-                          color: _status.contains('Error') 
+                          color: _status.contains('Error')
                               ? Colors.red.shade700
-                              : _status.contains('success') || _status.contains('loaded')
+                              : _status.contains('success') ||
+                                      _status.contains('loaded')
                                   ? Colors.green.shade700
                                   : Colors.blue.shade700,
                           fontWeight: FontWeight.w500,
@@ -197,9 +200,9 @@ class _SimpleConfigurationTesterState extends State<SimpleConfigurationTester> {
                 ),
               ),
             ),
-            
+
             const SizedBox(height: 16),
-            
+
             // Quick test domains
             Card(
               child: Padding(
@@ -215,7 +218,6 @@ class _SimpleConfigurationTesterState extends State<SimpleConfigurationTester> {
                       ),
                     ),
                     const SizedBox(height: 8),
-                    
                     Wrap(
                       spacing: 8,
                       runSpacing: 8,
@@ -224,24 +226,26 @@ class _SimpleConfigurationTesterState extends State<SimpleConfigurationTester> {
                         'www.university.edu',
                         'app.school.org',
                         'moodle.college.com',
-                      ].map((domain) => 
-                        ActionChip(
-                          label: Text(domain),
-                          onPressed: () {
-                            _domainController.text = domain;
-                            _testConfiguration();
-                          },
-                          backgroundColor: AppTheme.secondary3,
-                        ),
-                      ).toList(),
+                      ]
+                          .map(
+                            (domain) => ActionChip(
+                              label: Text(domain),
+                              onPressed: () {
+                                _domainController.text = domain;
+                                _testConfiguration();
+                              },
+                              backgroundColor: AppTheme.secondary3,
+                            ),
+                          )
+                          .toList(),
                     ),
                   ],
                 ),
               ),
             ),
-            
+
             const SizedBox(height: 16),
-            
+
             if (_config != null) _buildConfigurationDisplay(),
           ],
         ),
@@ -266,39 +270,37 @@ class _SimpleConfigurationTesterState extends State<SimpleConfigurationTester> {
                   ),
                 ),
                 const SizedBox(height: 16),
-                
                 _buildSection('Basic Info', [
                   _buildInfoRow('LMS Type', _config!.lmsType),
-                  _buildInfoRow('Domain', _config!.domain.isEmpty ? 'Default' : _config!.domain),
-                  _buildInfoRow('Last Updated', _config!.lastUpdated.toString()),
+                  _buildInfoRow('Domain',
+                      _config!.domain.isEmpty ? 'Default' : _config!.domain),
+                  _buildInfoRow(
+                      'Last Updated', _config!.lastUpdated.toString()),
                 ]),
-                
-                _buildSection('API Endpoints', 
-                  _config!.apiEndpoints.entries.map((e) => 
-                    _buildInfoRow(e.key, e.value.isEmpty ? 'Not configured' : e.value)
-                  ).toList()
-                ),
-                
-                _buildSection('API Functions (Sample)', 
-                  _config!.apiFunctions.entries.take(5).map((e) => 
-                    _buildInfoRow(e.key, e.value)
-                  ).toList()
-                ),
-                
-                _buildSection('Theme Colors', 
-                  _config!.themeColors.entries.map((e) => 
-                    _buildColorRow(e.key, e.value)
-                  ).toList()
-                ),
-                
-                _buildSection('Icon Mappings (Sample)', 
-                  _config!.iconMappings.entries.take(5).map((e) => 
-                    _buildInfoRow(e.key, e.value)
-                  ).toList()
-                ),
-                
+                _buildSection(
+                    'API Endpoints',
+                    _config!.apiEndpoints.entries
+                        .map((e) => _buildInfoRow(e.key,
+                            e.value.isEmpty ? 'Not configured' : e.value))
+                        .toList()),
+                _buildSection(
+                    'API Functions (Sample)',
+                    _config!.apiFunctions.entries
+                        .take(5)
+                        .map((e) => _buildInfoRow(e.key, e.value))
+                        .toList()),
+                _buildSection(
+                    'Theme Colors',
+                    _config!.themeColors.entries
+                        .map((e) => _buildColorRow(e.key, e.value))
+                        .toList()),
+                _buildSection(
+                    'Icon Mappings (Sample)',
+                    _config!.iconMappings.entries
+                        .take(5)
+                        .map((e) => _buildInfoRow(e.key, e.value))
+                        .toList()),
                 const SizedBox(height: 16),
-                
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
@@ -344,7 +346,7 @@ class _SimpleConfigurationTesterState extends State<SimpleConfigurationTester> {
           style: const TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.bold,
-            color: AppTheme.secondary1,
+            color: DynamicThemeService.instance.getColor('secondary1'),
           ),
         ),
         const SizedBox(height: 8),

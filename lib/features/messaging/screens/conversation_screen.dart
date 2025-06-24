@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
 import 'package:flutter/foundation.dart' as foundation;
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
 
 import '../../../services/api_service.dart';
+import '../../../services/dynamic_theme_service.dart';
 import '../../../services/enhanced_icon_service.dart';
-import '../../../theme/dynamic_app_theme.dart';
 import '../models/conversation_model.dart';
 import '../models/message_model.dart';
-
 
 class ConversationScreen extends StatefulWidget {
   final String token;
@@ -30,15 +31,42 @@ class _ConversationScreenState extends State<ConversationScreen> {
   bool _isLoading = true;
   bool _isSending = false;
   bool _emojiShowing = false;
-  // This would come from a user service or auth provider
-  final int _currentUserId = 1; // Replace with actual current user ID
+
+  // This will be dynamically retrieved from local storage.
+  int _currentUserId = -1;
 
   @override
   void initState() {
     super.initState();
-    _fetchMessages();
+    _loadInitialData();
+  }
+
+  Future<void> _loadInitialData() async {
+    await _loadCurrentUser();
+    await _fetchMessages();
   }
   
+  // Fetches the current user's ID from SharedPreferences.
+  Future<void> _loadCurrentUser() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final userInfoString = prefs.getString('userInfo');
+      if (userInfoString != null) {
+        final userInfo = json.decode(userInfoString);
+        if (mounted) {
+          setState(() {
+            _currentUserId = userInfo['userid'];
+          });
+        }
+      }
+    } catch (e) {
+      if(mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Could not load user data: $e')));
+      }
+    }
+  }
+
   @override
   void dispose() {
     _textController.dispose();
@@ -46,18 +74,34 @@ class _ConversationScreenState extends State<ConversationScreen> {
   }
 
   Future<void> _fetchMessages() async {
+    // Ensure we have a valid user ID before fetching.
+    if (_currentUserId == -1) {
+       if (mounted) {
+         setState(() => _isLoading = false);
+         ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Could not verify user. Cannot load messages.')));
+       }
+       return;
+    }
+
     setState(() => _isLoading = true);
     try {
-      final response = await _apiService.getConversationMessages(widget.token, widget.conversation.id);
-      if(mounted) {
+      final response = await _apiService.getConversationMessages(
+          widget.token, widget.conversation.id);
+      if (mounted) {
         setState(() {
-          _messages = response.map((data) => Message.fromJson(data)).toList().reversed.toList();
+          _messages = response
+              .map((data) => Message.fromJson(data))
+              .toList()
+              .reversed
+              .toList();
           _isLoading = false;
         });
       }
     } catch (e) {
-      if(mounted) setState(() => _isLoading = false);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+      if (mounted) setState(() => _isLoading = false);
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Error: $e')));
     }
   }
 
@@ -71,14 +115,15 @@ class _ConversationScreenState extends State<ConversationScreen> {
     _textController.clear();
 
     try {
-      await _apiService.sendMessage(widget.token, widget.conversation.otherUser.id, text);
-      // For instant feedback, you could add the message locally before the API call returns
-      // then update it with the real data. For now, we just refresh.
+      await _apiService.sendMessage(
+          widget.token, widget.conversation.otherUser.id, text);
       await _fetchMessages();
     } catch (e) {
-      // If sending fails, restore the text
       _textController.text = text;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to send: $e')));
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Failed to send: $e')));
+      }
     } finally {
       if (mounted) {
         setState(() {
@@ -90,15 +135,16 @@ class _ConversationScreenState extends State<ConversationScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final themeService = DynamicThemeService.instance;
+
     return Scaffold(
-      backgroundColor: const Color(0xFFEFE7DE), // WhatsApp-like background
+      backgroundColor: themeService.getColor('background'),
       appBar: AppBar(
-        backgroundColor: DynamicAppTheme.primary1,
-        foregroundColor: Colors.white,
         title: Row(
           children: [
             CircleAvatar(
-              backgroundImage: NetworkImage(widget.conversation.otherUser.profileimageurl),
+              backgroundImage:
+                  NetworkImage(widget.conversation.otherUser.profileimageurl),
             ),
             const SizedBox(width: 12),
             Text(widget.conversation.otherUser.fullname),
@@ -129,13 +175,16 @@ class _ConversationScreenState extends State<ConversationScreen> {
   }
 
   Widget _buildMessageBubble(Message message, bool isMe) {
+    final themeService = DynamicThemeService.instance;
     return Align(
       alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
         margin: const EdgeInsets.symmetric(vertical: 4.0, horizontal: 8.0),
         padding: const EdgeInsets.symmetric(vertical: 10.0, horizontal: 14.0),
         decoration: BoxDecoration(
-          color: isMe ? const Color(0xFFE7FFDB) : Colors.white,
+          color: isMe
+              ? themeService.getColor('secondary1').withOpacity(0.8)
+              : themeService.getColor('cardColor'),
           borderRadius: BorderRadius.circular(12),
           boxShadow: [
             BoxShadow(
@@ -147,13 +196,17 @@ class _ConversationScreenState extends State<ConversationScreen> {
         ),
         child: Text(
           message.text,
-          style: const TextStyle(fontSize: 16),
+          style: TextStyle(
+              fontSize: 16,
+              color:
+                  isMe ? Colors.white : themeService.getColor('textPrimary')),
         ),
       ),
     );
   }
 
   Widget _buildTextInputArea() {
+    final themeService = DynamicThemeService.instance;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 8.0),
       color: Colors.transparent,
@@ -168,12 +221,11 @@ class _ConversationScreenState extends State<ConversationScreen> {
                 children: [
                   IconButton(
                     icon: Icon(
-                        DynamicIconService.instance.getIcon('sentiment_satisfied'),
-                        color: DynamicAppTheme.textSecondary
-                    ),
+                        DynamicIconService.instance
+                            .getIcon('sentiment_satisfied'),
+                        color: themeService.getColor('textSecondary')),
                     onPressed: () {
                       setState(() {
-                         // Hide keyboard if it's open
                         FocusScope.of(context).unfocus();
                         _emojiShowing = !_emojiShowing;
                       });
@@ -195,8 +247,10 @@ class _ConversationScreenState extends State<ConversationScreen> {
                     ),
                   ),
                   IconButton(
-                    icon: Icon(DynamicIconService.instance.getIcon('attach_file'), color: DynamicAppTheme.textSecondary),
-                    onPressed: () { /* Attachment logic here */ },
+                    icon: Icon(
+                        DynamicIconService.instance.getIcon('attach_file'),
+                        color: themeService.getColor('textSecondary')),
+                    onPressed: () {},
                   ),
                 ],
               ),
@@ -206,10 +260,16 @@ class _ConversationScreenState extends State<ConversationScreen> {
           FloatingActionButton(
             mini: true,
             onPressed: _handleSendPressed,
-            backgroundColor: DynamicAppTheme.secondary1,
             child: _isSending
-                ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2,))
-                : Icon(DynamicIconService.instance.getIcon('send'), color: Colors.white),
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      color: Colors.white,
+                      strokeWidth: 2,
+                    ))
+                : Icon(DynamicIconService.instance.getIcon('send'),
+                    color: Colors.white),
           ),
         ],
       ),
@@ -223,17 +283,20 @@ class _ConversationScreenState extends State<ConversationScreen> {
         height: 250,
         child: EmojiPicker(
           textEditingController: _textController,
-           config: Config(
-              height: 256,
-              emojiViewConfig: EmojiViewConfig(
-                 emojiSizeMax: 28 * (foundation.defaultTargetPlatform == TargetPlatform.iOS ? 1.20 : 1.0),
-              ),
-              swapCategoryAndBottomBar: false,
-              skinToneConfig: const SkinToneConfig(),
-              categoryViewConfig: const CategoryViewConfig(),
-              bottomActionBarConfig: const BottomActionBarConfig(),
-              searchViewConfig: const SearchViewConfig(),
-           ),
+          config: Config(
+            height: 256,
+            emojiViewConfig: EmojiViewConfig(
+              emojiSizeMax: 28 *
+                  (foundation.defaultTargetPlatform == TargetPlatform.iOS
+                      ? 1.20
+                      : 1.0),
+            ),
+            swapCategoryAndBottomBar: false,
+            skinToneConfig: const SkinToneConfig(),
+            categoryViewConfig: const CategoryViewConfig(),
+            bottomActionBarConfig: const BottomActionBarConfig(),
+            searchViewConfig: const SearchViewConfig(),
+          ),
         ),
       ),
     );

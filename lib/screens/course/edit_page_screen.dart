@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
-import '../../services/icon_service.dart';
-import '../../theme/dynamic_app_theme.dart';
-typedef AppTheme = DynamicAppTheme;
+import '../../services/dynamic_theme_service.dart';
+import '../../services/enhanced_icon_service.dart';
 
 class EditPageScreen extends StatefulWidget {
   final String initialTitle;
@@ -44,36 +43,35 @@ class _EditPageScreenState extends State<EditPageScreen> {
         _titleController.text,
         _contentController.text,
       );
-      Navigator.pop(context); 
+      Navigator.pop(context);
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final themeService = DynamicThemeService.instance;
+    final textTheme = Theme.of(context).textTheme;
+
     return Scaffold(
-      backgroundColor: AppTheme.background,
-      appBar: AppTheme.buildDynamicAppBar(
-        title: 'Edit "${widget.initialTitle}"',
+      appBar: AppBar(
+        title: Text('Edit "${widget.initialTitle}"'),
         actions: [
           IconButton(
-            icon: Icon(IconService.instance.getIcon('save')),
+            icon: Icon(DynamicIconService.instance.getIcon('save')),
             onPressed: _handleSave,
             tooltip: 'Save Changes',
           ),
         ],
       ),
       body: SingleChildScrollView(
-        padding: EdgeInsets.all(AppTheme.spacingMd),
+        padding: EdgeInsets.all(themeService.getSpacing('md')),
         child: Form(
           key: _formKey,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Text(
-                'Page Title',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: AppTheme.fontSizeLg, color: AppTheme.textPrimary),
-              ),
-              SizedBox(height: AppTheme.spacingSm),
+              Text('Page Title', style: textTheme.titleLarge),
+              SizedBox(height: themeService.getSpacing('sm')),
               TextFormField(
                 controller: _titleController,
                 decoration: const InputDecoration(
@@ -86,20 +84,17 @@ class _EditPageScreenState extends State<EditPageScreen> {
                   return null;
                 },
               ),
-              SizedBox(height: AppTheme.spacingLg),
-              Text(
-                'Page Content',
-                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: AppTheme.fontSizeLg, color: AppTheme.textPrimary),
-              ),
-              SizedBox(height: AppTheme.spacingSm),
+              SizedBox(height: themeService.getSpacing('lg')),
+              Text('Page Content', style: textTheme.titleLarge),
+              SizedBox(height: themeService.getSpacing('sm')),
               TextFormField(
                 controller: _contentController,
                 decoration: const InputDecoration(
                   hintText: 'Enter the page content (HTML)',
                   alignLabelWithHint: true,
                 ),
-                 maxLines: 15,
-                 textAlignVertical: TextAlignVertical.top,
+                maxLines: 15,
+                textAlignVertical: TextAlignVertical.top,
                 validator: (value) {
                   if (value == null || value.trim().isEmpty) {
                     return 'Content cannot be empty.';
@@ -107,11 +102,11 @@ class _EditPageScreenState extends State<EditPageScreen> {
                   return null;
                 },
               ),
-              SizedBox(height: AppTheme.spacingLg),
-              AppTheme.buildActionButton(
+              SizedBox(height: themeService.getSpacing('lg')),
+              ElevatedButton.icon(
                 onPressed: _handleSave,
-                iconKey: 'save',
-                text: 'Save Changes',
+                icon: Icon(DynamicIconService.instance.getIcon('save')),
+                label: const Text('Save Changes'),
               )
             ],
           ),

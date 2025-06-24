@@ -1,13 +1,10 @@
-// File: lib/services/dynamic_theme_service.dart
+// File: lib/services/enhanced_dynamic_theme_service.dart
+// Enhanced version that replaces your existing dynamic_theme_service.dart
 
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import './api_service.dart';
-import '../theme/dynamic_app_theme.dart';
-
-// Assuming ConfigurationService exists and is correct
-// import './configuration_service.dart'; 
 
 class DynamicThemeService {
   static DynamicThemeService? _instance;
@@ -27,27 +24,29 @@ class DynamicThemeService {
   Map<String, Color> get themeColors => _themeColors ?? _getDefaultColors();
   bool get isLoaded => _isLoaded;
 
+  // Enhanced theme loading with better error handling and fallback
   Future<void> loadTheme({String? token}) async {
     try {
-      // await ConfigurationService.instance.initialize();
-
       Map<String, dynamic>? remoteTheme;
-      if (token != null && ApiService.instance.isConfigured) {
+      
+      // Try to fetch remote theme configuration
+      if (ApiService.instance.isConfigured) {
         remoteTheme = await _fetchRemoteTheme(token);
       }
 
+      // Load cached theme as fallback
       final cachedTheme = await _loadCachedTheme();
 
       Map<String, dynamic> finalThemeConfig;
-      if (remoteTheme != null) {
+      
+      if (remoteTheme != null && _isValidThemeConfig(remoteTheme)) {
         finalThemeConfig = remoteTheme;
         await _saveCachedTheme(remoteTheme);
         print('✅ Using remote theme configuration');
-      } else if (cachedTheme != null) {
+      } else if (cachedTheme != null && _isValidThemeConfig(cachedTheme)) {
         finalThemeConfig = cachedTheme;
         print('✅ Using cached theme configuration');
       } else {
-        // finalThemeConfig = _getConfigurationColors();
         finalThemeConfig = _getDefaultThemeConfig();
         print('✅ Using default theme configuration');
       }
@@ -60,42 +59,41 @@ class DynamicThemeService {
       print('🎨 Dynamic theme loaded successfully');
     } catch (e) {
       print('❌ Error loading dynamic theme: $e');
-      _themeColors = _getDefaultColors();
-      _currentTheme = _getDefaultTheme();
-      _isLoaded = true;
+      _loadDefaultTheme();
     }
   }
 
-  Future<Map<String, dynamic>?> _fetchRemoteTheme(String token) async {
-    try {
-      final response = await ApiService.instance.callCustomAPI(
-        'local_instructohub_get_theme_config',
-        token,
-        {},
-      );
+  void _loadDefaultTheme() {
+    _themeColors = _getDefaultColors();
+    _currentTheme = _getDefaultTheme();
+    _themeConfig = _getDefaultThemeConfig();
+    _isLoaded = true;
+  }
 
-      if (response != null && response is Map) {
-        return Map<String, dynamic>.from(response);
+  bool _isValidThemeConfig(Map<String, dynamic> config) {
+    return config.containsKey('colors') && 
+           config['colors'] is Map && 
+           (config['colors'] as Map).isNotEmpty;
+  }
+
+  Future<Map<String, dynamic>?> _fetchRemoteTheme(String? token) async {
+    try {
+      // Try the comprehensive tenant config first
+      final tenantConfig = await ApiService.instance.getTenantConfig(token: token);
+      if (tenantConfig != null && tenantConfig['theme'] != null) {
+        return Map<String, dynamic>.from(tenantConfig['theme']);
+      }
+
+      // Fallback to specific theme config
+      final themeConfig = await ApiService.instance.getThemeConfig(token: token);
+      if (themeConfig != null) {
+        return Map<String, dynamic>.from(themeConfig);
       }
     } catch (e) {
       print('Failed to fetch remote theme: $e');
     }
     return null;
   }
-  
-  /*
-  Map<String, dynamic> _getConfigurationColors() {
-    final config = ConfigurationService.instance.currentConfig;
-    if (config != null) {
-      return {
-        'colors': config.themeColors,
-        'source': 'configuration_service',
-        'last_updated': DateTime.now().toIso8601String(),
-      };
-    }
-    return _getDefaultThemeConfig();
-  }
-  */
 
   Map<String, dynamic> _getDefaultThemeConfig() {
     return {
@@ -114,6 +112,13 @@ class DynamicThemeService {
         'warning': '#F59E0B',
         'error': '#EF4444',
         'info': '#3B82F6',
+        // Login-specific colors
+        'loginBgLeft': '#FBECE6',
+        'loginBgRight': '#F7F7F7',
+        'loginTextTitle': '#1f2937',
+        'loginTextBody': '#6b7280',
+        'loginTextLink': '#E16B3A',
+        'loginButtonTextColor': '#FFFFFF',
       },
       'typography': {
         'fontFamily': 'Inter',
@@ -124,6 +129,10 @@ class DynamicThemeService {
         'bodyLarge': 16.0,
         'bodyMedium': 14.0,
         'bodySmall': 12.0,
+        // Login-specific font sizes
+        'fontSizeBase': 16.0,
+        'fontSizeSm': 14.0,
+        'fontSizeLg': 18.0,
       },
       'spacing': {
         'xs': 4.0,
@@ -131,17 +140,21 @@ class DynamicThemeService {
         'md': 16.0,
         'lg': 24.0,
         'xl': 32.0,
+        'xxl': 48.0,
       },
       'borderRadius': {
         'small': 8.0,
         'medium': 12.0,
         'large': 16.0,
         'xl': 20.0,
+        'xxl': 24.0,
       },
       'elevation': {
+        'none': 0.0,
         'low': 2.0,
         'medium': 4.0,
         'high': 8.0,
+        'highest': 16.0,
       },
       'source': 'default',
       'last_updated': DateTime.now().toIso8601String(),
@@ -168,9 +181,12 @@ class DynamicThemeService {
           print('Error parsing color $key: $value');
           parsedColors[key] = _getDefaultColors()[key] ?? Colors.grey;
         }
+      } else if (value is int) {
+        parsedColors[key] = Color(value);
       }
     });
 
+    // Ensure all default colors are present
     final defaultColors = _getDefaultColors();
     defaultColors.forEach((key, defaultColor) {
       parsedColors.putIfAbsent(key, () => defaultColor);
@@ -195,23 +211,28 @@ class DynamicThemeService {
       'warning': const Color(0xFFF59E0B),
       'error': const Color(0xFFEF4444),
       'info': const Color(0xFF3B82F6),
+      // Login-specific colors
+      'loginBgLeft': const Color(0xFFFBECE6),
+      'loginBgRight': const Color(0xFFF7F7F7),
+      'loginTextTitle': const Color(0xFF1f2937),
+      'loginTextBody': const Color(0xFF6b7280),
+      'loginTextLink': const Color(0xFFE16B3A),
+      'loginButtonTextColor': const Color(0xFFFFFFFF),
     };
   }
 
   ThemeData _buildDynamicTheme(Map<String, Color> colors) {
-    final typography =
-        _themeConfig?['typography'] as Map<String, dynamic>? ?? {};
+    final typography = _themeConfig?['typography'] as Map<String, dynamic>? ?? {};
     final spacing = _themeConfig?['spacing'] as Map<String, dynamic>? ?? {};
-    final borderRadiusCfg =
-        _themeConfig?['borderRadius'] as Map<String, dynamic>? ?? {};
-    final elevationCfg =
-        _themeConfig?['elevation'] as Map<String, dynamic>? ?? {};
+    final borderRadiusCfg = _themeConfig?['borderRadius'] as Map<String, dynamic>? ?? {};
+    final elevationCfg = _themeConfig?['elevation'] as Map<String, dynamic>? ?? {};
 
     return ThemeData(
       primarySwatch: _createMaterialColor(colors['secondary1']!),
       primaryColor: colors['secondary1'],
       scaffoldBackgroundColor: colors['background'],
       fontFamily: typography['fontFamily'] as String? ?? 'Inter',
+      
       colorScheme: ColorScheme.light(
         primary: colors['secondary1']!,
         secondary: colors['secondary2']!,
@@ -255,7 +276,6 @@ class DynamicThemeService {
         ),
       ),
 
-      // FIXED: The class name was corrected from CardTheme to CardThemeData
       cardTheme: CardThemeData(
         color: colors['cardColor'],
         elevation: (elevationCfg['medium'] as num?)?.toDouble() ?? 4.0,
@@ -332,15 +352,11 @@ class DynamicThemeService {
         ),
       ),
 
-      iconTheme: IconThemeData(
-        color: colors['secondary1'],
-      ),
-
+      iconTheme: IconThemeData(color: colors['secondary1']),
       dividerTheme: DividerThemeData(
         color: colors['textSecondary']?.withOpacity(0.3),
         thickness: 1,
       ),
-
       checkboxTheme: CheckboxThemeData(
         fillColor: MaterialStateProperty.resolveWith((states) {
           if (states.contains(MaterialState.selected)) {
@@ -351,16 +367,13 @@ class DynamicThemeService {
         checkColor: MaterialStateProperty.all(colors['cardColor']),
         side: BorderSide(color: colors['secondary1']!, width: 2),
       ),
-
       floatingActionButtonTheme: FloatingActionButtonThemeData(
         backgroundColor: colors['secondary1'],
         foregroundColor: Colors.white,
       ),
-
       progressIndicatorTheme: ProgressIndicatorThemeData(
         color: colors['secondary1'],
       ),
-
       chipTheme: ChipThemeData(
         backgroundColor: colors['secondary3']!,
         labelStyle: TextStyle(color: colors['secondary1']),
@@ -396,7 +409,7 @@ class DynamicThemeService {
   Future<Map<String, dynamic>?> _loadCachedTheme() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final cachedData = prefs.getString('dynamic_theme_v2');
+      final cachedData = prefs.getString('dynamic_theme_v3');
       if (cachedData != null) {
         return Map<String, dynamic>.from(json.decode(cachedData));
       }
@@ -409,7 +422,7 @@ class DynamicThemeService {
   Future<void> _saveCachedTheme(Map<String, dynamic> themeConfig) async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('dynamic_theme_v2', json.encode(themeConfig));
+      await prefs.setString('dynamic_theme_v3', json.encode(themeConfig));
     } catch (e) {
       print('Error saving cached theme: $e');
     }
@@ -418,7 +431,8 @@ class DynamicThemeService {
   Future<void> clearThemeCache() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.remove('dynamic_theme_v2');
+      await prefs.remove('dynamic_theme_v3');
+      await prefs.remove('dynamic_theme_v2'); // Remove old version
       _currentTheme = null;
       _themeColors = null;
       _themeConfig = null;
@@ -429,32 +443,89 @@ class DynamicThemeService {
     }
   }
 
+  // Enhanced getter methods with better fallbacks
   Color getColor(String colorKey) {
-    return _themeColors?[colorKey] ??
-        _getDefaultColors()[colorKey] ??
-        Colors.grey;
+    return _themeColors?[colorKey] ?? 
+           _getDefaultColors()[colorKey] ?? 
+           Colors.grey;
   }
 
   double getSpacing(String spacingKey) {
     final spacing = _themeConfig?['spacing'] as Map<String, dynamic>? ?? {};
-    return (spacing[spacingKey] as num?)?.toDouble() ?? 16.0;
+    return (spacing[spacingKey] as num?)?.toDouble() ?? 
+           _getDefaultSpacing()[spacingKey] ?? 
+           16.0;
   }
 
   double getBorderRadius(String radiusKey) {
     final borderRadius = _themeConfig?['borderRadius'] as Map<String, dynamic>? ?? {};
-    return (borderRadius[radiusKey] as num?)?.toDouble() ?? 12.0;
+    return (borderRadius[radiusKey] as num?)?.toDouble() ?? 
+           _getDefaultBorderRadius()[radiusKey] ?? 
+           12.0;
   }
 
   double getElevation(String elevationKey) {
     final elevation = _themeConfig?['elevation'] as Map<String, dynamic>? ?? {};
-    return (elevation[elevationKey] as num?)?.toDouble() ?? 4.0;
+    return (elevation[elevationKey] as num?)?.toDouble() ?? 
+           _getDefaultElevation()[elevationKey] ?? 
+           4.0;
   }
 
-  BoxDecoration getDynamicCardDecoration() {
+  double getFontSize(String fontSizeKey) {
+    final typography = _themeConfig?['typography'] as Map<String, dynamic>? ?? {};
+    return (typography[fontSizeKey] as num?)?.toDouble() ?? 
+           _getDefaultFontSizes()[fontSizeKey] ?? 
+           16.0;
+  }
+
+  Map<String, double> _getDefaultSpacing() {
+    return {
+      'xs': 4.0,
+      'sm': 8.0,
+      'md': 16.0,
+      'lg': 24.0,
+      'xl': 32.0,
+      'xxl': 48.0,
+    };
+  }
+
+  Map<String, double> _getDefaultBorderRadius() {
+    return {
+      'small': 8.0,
+      'medium': 12.0,
+      'large': 16.0,
+      'xl': 20.0,
+      'xxl': 24.0,
+    };
+  }
+
+  Map<String, double> _getDefaultElevation() {
+    return {
+      'none': 0.0,
+      'low': 2.0,
+      'medium': 4.0,
+      'high': 8.0,
+      'highest': 16.0,
+    };
+  }
+
+  Map<String, double> _getDefaultFontSizes() {
+    return {
+      'fontSizeBase': 16.0,
+      'fontSizeSm': 14.0,
+      'fontSizeLg': 18.0,
+      'bodyLarge': 16.0,
+      'bodyMedium': 14.0,
+      'bodySmall': 12.0,
+    };
+  }
+
+  // Enhanced decoration methods for login screen
+  BoxDecoration getDynamicCardDecoration({double? borderRadius, List<BoxShadow>? boxShadow}) {
     return BoxDecoration(
       color: getColor('cardColor'),
-      borderRadius: BorderRadius.circular(getBorderRadius('medium')),
-      boxShadow: [
+      borderRadius: BorderRadius.circular(borderRadius ?? getBorderRadius('medium')),
+      boxShadow: boxShadow ?? [
         BoxShadow(
           color: Colors.black.withOpacity(0.08),
           spreadRadius: 1,
@@ -480,6 +551,27 @@ class DynamicThemeService {
     );
   }
 
+  LinearGradient getDynamicBackgroundGradient() {
+    return LinearGradient(
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+      colors: [
+        getColor('loginBgLeft'),
+        getColor('loginBgRight'),
+      ],
+    );
+  }
+
+  LinearGradient getDynamicButtonGradient() {
+    return LinearGradient(
+      colors: [
+        getColor('secondary1'),
+        getColor('secondary2'),
+      ],
+    );
+  }
+
+  // Debug and monitoring methods
   Map<String, dynamic> getThemeDebugInfo() {
     return {
       'isLoaded': _isLoaded,
@@ -493,5 +585,12 @@ class DynamicThemeService {
               .toList() ??
           [],
     };
+  }
+
+  void forceReload() {
+    _isLoaded = false;
+    _currentTheme = null;
+    _themeColors = null;
+    _themeConfig = null;
   }
 }

@@ -2,12 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'package:InstructoHub/screens/dashboard_screen.dart';
-import 'package:InstructoHub/screens/domain_config_screen.dart';
+import 'package:InstructoHub/screens/dashboard/dashboard_screen.dart';
+import 'package:InstructoHub/screens/domain_config/domain_config_screen.dart';
 import 'package:InstructoHub/services/api_service.dart';
-import 'package:InstructoHub/services/icon_service.dart';
-import 'package:InstructoHub/theme/dynamic_app_theme.dart';
-typedef AppTheme = DynamicAppTheme;
+import 'package:InstructoHub/services/enhanced_icon_service.dart';
+import 'package:InstructoHub/services/dynamic_theme_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -26,13 +25,17 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _isLoading = false;
   bool _isLoadingBranding = true;
 
+  Map<String, dynamic>? _brandingData;
   String? _logoUrl;
   String? _siteName;
+  String? _welcomeMessage;
+  String? _loginSubtitle;
+  Map<String, String>? _customLabels;
 
   @override
   void initState() {
     super.initState();
-    _checkAPIConfiguration();
+    _initializeLoginScreen();
   }
 
   @override
@@ -42,57 +45,50 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  Future<void> _checkAPIConfiguration() async {
+  Future<void> _initializeLoginScreen() async {
     if (!ApiService.instance.isConfigured) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (context) => const DomainConfigScreen(),
-          ),
-        );
+        if (mounted) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const DomainConfigScreen(),
+            ),
+          );
+        }
       });
       return;
     }
-    
-    await IconService.instance.loadIcons();
-    _fetchBrandAssets();
+    await DynamicIconService.instance.loadIcons();
+    await _fetchBrandingData();
   }
 
-  Future<void> _fetchBrandAssets() async {
+  Future<void> _fetchBrandingData() async {
+    if (!mounted) return;
     setState(() {
       _isLoadingBranding = true;
     });
 
     try {
-      final url = '${ApiService.instance.baseUrl}?wsfunction=core_webservice_get_site_info&moodlewsrestformat=json';
-      final response = await http.get(Uri.parse(url));
-
-      if (mounted && response.statusCode == 200) {
-        final result = json.decode(response.body);
-        
-        if (result != null && result is Map) {
-          setState(() {
-            _siteName = result['sitename'] ?? 'LMS Portal';
-            _logoUrl = 'https://static.instructohub.com/staticfiles/assets/images/website/Instructo_hub_logo.png';
-          });
-          return;
-        }
-      }
+      final brandingResult = await _fetchLMSBranding();
       
-      if (mounted) {
+      if (mounted && brandingResult != null) {
         setState(() {
-          _logoUrl = 'https://static.instructohub.com/staticfiles/assets/images/website/Instructo_hub_logo.png';
-          _siteName = 'LMS Portal';
+          _brandingData = brandingResult;
+          _logoUrl = brandingResult['logo_url'] ?? brandingResult['site_logo'];
+          _siteName = brandingResult['site_name'] ?? brandingResult['sitename'];
+          _welcomeMessage = brandingResult['welcome_message'] ?? 'Welcome Back!';
+          _loginSubtitle = brandingResult['login_subtitle'] ?? 'Login to continue your learning journey';
+          _customLabels = Map<String, String>.from(brandingResult['custom_labels'] ?? {});
         });
+      }
+
+      if (_logoUrl == null || _siteName == null) {
+        await _fallbackBrandingFetch();
       }
     } catch (e) {
-      if (mounted) {
-        setState(() {
-          _logoUrl = 'https://static.instructohub.com/staticfiles/assets/images/website/Instructo_hub_logo.png';
-          _siteName = 'LMS Portal';
-        });
-      }
+      print('Error fetching branding data: $e');
+      await _fallbackBrandingFetch();
     } finally {
       if (mounted) {
         setState(() {
@@ -100,6 +96,73 @@ class _LoginScreenState extends State<LoginScreen> {
         });
       }
     }
+  }
+
+  Future<Map<String, dynamic>?> _fetchLMSBranding() async {
+    try {
+      final url = '${ApiService.instance.baseUrl}?wsfunction=local_instructohub_get_branding_config&moodlewsrestformat=json';
+      final response = await http.get(Uri.parse(url));
+
+      if (response.statusCode == 200) {
+        final result = json.decode(response.body);
+        
+        if (result != null && result is Map && !result.containsKey('exception')) {
+          return Map<String, dynamic>.from(result);
+        }
+      }
+    } catch (e) {
+      print('Error fetching LMS branding: $e');
+    }
+    return null;
+  }
+
+  Future<void> _fallbackBrandingFetch() async {
+    try {
+      final url = '${ApiService.instance.baseUrl}?wsfunction=core_webservice_get_site_info&moodlewsrestformat=json';
+      final response = await http.get(Uri.parse(url));
+
+      if (mounted && response.statusCode == 200) {
+        final result = json.decode(response.body);
+
+        if (result != null && result is Map) {
+          setState(() {
+            _siteName ??= result['sitename'] ?? _extractTenantName();
+            _logoUrl ??= _buildDefaultLogoUrl();
+            _welcomeMessage ??= 'Welcome Back!';
+            _loginSubtitle ??= 'Login to continue your learning journey';
+          });
+          return;
+        }
+      }
+      
+    } catch (e) {
+      // Fallback in case of any error
+    } finally {
+        if(mounted) {
+            setState(() {
+                _siteName ??= _extractTenantName();
+                _logoUrl ??= _buildDefaultLogoUrl();
+                _welcomeMessage ??= 'Welcome Back!';
+                _loginSubtitle ??= 'Login to continue your learning journey';
+            });
+        }
+    }
+  }
+
+  String _extractTenantName() {
+    final tenantName = ApiService.instance.tenantName;
+    if (tenantName.isNotEmpty) {
+      return tenantName.toUpperCase();
+    }
+    return 'LMS Portal';
+  }
+
+  String _buildDefaultLogoUrl() {
+    final tenant = ApiService.instance.tenantName;
+    if (tenant.isNotEmpty) {
+      return 'https://static.instructohub.com/staticfiles/assets/tenants/$tenant/logo.png';
+    }
+    return 'https://static.instructohub.com/staticfiles/assets/images/website/Instructo_hub_logo.png';
   }
 
   Future<void> _handleLogin() async {
@@ -118,7 +181,7 @@ class _LoginScreenState extends State<LoginScreen> {
           if (loginResult['success'] == true) {
             final String token = loginResult['token'];
             final prefs = await SharedPreferences.getInstance();
-            
+
             if (_rememberMe) {
               await prefs.setString('authToken', token);
             } else {
@@ -130,6 +193,8 @@ class _LoginScreenState extends State<LoginScreen> {
               await prefs.setString('userInfo', json.encode(userInfoResult['data']));
             }
 
+            await DynamicThemeService.instance.loadTheme(token: token);
+
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(
@@ -137,26 +202,12 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
             );
           } else {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(loginResult['error'] ?? 'Login failed'),
-                backgroundColor: AppTheme.error,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                behavior: SnackBarBehavior.floating,
-              ),
-            );
+            _showErrorSnackBar(loginResult['error'] ?? 'Login failed');
           }
         }
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('An error occurred: ${e.toString()}'),
-              backgroundColor: AppTheme.error,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-              behavior: SnackBarBehavior.floating,
-            ),
-          );
+          _showErrorSnackBar('An error occurred: ${e.toString()}');
         }
       } finally {
         if (mounted) {
@@ -168,85 +219,103 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  void _showErrorSnackBar(String message) {
+    if(!mounted) return;
+    final themeService = DynamicThemeService.instance;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: themeService.getColor('error'),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(themeService.getBorderRadius('small')),
+        ),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
   void _showDomainSettings() {
+    final themeService = DynamicThemeService.instance;
+    final textTheme = Theme.of(context).textTheme;
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(themeService.getBorderRadius('large')),
+        ),
         title: Row(
           children: [
             Container(
-              padding: const EdgeInsets.all(8),
+              padding: EdgeInsets.all(themeService.getSpacing('sm')),
               decoration: BoxDecoration(
-                color: AppTheme.secondary1.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8),
+                color: themeService.getColor('secondary1').withOpacity(0.1),
+                borderRadius: BorderRadius.circular(themeService.getBorderRadius('small')),
               ),
               child: Icon(
-                IconService.instance.settingsIcon,
-                color: AppTheme.secondary1,
+                DynamicIconService.instance.settingsIcon,
+                color: themeService.getColor('secondary1'),
                 size: 20,
               ),
             ),
-            const SizedBox(width: 12),
-            const Text('Domain Settings'),
+            SizedBox(width: themeService.getSpacing('md')),
+            Text('Domain Settings', style: textTheme.titleLarge),
           ],
         ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            Text(
               'Current Configuration:',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 16,
-              ),
+              style: textTheme.titleMedium,
             ),
-            const SizedBox(height: 12),
+            SizedBox(height: themeService.getSpacing('md')),
             Container(
-              padding: const EdgeInsets.all(16),
+              padding: EdgeInsets.all(themeService.getSpacing('md')),
               decoration: BoxDecoration(
-                color: Colors.grey.shade50,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.grey.shade200),
+                color: themeService.getColor('background'),
+                borderRadius: BorderRadius.circular(themeService.getBorderRadius('medium')),
+                border: Border.all(color: themeService.getColor('textSecondary').withOpacity(0.2)),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
                     children: [
-                      Icon(IconService.instance.domainIcon, size: 16, color: AppTheme.secondary1),
-                      const SizedBox(width: 8),
+                      Icon(DynamicIconService.instance.domainIcon, size: 16, color: themeService.getColor('secondary1')),
+                      SizedBox(width: themeService.getSpacing('sm')),
                       Expanded(
                         child: Text(
                           'API: ${ApiService.instance.baseUrl}',
-                          style: const TextStyle(fontSize: 12),
+                          style: textTheme.bodySmall,
                         ),
                       ),
                     ],
                   ),
                   if (_siteName != null) ...[
-                    const SizedBox(height: 8),
+                    SizedBox(height: themeService.getSpacing('sm')),
                     Row(
                       children: [
-                        Icon(IconService.instance.schoolIcon, size: 16, color: AppTheme.secondary1),
-                        const SizedBox(width: 8),
+                        Icon(DynamicIconService.instance.schoolIcon, size: 16, color: themeService.getColor('secondary1')),
+                        SizedBox(width: themeService.getSpacing('sm')),
                         Expanded(
                           child: Text(
                             'Site: $_siteName',
-                            style: const TextStyle(fontSize: 12),
+                            style: textTheme.bodySmall,
                           ),
                         ),
                       ],
+                    
                     ),
                   ],
                 ],
               ),
             ),
-            const SizedBox(height: 16),
-            const Text(
+            SizedBox(height: themeService.getSpacing('md')),
+            Text(
               'Would you like to change to a different LMS domain?',
-              style: TextStyle(fontSize: 14),
+              style: textTheme.bodyMedium,
             ),
           ],
         ),
@@ -255,55 +324,51 @@ class _LoginScreenState extends State<LoginScreen> {
             onPressed: () => Navigator.pop(context),
             child: Text(
               'Cancel',
-              style: TextStyle(color: AppTheme.textSecondary),
+              style: TextStyle(color: themeService.getColor('textSecondary')),
             ),
           ),
           ElevatedButton.icon(
             onPressed: () async {
               Navigator.pop(context);
               await ApiService.instance.clearConfiguration();
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const DomainConfigScreen(),
-                ),
-              );
+              await DynamicThemeService.instance.clearThemeCache();
+              if(mounted) {
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(builder: (context) => const DomainConfigScreen()),
+                );
+              }
             },
-            icon: Icon(IconService.instance.swapIcon, size: 18),
+            icon: Icon(DynamicIconService.instance.swapIcon, size: 18),
             label: const Text('Change Domain'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.secondary1,
-              foregroundColor: AppTheme.cardColor,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-            ),
+            // Style is inherited from the global theme
           ),
         ],
       ),
     );
   }
-  
-  Widget _buildNetworkImage(String? url, {double? height, double? width}) {
-    if (_isLoadingBranding || url == null) {
+
+  Widget _buildDynamicLogo({double? height, double? width}) {
+    final themeService = DynamicThemeService.instance;
+    
+    if (_isLoadingBranding || _logoUrl == null) {
       return Container(
         height: height ?? 50,
         width: width ?? 150,
-        decoration: BoxDecoration(
-          color: Colors.grey.shade200,
-          borderRadius: BorderRadius.circular(8),
+        decoration: themeService.getDynamicCardDecoration().copyWith(
+          color: themeService.getColor('secondary1').withOpacity(0.1),
         ),
         child: Center(
           child: CircularProgressIndicator(
-            strokeWidth: 2, 
-            color: AppTheme.secondary1,
+            strokeWidth: 2,
+            color: themeService.getColor('secondary1'),
           ),
         ),
       );
     }
-    
+
     return Image.network(
-      url,
+      _logoUrl!,
       height: height,
       width: width,
       fit: BoxFit.contain,
@@ -312,9 +377,8 @@ class _LoginScreenState extends State<LoginScreen> {
         return Container(
           height: height ?? 50,
           width: width ?? 150,
-          decoration: BoxDecoration(
-            color: Colors.grey.shade200,
-            borderRadius: BorderRadius.circular(8),
+          decoration: themeService.getDynamicCardDecoration().copyWith(
+            color: themeService.getColor('secondary1').withOpacity(0.1),
           ),
           child: Center(
             child: CircularProgressIndicator(
@@ -322,7 +386,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
                   : null,
               strokeWidth: 2,
-              color: AppTheme.secondary1,
+              color: themeService.getColor('secondary1'),
             ),
           ),
         );
@@ -330,24 +394,25 @@ class _LoginScreenState extends State<LoginScreen> {
       errorBuilder: (context, error, stackTrace) {
         return Container(
           height: height ?? 50,
-          width: width ?? 150,
-          padding: const EdgeInsets.all(8),
+          padding: EdgeInsets.all(themeService.getSpacing('sm')),
           decoration: BoxDecoration(
-            color: AppTheme.secondary1.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: AppTheme.secondary1.withOpacity(0.3)),
+            color: themeService.getColor('secondary1').withOpacity(0.1),
+            borderRadius: BorderRadius.circular(themeService.getBorderRadius('small')),
+            border: Border.all(color: themeService.getColor('secondary1').withOpacity(0.3)),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(IconService.instance.schoolIcon, color: AppTheme.secondary1, size: 24),
-              const SizedBox(width: 8),
+              Icon(
+                DynamicIconService.instance.schoolIcon,
+                color: themeService.getColor('secondary1'),
+                size: 24,
+              ),
+              SizedBox(width: themeService.getSpacing('sm')),
               Text(
-                'LMS',
-                style: TextStyle(
-                  color: AppTheme.secondary1,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 18,
+                _siteName ?? 'LMS',
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      color: themeService.getColor('secondary1'),
                 ),
               ),
             ],
@@ -357,26 +422,61 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
+  Widget _buildCustomTextField({
+    required TextEditingController controller,
+    required String labelKey,
+    required String hintKey,
+    required IconData prefixIcon,
+    bool obscureText = false,
+    Widget? suffixIcon,
+    required String? Function(String?) validator,
+  }) {
+    final themeService = DynamicThemeService.instance;
+    final inputTheme = Theme.of(context).inputDecorationTheme;
+
+    return TextFormField(
+      controller: controller,
+      obscureText: obscureText,
+      decoration: InputDecoration(
+        labelText: _customLabels?[labelKey] ?? (labelKey == 'username' ? 'Username' : 'Password'),
+        hintText: _customLabels?[hintKey] ?? (hintKey == 'username_hint' ? 'Enter your username' : 'Enter your password'),
+        prefixIcon: Container(
+          margin: EdgeInsets.all(themeService.getSpacing('md')),
+          padding: EdgeInsets.all(themeService.getSpacing('sm')),
+          decoration: BoxDecoration(
+            color: themeService.getColor('secondary3'),
+            borderRadius: BorderRadius.circular(themeService.getBorderRadius('small')),
+          ),
+          child: Icon(prefixIcon, color: themeService.getColor('secondary1'), size: 20),
+        ),
+        suffixIcon: suffixIcon,
+      ).copyWith( // Inherit from theme and override specific properties
+        labelStyle: inputTheme.labelStyle?.copyWith(color: themeService.getColor('primary2')),
+        hintStyle: inputTheme.hintStyle?.copyWith(color: themeService.getColor('primary2')),
+      ),
+      validator: validator,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final themeService = DynamicThemeService.instance;
+    final textTheme = Theme.of(context).textTheme;
+
     return Scaffold(
-      backgroundColor: AppTheme.background,
+      backgroundColor: themeService.getColor('background'),
       body: Container(
         decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              AppTheme.loginBgLeft,
-              AppTheme.loginBgRight,
-            ],
-          ),
+          gradient: themeService.getDynamicBackgroundGradient(),
         ),
         child: SafeArea(
           child: Column(
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                padding: EdgeInsets.symmetric(
+                  horizontal: themeService.getSpacing('lg'),
+                  vertical: themeService.getSpacing('md'),
+                ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -384,27 +484,16 @@ class _LoginScreenState extends State<LoginScreen> {
                       child: Container(
                         height: 50,
                         alignment: Alignment.centerLeft,
-                        child: _buildNetworkImage(_logoUrl, height: 50, width: 150),
+                        child: _buildDynamicLogo(height: 50, width: 150),
                       ),
                     ),
                     Container(
-                      decoration: BoxDecoration(
-                        color: AppTheme.cardColor,
-                        borderRadius: BorderRadius.circular(12),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.05),
-                            spreadRadius: 1,
-                            blurRadius: 8,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
-                      ),
+                      decoration: themeService.getDynamicCardDecoration(),
                       child: IconButton(
                         onPressed: _showDomainSettings,
                         icon: Icon(
-                          IconService.instance.settingsIcon,
-                          color: AppTheme.secondary1,
+                          DynamicIconService.instance.settingsIcon,
+                          color: themeService.getColor('secondary1'),
                           size: 20,
                         ),
                         tooltip: 'Domain Settings',
@@ -413,297 +502,164 @@ class _LoginScreenState extends State<LoginScreen> {
                   ],
                 ),
               ),
-              
-              if (_isLoadingBranding) ...[
+              if (_isLoadingBranding)
+                LinearProgressIndicator(
+                  backgroundColor: themeService.getColor('secondary1').withOpacity(0.2),
+                  color: themeService.getColor('secondary1'),
+                )
+              else if (_siteName != null) ...[
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  padding: EdgeInsets.symmetric(horizontal: themeService.getSpacing('lg')),
                   child: Row(
                     children: [
                       Container(
-                        width: 120,
-                        height: 28,
-                        decoration: BoxDecoration(
-                          color: AppTheme.primary2.withOpacity(0.2),
-                          borderRadius: BorderRadius.circular(20),
+                        padding: EdgeInsets.symmetric(
+                          horizontal: themeService.getSpacing('md'),
+                          vertical: themeService.getSpacing('xs'),
                         ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 24),
-              ] else if (_siteName != null) ...[
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24),
-                  child: Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                         decoration: BoxDecoration(
-                          color: AppTheme.secondary3,
+                          color: themeService.getColor('secondary3'),
                           borderRadius: BorderRadius.circular(20),
                           border: Border.all(
-                            color: AppTheme.secondary1.withOpacity(0.3),
+                            color: themeService.getColor('secondary1').withOpacity(0.3),
                           ),
                         ),
                         child: Text(
                           _siteName!,
-                          style: TextStyle(
-                            fontSize: AppTheme.fontSizeSm,
-                            fontWeight: FontWeight.w600,
-                            color: AppTheme.secondary1,
-                          ),
+                          style: textTheme.labelLarge?.copyWith(
+                             color: themeService.getColor('secondary1'),
+                          )
                         ),
                       ),
                     ],
                   ),
                 ),
-                const SizedBox(height: 24),
+                SizedBox(height: themeService.getSpacing('lg')),
               ],
-              
               Expanded(
                 child: Center(
                   child: SingleChildScrollView(
-                    padding: const EdgeInsets.symmetric(horizontal: 24),
-                    child: Container(
+                    padding: EdgeInsets.symmetric(horizontal: themeService.getSpacing('lg')),
+                    child: ConstrainedBox(
                       constraints: const BoxConstraints(maxWidth: 400),
                       child: Container(
-                        padding: const EdgeInsets.all(32),
-                        decoration: BoxDecoration(
-                          color: AppTheme.cardColor,
-                          borderRadius: BorderRadius.circular(24),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.08),
-                              spreadRadius: 0,
-                              blurRadius: 30,
-                              offset: const Offset(0, 8),
-                            ),
-                          ],
-                        ),
+                        padding: EdgeInsets.all(themeService.getSpacing('xl')),
+                        decoration: themeService.getDynamicCardDecoration(),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
                             Text(
-                              'Welcome Back!',
+                              _welcomeMessage ?? 'Welcome Back!',
                               textAlign: TextAlign.center,
-                              style: TextStyle(
-                                fontSize: 28,
-                                fontWeight: FontWeight.bold,
-                                color: AppTheme.loginTextTitle,
-                              ),
+                              style: textTheme.headlineMedium,
                             ),
-                            const SizedBox(height: 8),
+                            SizedBox(height: themeService.getSpacing('sm')),
                             Text(
-                              'Login to continue your learning journey',
+                              _loginSubtitle ?? 'Login to continue your learning journey',
                               textAlign: TextAlign.center,
-                              style: TextStyle(
-                                color: AppTheme.loginTextBody,
-                                fontSize: AppTheme.fontSizeBase,
-                              ),
+                              style: textTheme.bodyMedium,
                             ),
-                            const SizedBox(height: 32),
-                            
+                            SizedBox(height: themeService.getSpacing('xl')),
                             Form(
                               key: _formKey,
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.stretch,
                                 children: [
-                                  TextFormField(
+                                  _buildCustomTextField(
                                     controller: _usernameController,
-                                    decoration: InputDecoration(
-                                      labelText: 'Username',
-                                      hintText: 'Enter your username',
-                                      labelStyle: TextStyle(color: AppTheme.primary2),
-                                      hintStyle: TextStyle(color: AppTheme.primary2),
-                                      prefixIcon: Container(
-                                        margin: const EdgeInsets.all(12),
-                                        padding: const EdgeInsets.all(8),
-                                        decoration: BoxDecoration(
-                                          color: AppTheme.secondary3,
-                                          borderRadius: BorderRadius.circular(8),
-                                        ),
-                                        child: Icon(
-                                          IconService.instance.personIcon,
-                                          color: AppTheme.secondary1,
-                                          size: 20,
-                                        ),
-                                      ),
-                                      border: OutlineInputBorder(
-                                        borderRadius: BorderRadius.circular(16),
-                                        borderSide: BorderSide(color: AppTheme.primary2.withOpacity(0.3)),
-                                      ),
-                                      enabledBorder: OutlineInputBorder(
-                                        borderRadius: BorderRadius.circular(16),
-                                        borderSide: BorderSide(color: AppTheme.primary2.withOpacity(0.3)),
-                                      ),
-                                      focusedBorder: OutlineInputBorder(
-                                        borderRadius: BorderRadius.circular(16),
-                                        borderSide: BorderSide(color: AppTheme.secondary1, width: 2),
-                                      ),
-                                      errorBorder: OutlineInputBorder(
-                                        borderRadius: BorderRadius.circular(16),
-                                        borderSide: const BorderSide(color: Colors.red, width: 2),
-                                      ),
-                                      filled: true,
-                                      fillColor: AppTheme.cardColor,
-                                      contentPadding: const EdgeInsets.symmetric(
-                                        vertical: 20,
-                                        horizontal: 16,
-                                      ),
-                                    ),
+                                    labelKey: 'username',
+                                    hintKey: 'username_hint',
+                                    prefixIcon: DynamicIconService.instance.personIcon,
                                     validator: (value) {
                                       if (value == null || value.trim().isEmpty) {
-                                        return 'Username is required';
+                                        return _customLabels?['username_required'] ?? 'Username is required';
                                       }
                                       return null;
                                     },
                                   ),
-                                  const SizedBox(height: 20),
-                                  
-                                  TextFormField(
+                                  SizedBox(height: themeService.getSpacing('lg')),
+                                  _buildCustomTextField(
                                     controller: _passwordController,
+                                    labelKey: 'password',
+                                    hintKey: 'password_hint',
+                                    prefixIcon: DynamicIconService.instance.lockIcon,
                                     obscureText: _obscurePassword,
-                                    decoration: InputDecoration(
-                                      labelText: 'Password',
-                                      hintText: 'Enter your password',
-                                      labelStyle: TextStyle(color: AppTheme.primary2),
-                                      hintStyle: TextStyle(color: AppTheme.primary2),
-                                      prefixIcon: Container(
-                                        margin: const EdgeInsets.all(12),
-                                        padding: const EdgeInsets.all(8),
-                                        decoration: BoxDecoration(
-                                          color: AppTheme.secondary3,
-                                          borderRadius: BorderRadius.circular(8),
-                                        ),
-                                        child: Icon(
-                                          IconService.instance.lockIcon,
-                                          color: AppTheme.secondary1,
-                                          size: 20,
-                                        ),
+                                    suffixIcon: IconButton(
+                                      icon: Icon(
+                                        _obscurePassword
+                                            ? DynamicIconService.instance.visibilityOffIcon
+                                            : DynamicIconService.instance.visibilityOnIcon,
+                                        color: themeService.getColor('primary2'),
                                       ),
-                                      suffixIcon: IconButton(
-                                        icon: Icon(
-                                          _obscurePassword
-                                              ? IconService.instance.visibilityOffIcon
-                                              : IconService.instance.visibilityOnIcon,
-                                          color: AppTheme.primary2,
-                                        ),
-                                        onPressed: () {
-                                          setState(() {
-                                            _obscurePassword = !_obscurePassword;
-                                          });
-                                        },
-                                      ),
-                                      border: OutlineInputBorder(
-                                        borderRadius: BorderRadius.circular(16),
-                                        borderSide: BorderSide(color: AppTheme.primary2.withOpacity(0.3)),
-                                      ),
-                                      enabledBorder: OutlineInputBorder(
-                                        borderRadius: BorderRadius.circular(16),
-                                        borderSide: BorderSide(color: AppTheme.primary2.withOpacity(0.3)),
-                                      ),
-                                      focusedBorder: OutlineInputBorder(
-                                        borderRadius: BorderRadius.circular(16),
-                                        borderSide: BorderSide(color: AppTheme.secondary1, width: 2),
-                                      ),
-                                      errorBorder: OutlineInputBorder(
-                                        borderRadius: BorderRadius.circular(16),
-                                        borderSide: const BorderSide(color: Colors.red, width: 2),
-                                      ),
-                                      filled: true,
-                                      fillColor: AppTheme.cardColor,
-                                      contentPadding: const EdgeInsets.symmetric(
-                                        vertical: 20,
-                                        horizontal: 16,
-                                      ),
+                                      onPressed: () {
+                                        setState(() {
+                                          _obscurePassword = !_obscurePassword;
+                                        });
+                                      },
                                     ),
                                     validator: (value) {
                                       if (value == null || value.trim().isEmpty) {
-                                        return 'Password is required';
+                                        return _customLabels?['password_required'] ?? 'Password is required';
                                       }
                                       return null;
                                     },
                                   ),
-                                  const SizedBox(height: 24),
-                                  
+                                  SizedBox(height: themeService.getSpacing('lg')),
                                   Row(
                                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                     children: [
                                       Flexible(
-                                        child: Row(
-                                          children: [
-                                            Container(
-                                              width: 20,
-                                              height: 20,
-                                              decoration: BoxDecoration(
-                                                color: _rememberMe ? AppTheme.secondary1 : Colors.transparent,
-                                                border: Border.all(
-                                                  color: _rememberMe ? AppTheme.secondary1 : AppTheme.primary2,
-                                                  width: 2,
-                                                ),
-                                                borderRadius: BorderRadius.circular(4),
-                                              ),
-                                              child: InkWell(
-                                                onTap: () {
-                                                  setState(() {
-                                                    _rememberMe = !_rememberMe;
-                                                  });
+                                        child: InkWell(
+                                          onTap: () {
+                                            setState(() => _rememberMe = !_rememberMe);
+                                          },
+                                          borderRadius: BorderRadius.circular(4),
+                                          child: Row(
+                                            children: [
+                                              Checkbox(
+                                                value: _rememberMe,
+                                                onChanged: (value) {
+                                                  setState(() => _rememberMe = value ?? false);
                                                 },
-                                                borderRadius: BorderRadius.circular(4),
-                                                child: _rememberMe
-                                                    ? Icon(
-                                                        Icons.check,
-                                                        size: 16,
-                                                        color: AppTheme.cardColor,
-                                                      )
-                                                    : null,
+                                                // Checkbox theme is handled globally
                                               ),
-                                            ),
-                                            const SizedBox(width: 8),
-                                            Flexible(
-                                              child: Text(
-                                                'Stay signed in',
-                                                style: TextStyle(
-                                                  color: AppTheme.primary1,
-                                                  fontSize: AppTheme.fontSizeSm,
-                                                  fontWeight: FontWeight.w500,
+                                              SizedBox(width: themeService.getSpacing('sm')),
+                                              Flexible(
+                                                child: Text(
+                                                  _customLabels?['remember_me'] ?? 'Stay signed in',
+                                                  style: textTheme.bodyMedium?.copyWith(
+                                                    color: themeService.getColor('textPrimary')
+                                                  ),
                                                 ),
                                               ),
-                                            ),
-                                          ],
+                                            ],
+                                          ),
                                         ),
                                       ),
                                       TextButton(
                                         onPressed: () {},
-                                        style: TextButton.styleFrom(
-                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                        ),
                                         child: Text(
-                                          'Forgot password?',
-                                          style: TextStyle(
-                                            color: AppTheme.loginTextLink,
-                                            fontSize: AppTheme.fontSizeSm,
-                                            fontWeight: FontWeight.w500,
-                                          ),
+                                          _customLabels?['forgot_password'] ?? 'Forgot password?',
+                                          style: textTheme.bodyMedium?.copyWith(
+                                            color: themeService.getColor('secondary1'),
+                                            fontWeight: FontWeight.bold
+                                          )
                                         ),
                                       ),
                                     ],
                                   ),
-                                  const SizedBox(height: 32),
-                                  
+                                  SizedBox(height: themeService.getSpacing('xl')),
                                   Container(
                                     width: double.infinity,
                                     height: 56,
                                     decoration: BoxDecoration(
-                                      borderRadius: BorderRadius.circular(16),
-                                      gradient: LinearGradient(
-                                        colors: [AppTheme.secondary1, AppTheme.secondary2],
-                                      ),
+                                      borderRadius: BorderRadius.circular(themeService.getBorderRadius('large')),
+                                      gradient: themeService.getDynamicButtonGradient(),
                                       boxShadow: [
                                         BoxShadow(
-                                          color: AppTheme.secondary1.withOpacity(0.3),
+                                          color: themeService.getColor('secondary1').withOpacity(0.3),
                                           spreadRadius: 0,
-                                          blurRadius: 12,
+                                          blurRadius: themeService.getElevation('medium') * 3,
                                           offset: const Offset(0, 4),
                                         ),
                                       ],
@@ -714,7 +670,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                         backgroundColor: Colors.transparent,
                                         shadowColor: Colors.transparent,
                                         shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(16),
+                                          borderRadius: BorderRadius.circular(themeService.getBorderRadius('large')),
                                         ),
                                         elevation: 0,
                                       ),
@@ -723,51 +679,49 @@ class _LoginScreenState extends State<LoginScreen> {
                                               height: 24,
                                               width: 24,
                                               child: CircularProgressIndicator(
-                                                valueColor: AlwaysStoppedAnimation<Color>(AppTheme.loginButtonTextColor),
+                                                valueColor: AlwaysStoppedAnimation<Color>(
+                                                  themeService.getColor('loginButtonTextColor'),
+                                                ),
                                                 strokeWidth: 2,
                                               ),
                                             )
                                           : Text(
-                                              'LOGIN',
-                                              style: TextStyle(
+                                              _customLabels?['login_button'] ?? 'LOGIN',
+                                               style: textTheme.labelLarge?.copyWith(
+                                                color: themeService.getColor('loginButtonTextColor'),
                                                 fontWeight: FontWeight.bold,
-                                                fontSize: AppTheme.fontSizeBase,
                                                 letterSpacing: 1,
-                                                color: AppTheme.loginButtonTextColor,
-                                              ),
+                                              )
                                             ),
                                     ),
                                   ),
-                                  const SizedBox(height: 24),
-                                  
-                                  Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Text(
-                                        "New User? ",
-                                        style: TextStyle(
-                                          color: AppTheme.loginTextBody,
-                                          fontSize: AppTheme.fontSizeSm,
+                                  SizedBox(height: themeService.getSpacing('lg')),
+                                  if (_brandingData?['show_signup'] != false) ...[
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Text(
+                                          _customLabels?['new_user_text'] ?? "New User? ",
+                                          style: textTheme.bodyMedium,
                                         ),
-                                      ),
-                                      TextButton(
-                                        onPressed: () {},
-                                        style: TextButton.styleFrom(
-                                          padding: EdgeInsets.zero,
-                                          minimumSize: Size.zero,
-                                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                                        ),
-                                        child: Text(
-                                          'Create Account',
-                                          style: TextStyle(
-                                            color: AppTheme.secondary1,
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: AppTheme.fontSizeSm,
+                                        TextButton(
+                                          onPressed: () {},
+                                          style: TextButton.styleFrom(
+                                            padding: EdgeInsets.zero,
+                                            minimumSize: Size.zero,
+                                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                          ),
+                                          child: Text(
+                                            _customLabels?['create_account'] ?? 'Create Account',
+                                            style: textTheme.bodyMedium?.copyWith(
+                                              color: themeService.getColor('secondary1'),
+                                              fontWeight: FontWeight.bold,
+                                            )
                                           ),
                                         ),
-                                      ),
-                                    ],
-                                  ),
+                                      ],
+                                    ),
+                                  ],
                                 ],
                               ),
                             ),

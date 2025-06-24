@@ -257,7 +257,10 @@ class ApiService {
       'get_site_info': 'core_webservice_get_site_info',
       'get_user_courses': 'core_enrol_get_users_courses',
       'get_course_contents': 'core_course_get_contents',
-      'get_user_progress': 'local_instructohub_get_user_course_progress',
+      'get_user_progress':
+          'local_instructohub_get_user_course_progress', // Updated this line
+      'local_instructohub_get_user_course_progress':
+          'local_instructohub_get_user_course_progress', // Added this line
     };
 
     return fallbackMappings[functionKey] ?? functionKey;
@@ -530,10 +533,29 @@ class ApiService {
 
   Future<dynamic> getUserProgress(String token) async {
     try {
-      return await _post('get_user_progress', token, {});
+      // Get user info first to extract userid
+      final userInfoResult = await getUserInfo(token);
+      if (userInfoResult['success'] != true) {
+        throw Exception('Failed to get user info');
+      }
+
+      final userInfo = userInfoResult['data'];
+      final userId = userInfo['userid'];
+
+      if (userId == null) {
+        throw Exception('User ID not found');
+      }
+
+      // Call the learning metrics API with userid parameter
+      final response = await _post(
+          'local_instructohub_get_user_course_progress',
+          token,
+          {'userid': userId.toString()});
+
+      return response;
     } catch (e) {
       print('Error getting user progress: $e');
-      return {};
+      rethrow;
     }
   }
 
@@ -585,6 +607,129 @@ class ApiService {
       return await _get(functionKey, token, params);
     } else {
       return await _post(functionKey, token, params);
+    }
+  }
+
+  /// Fetches comprehensive branding configuration for the login screen
+  Future<Map<String, dynamic>?> getBrandingConfig() async {
+    try {
+      final response =
+          await _post('local_instructohub_get_branding_config', '', {});
+      return response is Map ? Map<String, dynamic>.from(response) : null;
+    } catch (e) {
+      print('Error fetching branding config: ${e.toString()}');
+      return null;
+    }
+  }
+
+  /// Fetches theme configuration with optional token for personalized themes
+  Future<Map<String, dynamic>?> getThemeConfig({String? token}) async {
+    try {
+      final response = await _post(
+        'local_instructohub_get_theme_config',
+        token ?? '',
+        {},
+      );
+      return response is Map ? Map<String, dynamic>.from(response) : null;
+    } catch (e) {
+      print('Error fetching theme config: ${e.toString()}');
+      return null;
+    }
+  }
+
+  /// Fetches icon configuration for dynamic icons
+  Future<Map<String, dynamic>?> getIconConfig({String? token}) async {
+    try {
+      final response = await _post(
+        'local_instructohub_get_icon_config',
+        token ?? '',
+        {},
+      );
+      return response is Map ? Map<String, dynamic>.from(response) : null;
+    } catch (e) {
+      print('Error fetching icon config: ${e.toString()}');
+      return null;
+    }
+  }
+
+  /// Fetches tenant-specific configuration including branding, theme, and icons
+  Future<Map<String, dynamic>?> getTenantConfig({String? token}) async {
+    try {
+      final response = await _post(
+        'local_instructohub_get_tenant_config',
+        token ?? '',
+        {
+          'tenant': _tenantName ?? '',
+          'include_branding': 'true',
+          'include_theme': 'true',
+          'include_icons': 'true',
+        },
+      );
+      return response is Map ? Map<String, dynamic>.from(response) : null;
+    } catch (e) {
+      print('Error fetching tenant config: ${e.toString()}');
+      return null;
+    }
+  }
+
+  /// Gets the logo URL for the current tenant/domain
+  Future<String?> getLogoUrl() async {
+    try {
+      // Try to get from branding config first
+      final brandingConfig = await getBrandingConfig();
+      if (brandingConfig != null) {
+        final logoUrl =
+            brandingConfig['logo_url'] ?? brandingConfig['site_logo'];
+        if (logoUrl != null && logoUrl.toString().isNotEmpty) {
+          return logoUrl.toString();
+        }
+      }
+
+      // Fallback to tenant-specific logo
+      if (_tenantName != null && _tenantName!.isNotEmpty) {
+        return 'https://static.instructohub.com/staticfiles/assets/tenants/$_tenantName/logo.png';
+      }
+
+      // Final fallback to default logo
+      return 'https://static.instructohub.com/staticfiles/assets/images/website/Instructo_hub_logo.png';
+    } catch (e) {
+      print('Error getting logo URL: ${e.toString()}');
+      return 'https://static.instructohub.com/staticfiles/assets/images/website/Instructo_hub_logo.png';
+    }
+  }
+
+  /// Validates if a logo URL is accessible
+  Future<bool> validateLogoUrl(String logoUrl) async {
+    try {
+      final response = await http.head(Uri.parse(logoUrl));
+      return response.statusCode == 200;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  /// Gets comprehensive site information including branding
+  Future<Map<String, dynamic>> getComprehensiveSiteInfo() async {
+    try {
+      final siteInfo = await getUserInfo('');
+      final brandingConfig = await getBrandingConfig();
+      final logoUrl = await getLogoUrl();
+
+      return {
+        'site_info': siteInfo['data'] ?? {},
+        'branding': brandingConfig ?? {},
+        'logo_url': logoUrl,
+        'tenant_name': _tenantName,
+        'base_url': _baseUrl,
+        'success': true,
+      };
+    } catch (e) {
+      return {
+        'success': false,
+        'error': e.toString(),
+        'tenant_name': _tenantName,
+        'base_url': _baseUrl,
+      };
     }
   }
 

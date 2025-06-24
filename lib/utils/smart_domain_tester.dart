@@ -24,7 +24,7 @@ class _SmartDomainTesterState extends State<SmartDomainTester> {
   final List<String> _testDomains = [
     'learn.instructohub.com',
     'www.example-university.edu',
-    'app.myschool.org', 
+    'app.myschool.org',
     'learn.client.co.uk',
     'university.edu',
     'training.company.com',
@@ -64,21 +64,21 @@ class _SmartDomainTesterState extends State<SmartDomainTester> {
     try {
       // Initialize services
       await ConfigurationService.instance.initialize();
-      
+
       // Test smart domain resolution
       final result = await DomainResolverService.instance.resolveDomain(domain);
-      
+
       if (result != null) {
         // Load full configuration
         await ConfigurationService.instance.loadForDomain(domain);
         final config = ConfigurationService.instance.currentConfig;
-        
+
         setState(() {
           _resolutionResult = result;
           _config = config;
-          _status = result.isValid 
-            ? '✅ Smart resolution successful!' 
-            : '❌ No valid patterns found';
+          _status = result.isValid
+              ? '✅ Smart resolution successful!'
+              : '❌ No valid patterns found';
           _isLoading = false;
         });
       } else {
@@ -90,7 +90,6 @@ class _SmartDomainTesterState extends State<SmartDomainTester> {
 
       // Refresh cached domains
       await _loadCachedDomains();
-
     } catch (e) {
       setState(() {
         _status = '❌ Error: ${e.toString()}';
@@ -103,7 +102,7 @@ class _SmartDomainTesterState extends State<SmartDomainTester> {
     await DomainResolverService.instance.clearCache();
     await ConfigurationService.instance.clearConfiguration();
     await _loadCachedDomains();
-    
+
     setState(() {
       _cachedDomains = [];
       _status = 'Cache cleared successfully';
@@ -122,7 +121,7 @@ class _SmartDomainTesterState extends State<SmartDomainTester> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Smart Domain Resolver'),
-        backgroundColor: AppTheme.secondary1,
+        backgroundColor: DynamicThemeService.instance.getColor('secondary1'),
         foregroundColor: Colors.white,
         actions: [
           IconButton(
@@ -172,7 +171,6 @@ class _SmartDomainTesterState extends State<SmartDomainTester> {
               style: TextStyle(color: Colors.grey),
             ),
             const SizedBox(height: 16),
-            
             TextField(
               controller: _domainController,
               decoration: const InputDecoration(
@@ -183,12 +181,12 @@ class _SmartDomainTesterState extends State<SmartDomainTester> {
               ),
               onSubmitted: (value) => _testSmartResolution(value),
             ),
-            
             const SizedBox(height: 16),
-            
             ElevatedButton.icon(
-              onPressed: _isLoading ? null : () => _testSmartResolution(_domainController.text),
-              icon: _isLoading 
+              onPressed: _isLoading
+                  ? null
+                  : () => _testSmartResolution(_domainController.text),
+              icon: _isLoading
                   ? const SizedBox(
                       width: 16,
                       height: 16,
@@ -197,18 +195,17 @@ class _SmartDomainTesterState extends State<SmartDomainTester> {
                   : const Icon(Icons.search),
               label: Text(_isLoading ? 'Testing...' : 'Run Smart Resolution'),
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.secondary1,
+                backgroundColor:
+                    DynamicThemeService.instance.getColor('secondary1'),
                 foregroundColor: Colors.white,
                 minimumSize: const Size(double.infinity, 48),
               ),
             ),
-            
             const SizedBox(height: 16),
-            
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: _status.contains('❌') 
+                color: _status.contains('❌')
                     ? Colors.red.withOpacity(0.1)
                     : _status.contains('✅')
                         ? Colors.green.withOpacity(0.1)
@@ -218,7 +215,7 @@ class _SmartDomainTesterState extends State<SmartDomainTester> {
               child: Text(
                 _status,
                 style: TextStyle(
-                  color: _status.contains('❌') 
+                  color: _status.contains('❌')
                       ? Colors.red.shade700
                       : _status.contains('✅')
                           ? Colors.green.shade700
@@ -248,20 +245,21 @@ class _SmartDomainTesterState extends State<SmartDomainTester> {
               ),
             ),
             const SizedBox(height: 8),
-            
             Wrap(
               spacing: 8,
               runSpacing: 8,
-              children: _testDomains.map((domain) => 
-                ActionChip(
-                  label: Text(domain),
-                  onPressed: () {
-                    _domainController.text = domain;
-                    _testSmartResolution(domain);
-                  },
-                  backgroundColor: AppTheme.secondary3,
-                ),
-              ).toList(),
+              children: _testDomains
+                  .map(
+                    (domain) => ActionChip(
+                      label: Text(domain),
+                      onPressed: () {
+                        _domainController.text = domain;
+                        _testSmartResolution(domain);
+                      },
+                      backgroundColor: AppTheme.secondary3,
+                    ),
+                  )
+                  .toList(),
             ),
           ],
         ),
@@ -271,7 +269,7 @@ class _SmartDomainTesterState extends State<SmartDomainTester> {
 
   Widget _buildResolutionResults() {
     final result = _resolutionResult!;
-    
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -290,40 +288,38 @@ class _SmartDomainTesterState extends State<SmartDomainTester> {
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
-                    color: result.isValid ? Colors.green.shade700 : Colors.red.shade700,
+                    color: result.isValid
+                        ? Colors.green.shade700
+                        : Colors.red.shade700,
                   ),
                 ),
               ],
             ),
-            
             if (result.isValid) ...[
               const SizedBox(height: 16),
-              
               _buildInfoSection('🎯 Pattern Used', [
                 _buildInfoRow('Type', result.pattern.patternType),
                 _buildInfoRow('Description', result.pattern.description),
                 _buildInfoRow('Priority', '#${result.pattern.priority}'),
               ]),
-              
               _buildInfoSection('🔄 Domain Transformation', [
                 _buildInfoRow('Original', result.originalDomain),
                 _buildInfoRow('Frontend', result.frontendDomain),
                 _buildInfoRow('API Domain', result.apiDomain),
               ]),
-              
-              _buildInfoSection('🌐 Detected Endpoints', 
-                result.endpoints.entries.map((e) => 
-                  _buildInfoRow(e.key.toUpperCase(), _shortenUrl(e.value))
-                ).toList()
-              ),
-              
-              if (result.siteInfo != null) 
-                _buildInfoSection('ℹ️ LMS Information', 
-                  result.siteInfo!.entries.map((e) => 
-                    _buildInfoRow(e.key, e.value?.toString() ?? 'N/A')
-                  ).toList()
-                ),
-              
+              _buildInfoSection(
+                  '🌐 Detected Endpoints',
+                  result.endpoints.entries
+                      .map((e) => _buildInfoRow(
+                          e.key.toUpperCase(), _shortenUrl(e.value)))
+                      .toList()),
+              if (result.siteInfo != null)
+                _buildInfoSection(
+                    'ℹ️ LMS Information',
+                    result.siteInfo!.entries
+                        .map((e) =>
+                            _buildInfoRow(e.key, e.value?.toString() ?? 'N/A'))
+                        .toList()),
               _buildInfoSection('⚡ Performance', [
                 _buildInfoRow('Cached For', '24 hours'),
                 _buildInfoRow('Test Status', 'Valid LMS detected'),
@@ -347,23 +343,22 @@ class _SmartDomainTesterState extends State<SmartDomainTester> {
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
-                color: AppTheme.secondary1,
+                color: DynamicThemeService.instance.getColor('secondary1'),
               ),
             ),
             const SizedBox(height: 16),
-            
-            _buildInfoSection('API Functions (Sample)', 
-              _config!.apiFunctions.entries.take(5).map((e) => 
-                _buildInfoRow(e.key, e.value)
-              ).toList()
-            ),
-            
-            _buildInfoSection('Theme Colors', 
-              _config!.themeColors.entries.take(4).map((e) => 
-                _buildColorRow(e.key, e.value)
-              ).toList()
-            ),
-            
+            _buildInfoSection(
+                'API Functions (Sample)',
+                _config!.apiFunctions.entries
+                    .take(5)
+                    .map((e) => _buildInfoRow(e.key, e.value))
+                    .toList()),
+            _buildInfoSection(
+                'Theme Colors',
+                _config!.themeColors.entries
+                    .take(4)
+                    .map((e) => _buildColorRow(e.key, e.value))
+                    .toList()),
             if (_config!.resolutionResult != null) ...[
               const SizedBox(height: 12),
               Container(
@@ -415,15 +410,19 @@ class _SmartDomainTesterState extends State<SmartDomainTester> {
                 ),
                 const Spacer(),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: AppTheme.secondary1.withOpacity(0.1),
+                    color: DynamicThemeService.instance
+                        .getColor('secondary1')
+                        .withOpacity(0.1),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
                     '${_cachedDomains.length} cached',
                     style: const TextStyle(
-                      color: AppTheme.secondary1,
+                      color:
+                          DynamicThemeService.instance.getColor('secondary1'),
                       fontSize: 12,
                       fontWeight: FontWeight.bold,
                     ),
@@ -432,44 +431,42 @@ class _SmartDomainTesterState extends State<SmartDomainTester> {
               ],
             ),
             const SizedBox(height: 8),
-            
             ...(_cachedDomains.take(5).map((cached) => Container(
-              margin: const EdgeInsets.only(bottom: 8),
-              child: ListTile(
-                leading: Icon(
-                  cached.isValid ? Icons.check_circle : Icons.error,
-                  color: cached.isValid ? Colors.green : Colors.red,
-                  size: 20,
-                ),
-                title: Text(
-                  cached.displayName,
-                  style: const TextStyle(fontWeight: FontWeight.w500),
-                ),
-                subtitle: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(_shortenUrl(cached.originalDomain)),
-                    Text(
-                      '${cached.pattern.description} • ${DateTime.now().difference(cached.lastTested).inHours}h ago',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey.shade600,
-                      ),
+                  margin: const EdgeInsets.only(bottom: 8),
+                  child: ListTile(
+                    leading: Icon(
+                      cached.isValid ? Icons.check_circle : Icons.error,
+                      color: cached.isValid ? Colors.green : Colors.red,
+                      size: 20,
                     ),
-                  ],
-                ),
-                trailing: const Icon(Icons.play_arrow, size: 20),
-                onTap: () {
-                  _domainController.text = cached.originalDomain;
-                  _testSmartResolution(cached.originalDomain);
-                },
-                tileColor: Colors.grey.shade50,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
-            ))),
-            
+                    title: Text(
+                      cached.displayName,
+                      style: const TextStyle(fontWeight: FontWeight.w500),
+                    ),
+                    subtitle: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(_shortenUrl(cached.originalDomain)),
+                        Text(
+                          '${cached.pattern.description} • ${DateTime.now().difference(cached.lastTested).inHours}h ago',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey.shade600,
+                          ),
+                        ),
+                      ],
+                    ),
+                    trailing: const Icon(Icons.play_arrow, size: 20),
+                    onTap: () {
+                      _domainController.text = cached.originalDomain;
+                      _testSmartResolution(cached.originalDomain);
+                    },
+                    tileColor: Colors.grey.shade50,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                ))),
             if (_cachedDomains.length > 5) ...[
               const SizedBox(height: 8),
               Center(
@@ -497,7 +494,7 @@ class _SmartDomainTesterState extends State<SmartDomainTester> {
           style: const TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.bold,
-            color: AppTheme.secondary1,
+            color: DynamicThemeService.instance.getColor('secondary1'),
           ),
         ),
         const SizedBox(height: 8),

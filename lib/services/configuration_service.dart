@@ -3,8 +3,8 @@
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
-import '../theme/dynamic_app_theme.dart';
-typedef AppTheme = DynamicAppTheme;
+import 'package:InstructoHub/services/dynamic_theme_service.dart';
+
 
 
 

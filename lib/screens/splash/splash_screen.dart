@@ -1,18 +1,18 @@
 import 'package:flutter/material.dart';
-import '../services/api_service.dart';
-import '../screens/login/login_screen.dart';
-import '../screens/domain_config_screen.dart';
-import '../theme/dynamic_app_theme.dart';
+import '../../services/api_service.dart';
+import '../../services/dynamic_theme_service.dart';
+import '../../screens/login/login_screen.dart';
+import '../../screens/domain_config/domain_config_screen.dart';
 
 class SplashScreen extends StatefulWidget {
-  const SplashScreen({Key? key}) : super(key: key);
+  final ValueNotifier<ThemeData> themeNotifier;
+  const SplashScreen({Key? key, required this.themeNotifier}) : super(key: key);
 
   @override
   _SplashScreenState createState() => _SplashScreenState();
 }
 
 class _SplashScreenState extends State<SplashScreen> {
-
   @override
   void initState() {
     super.initState();
@@ -20,9 +20,15 @@ class _SplashScreenState extends State<SplashScreen> {
   }
 
   Future<void> _initializeApp() async {
-    // This is the crucial step that fixes the error.
-    // It attempts to load the previously saved API configuration from storage.
+    // First, load the API configuration.
     final bool isApiConfigured = await ApiService.instance.loadConfiguration();
+
+    // **CRUCIAL FIX**: Load the dynamic theme *after* API config is loaded
+    // but *before* navigating away from the splash screen.
+    await DynamicThemeService.instance.loadTheme();
+
+    // Update the theme for the entire app via the ValueNotifier from main.dart
+    widget.themeNotifier.value = DynamicThemeService.instance.currentTheme;
 
     // A short delay to make the splash screen visible.
     await Future.delayed(const Duration(seconds: 2));
@@ -32,12 +38,10 @@ class _SplashScreenState extends State<SplashScreen> {
 
     // Navigate to the correct screen based on whether configuration was found.
     if (isApiConfigured) {
-      // If config was loaded, the ApiService is ready. Go to Login.
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(builder: (_) => const LoginScreen()),
       );
     } else {
-      // If no config was found, the user needs to set it up.
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(builder: (_) => const DomainConfigScreen()),
       );
@@ -46,24 +50,24 @@ class _SplashScreenState extends State<SplashScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // A simple splash screen UI.
+    // Now this screen will correctly display the loaded dynamic theme colors.
     return Scaffold(
-      backgroundColor: DynamicAppTheme.background,
+      backgroundColor: DynamicThemeService.instance.getColor('background'),
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             CircularProgressIndicator(
-              valueColor: AlwaysStoppedAnimation<Color>(DynamicAppTheme.secondary1),
+              valueColor: AlwaysStoppedAnimation<Color>(
+                  DynamicThemeService.instance.getColor('secondary1')),
             ),
             const SizedBox(height: 24),
-            // FIX: Removed 'const' from the Text widget because its style
-            // uses a dynamic theme color which is not a compile-time constant.
             Text(
               'Initializing App...',
               style: TextStyle(
                 fontSize: 16,
-                color: DynamicAppTheme.textSecondary,
+                // **FIX**: Consistently use the theme service to get colors.
+                color: DynamicThemeService.instance.getColor('textSecondary'),
               ),
             ),
           ],

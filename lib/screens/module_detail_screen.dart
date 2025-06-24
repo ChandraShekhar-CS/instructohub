@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
-import '../services/icon_service.dart';
-import '../theme/dynamic_app_theme.dart';
-typedef AppTheme = DynamicAppTheme;
+import '../services/enhanced_icon_service.dart';
+import '../services/dynamic_theme_service.dart';
 
 class ModuleDetailScreen extends StatelessWidget {
   final dynamic module;
@@ -15,40 +14,48 @@ class ModuleDetailScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Get an instance of the theme service for easier access
+    final themeService = DynamicThemeService.instance;
     final String moduleName = module['name'] ?? 'Module Details';
 
     return Scaffold(
-      backgroundColor: AppTheme.background,
-      appBar: AppTheme.buildDynamicAppBar(title: moduleName),
+      // Use the background color from the dynamic theme
+      backgroundColor: themeService.getColor('background'),
+      
+      // Use a standard AppBar; styling is automatically applied from the global theme
+      appBar: AppBar(
+        title: Text(moduleName),
+      ),
+      
       body: Center(
         child: Padding(
-          padding: EdgeInsets.all(AppTheme.spacingLg),
+          // Use dynamic spacing from the theme service
+          padding: EdgeInsets.all(themeService.getSpacing('lg')),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Icon(
-                IconService.instance.getIcon('construction'),
+                // The icon service remains the same
+                DynamicIconService.instance.getIcon('construction'),
                 size: 80,
-                color: AppTheme.secondary1,
+                // Use the primary accent color from the theme
+                color: themeService.getColor('secondary1'),
               ),
-              SizedBox(height: AppTheme.spacingLg),
+              // Use dynamic spacing
+              SizedBox(height: themeService.getSpacing('lg')),
               Text(
                 'Module Page for "$moduleName"',
                 textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: AppTheme.fontSize2xl,
-                  fontWeight: FontWeight.bold,
-                  color: AppTheme.textPrimary,
-                ),
+                // Use a pre-defined text style from the theme for consistency
+                style: Theme.of(context).textTheme.headlineMedium,
               ),
-              SizedBox(height: AppTheme.spacingMd),
+              // Use dynamic spacing
+              SizedBox(height: themeService.getSpacing('md')),
               Text(
                 'This page is under construction.',
                 textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: AppTheme.fontSizeLg,
-                  color: AppTheme.textSecondary,
-                ),
+                // Use a pre-defined text style for secondary text
+                style: Theme.of(context).textTheme.bodyMedium,
               ),
             ],
           ),
