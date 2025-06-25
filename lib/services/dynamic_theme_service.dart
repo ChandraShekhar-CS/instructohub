@@ -149,21 +149,25 @@ class DynamicThemeService {
     
     return {
       'primary': getApiColor('secondary1') ?? defaultColors['primary']!,
-      'primaryVariant': getApiColor('secondary2') ?? defaultColors['primaryVariant']!,
-      'secondary': getApiColor('secondary3') ?? defaultColors['secondary']!,
-      'surface': getApiColor('offwhite') ?? defaultColors['surface']!,
-      'background': getApiColor('navbg') ?? defaultColors['background']!,
-      'onPrimary': getApiColor('loginButtonTextColor') ?? getApiColor('btnText') ?? defaultColors['onPrimary']!,
+      'primaryLight': getApiColor('secondary3') ?? defaultColors['primaryLight']!,
+      'primaryDark': getApiColor('secondary2') ?? defaultColors['primaryDark']!,
+      'surface': '#FFFFFF',
+      'background': '#F8FAFC',
+      'backgroundLight': '#FFFFFF',
+      'cardBackground': '#FFFFFF',
+      'onPrimary': '#FFFFFF',
       'onSurface': getApiColor('primary1') ?? defaultColors['onSurface']!,
       'onBackground': getApiColor('primary1') ?? defaultColors['onBackground']!,
       'textPrimary': getApiColor('primary1') ?? defaultColors['textPrimary']!,
       'textSecondary': getApiColor('primary2') ?? defaultColors['textSecondary']!,
+      'textMuted': '#94A3B8',
+      'border': '#E2E8F0',
+      'borderLight': '#F1F5F9',
       'success': '#10B981',
       'warning': '#F59E0B',
       'error': '#EF4444',
       'info': '#3B82F6',
-      'cardElevated': '#FFFFFF',
-      'divider': getApiColor('primary2') ?? defaultColors['divider']!,
+      'shadow': '#64748B',
       'loginBgLeft': getApiColor('loginBgLeft') ?? defaultColors['loginBgLeft']!,
       'loginBgRight': getApiColor('loginBgRight') ?? defaultColors['loginBgRight']!,
       'loginTextTitle': getApiColor('loginTextTitle') ?? defaultColors['loginTextTitle']!,
@@ -181,7 +185,7 @@ class DynamicThemeService {
   Future<void> _saveCachedTheme(Map<String, dynamic> themeConfig) async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('dynamic_theme_v6', json.encode(themeConfig));
+      await prefs.setString('dynamic_theme_v7', json.encode(themeConfig));
     } catch (e) {
       print('Error saving cached theme: $e');
     }
@@ -190,7 +194,7 @@ class DynamicThemeService {
   Future<Map<String, dynamic>?> _loadCachedTheme() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final cachedData = prefs.getString('dynamic_theme_v6');
+      final cachedData = prefs.getString('dynamic_theme_v7');
       if (cachedData != null) {
         return Map<String, dynamic>.from(json.decode(cachedData));
       }
@@ -203,7 +207,7 @@ class DynamicThemeService {
   Future<void> clearThemeCache() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.remove('dynamic_theme_v6');
+      await prefs.remove('dynamic_theme_v7');
       print('Theme cache cleared.');
       forceReload();
     } catch (e) {
@@ -248,87 +252,57 @@ class DynamicThemeService {
   }
 
   ThemeData _buildDynamicTheme(Map<String, Color> colors) {
-    final typography = _themeConfig?['typography'] as Map<String, dynamic>? ?? {};
-    final spacing = _themeConfig?['spacing'] as Map<String, dynamic>? ?? {};
-    final borderRadiusCfg = _themeConfig?['borderRadius'] as Map<String, dynamic>? ?? {};
-    final elevationCfg = _themeConfig?['elevation'] as Map<String, dynamic>? ?? {};
-
     return ThemeData(
       useMaterial3: true,
       primarySwatch: _createMaterialColor(colors['primary']!),
-      fontFamily: typography['fontFamily'] as String? ?? 'Inter',
+      fontFamily: 'Inter',
       
       colorScheme: ColorScheme.light(
         brightness: Brightness.light,
         primary: colors['primary']!,
         onPrimary: colors['onPrimary']!,
-        primaryContainer: colors['primary']!.withOpacity(0.1),
-        onPrimaryContainer: colors['primary']!,
-        secondary: colors['secondary']!,
+        secondary: colors['primaryLight']!,
         onSecondary: colors['onPrimary']!,
-        secondaryContainer: colors['secondary']!.withOpacity(0.1),
-        onSecondaryContainer: colors['primary']!,
-        tertiary: colors['info']!,
-        onTertiary: colors['onPrimary']!,
         error: colors['error']!,
         onError: colors['onPrimary']!,
-        errorContainer: colors['error']!.withOpacity(0.1),
-        onErrorContainer: colors['error']!,
         background: colors['background']!,
         onBackground: colors['onBackground']!,
         surface: colors['surface']!,
         onSurface: colors['onSurface']!,
-        surfaceVariant: colors['cardElevated']!,
-        onSurfaceVariant: colors['textSecondary']!,
-        outline: colors['divider']!.withOpacity(0.3),
-        outlineVariant: colors['divider']!.withOpacity(0.1),
-        shadow: Colors.black.withOpacity(0.1),
-        scrim: Colors.black.withOpacity(0.5),
-        inverseSurface: colors['primaryVariant']!,
-        onInverseSurface: colors['onPrimary']!,
-        inversePrimary: colors['onPrimary']!,
-        surfaceTint: colors['primary']!,
+        outline: colors['border']!,
+        shadow: colors['shadow']!.withOpacity(0.15),
       ),
 
       scaffoldBackgroundColor: colors['background'],
 
       appBarTheme: AppBarTheme(
-        backgroundColor: colors['surface'],
+        backgroundColor: colors['backgroundLight'],
         surfaceTintColor: Colors.transparent,
-        elevation: (elevationCfg['low'] as num?)?.toDouble() ?? 0.0,
-        scrolledUnderElevation: 4.0,
-        shadowColor: colors['textPrimary']!.withOpacity(0.1),
+        elevation: 0,
+        scrolledUnderElevation: 1,
+        shadowColor: colors['shadow']!.withOpacity(0.1),
         iconTheme: IconThemeData(color: colors['textPrimary'], size: 24),
-        actionsIconTheme: IconThemeData(color: colors['textPrimary'], size: 24),
         titleTextStyle: TextStyle(
           color: colors['textPrimary'],
-          fontSize: (typography['titleLarge'] as num?)?.toDouble() ?? 20.0,
+          fontSize: 20,
           fontWeight: FontWeight.w600,
-          fontFamily: typography['fontFamily'] as String? ?? 'Inter',
+          fontFamily: 'Inter',
         ),
         centerTitle: false,
-        titleSpacing: 16.0,
       ),
 
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           backgroundColor: colors['primary'],
           foregroundColor: colors['onPrimary'],
-          disabledBackgroundColor: colors['textSecondary']!.withOpacity(0.3),
-          disabledForegroundColor: colors['textSecondary'],
-          elevation: (elevationCfg['medium'] as num?)?.toDouble() ?? 2.0,
-          shadowColor: colors['primary']!.withOpacity(0.3),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular((borderRadiusCfg['medium'] as num?)?.toDouble() ?? 12.0),
-          ),
-          padding: EdgeInsets.symmetric(
-            horizontal: (spacing['lg'] as num?)?.toDouble() ?? 24.0,
-            vertical: (spacing['md'] as num?)?.toDouble() ?? 16.0,
-          ),
-          textStyle: TextStyle(
-            fontWeight: FontWeight.w600,
-            fontFamily: typography['fontFamily'] as String? ?? 'Inter',
-            fontSize: (typography['bodyLarge'] as num?)?.toDouble() ?? 16.0,
+          elevation: 0,
+          shadowColor: Colors.transparent,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+          textStyle: const TextStyle(
+            fontWeight: FontWeight.w500,
+            fontSize: 14,
+            fontFamily: 'Inter',
           ),
         ),
       ),
@@ -336,306 +310,97 @@ class DynamicThemeService {
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
           foregroundColor: colors['primary'],
-          side: BorderSide(color: colors['primary']!, width: 1.5),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular((borderRadiusCfg['medium'] as num?)?.toDouble() ?? 12.0),
-          ),
-          padding: EdgeInsets.symmetric(
-            horizontal: (spacing['lg'] as num?)?.toDouble() ?? 24.0,
-            vertical: (spacing['md'] as num?)?.toDouble() ?? 16.0,
-          ),
-        ),
-      ),
-
-      textButtonTheme: TextButtonThemeData(
-        style: TextButton.styleFrom(
-          foregroundColor: colors['primary'],
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular((borderRadiusCfg['small'] as num?)?.toDouble() ?? 8.0),
-          ),
-          padding: EdgeInsets.symmetric(
-            horizontal: (spacing['md'] as num?)?.toDouble() ?? 16.0,
-            vertical: (spacing['sm'] as num?)?.toDouble() ?? 8.0,
-          ),
-        ),
-      ),
-
-      floatingActionButtonTheme: FloatingActionButtonThemeData(
-        backgroundColor: colors['primary'],
-        foregroundColor: colors['onPrimary'],
-        elevation: (elevationCfg['high'] as num?)?.toDouble() ?? 6.0,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular((borderRadiusCfg['large'] as num?)?.toDouble() ?? 16.0),
+          side: BorderSide(color: colors['border']!, width: 1),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
         ),
       ),
 
       cardTheme: CardThemeData(
-        color: colors['cardElevated'],
+        color: colors['cardBackground'],
         surfaceTintColor: Colors.transparent,
-        elevation: (elevationCfg['low'] as num?)?.toDouble() ?? 2.0,
-        shadowColor: colors['textPrimary']!.withOpacity(0.08),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular((borderRadiusCfg['medium'] as num?)?.toDouble() ?? 12.0),
-        ),
-        margin: EdgeInsets.symmetric(
-          horizontal: (spacing['xs'] as num?)?.toDouble() ?? 4.0,
-          vertical: (spacing['xs'] as num?)?.toDouble() ?? 4.0,
-        ),
+        elevation: 0,
+        shadowColor: colors['shadow']!.withOpacity(0.1),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        margin: const EdgeInsets.all(0),
       ),
 
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: colors['surface'],
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular((borderRadiusCfg['medium'] as num?)?.toDouble() ?? 12.0),
-          borderSide: BorderSide(color: colors['divider']!.withOpacity(0.3)),
+          borderRadius: BorderRadius.circular(8),
+          borderSide: BorderSide(color: colors['border']!),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular((borderRadiusCfg['medium'] as num?)?.toDouble() ?? 12.0),
-          borderSide: BorderSide(color: colors['divider']!.withOpacity(0.3)),
+          borderRadius: BorderRadius.circular(8),
+          borderSide: BorderSide(color: colors['border']!),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular((borderRadiusCfg['medium'] as num?)?.toDouble() ?? 12.0),
+          borderRadius: BorderRadius.circular(8),
           borderSide: BorderSide(color: colors['primary']!, width: 2),
         ),
-        errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular((borderRadiusCfg['medium'] as num?)?.toDouble() ?? 12.0),
-          borderSide: BorderSide(color: colors['error']!, width: 1),
-        ),
-        focusedErrorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular((borderRadiusCfg['medium'] as num?)?.toDouble() ?? 12.0),
-          borderSide: BorderSide(color: colors['error']!, width: 2),
-        ),
-        contentPadding: EdgeInsets.symmetric(
-          vertical: (spacing['md'] as num?)?.toDouble() ?? 16.0,
-          horizontal: (spacing['md'] as num?)?.toDouble() ?? 16.0,
-        ),
-        hintStyle: TextStyle(color: colors['textSecondary']!.withOpacity(0.7)),
-        labelStyle: TextStyle(color: colors['textSecondary']),
-      ),
-
-      drawerTheme: DrawerThemeData(
-        backgroundColor: colors['surface'],
-        surfaceTintColor: Colors.transparent,
-        elevation: (elevationCfg['high'] as num?)?.toDouble() ?? 16.0,
-        shadowColor: colors['textPrimary']!.withOpacity(0.15),
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.only(
-            topRight: Radius.circular(0),
-            bottomRight: Radius.circular(0),
-          ),
-        ),
-      ),
-
-      listTileTheme: ListTileThemeData(
-        contentPadding: EdgeInsets.symmetric(
-          horizontal: (spacing['md'] as num?)?.toDouble() ?? 16.0,
-          vertical: (spacing['xs'] as num?)?.toDouble() ?? 4.0,
-        ),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular((borderRadiusCfg['medium'] as num?)?.toDouble() ?? 12.0),
-        ),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        hintStyle: TextStyle(color: colors['textMuted']),
       ),
 
       textTheme: TextTheme(
-        displayLarge: TextStyle(
-          color: colors['textPrimary'], 
-          fontWeight: FontWeight.w300, 
-          fontSize: 57, 
-          letterSpacing: -0.25,
-          height: 1.12,
-        ),
-        displayMedium: TextStyle(
-          color: colors['textPrimary'], 
-          fontWeight: FontWeight.w300, 
-          fontSize: 45, 
-          letterSpacing: 0,
-          height: 1.16,
-        ),
-        displaySmall: TextStyle(
-          color: colors['textPrimary'], 
-          fontWeight: FontWeight.w400, 
-          fontSize: 36, 
-          letterSpacing: 0,
-          height: 1.22,
-        ),
-        headlineLarge: TextStyle(
-          color: colors['textPrimary'], 
-          fontWeight: FontWeight.w400, 
-          fontSize: 32, 
-          letterSpacing: 0,
-          height: 1.25,
-        ),
-        headlineMedium: TextStyle(
-          color: colors['textPrimary'], 
-          fontWeight: FontWeight.w400, 
-          fontSize: 28, 
-          letterSpacing: 0,
-          height: 1.29,
-        ),
-        headlineSmall: TextStyle(
-          color: colors['textPrimary'], 
-          fontWeight: FontWeight.w600, 
-          fontSize: 24, 
-          letterSpacing: 0,
-          height: 1.33,
-        ),
-        titleLarge: TextStyle(
-          color: colors['textPrimary'], 
-          fontWeight: FontWeight.w600, 
-          fontSize: 22, 
-          letterSpacing: 0,
-          height: 1.27,
-        ),
-        titleMedium: TextStyle(
-          color: colors['textPrimary'], 
-          fontWeight: FontWeight.w500, 
-          fontSize: 16, 
-          letterSpacing: 0.15,
-          height: 1.50,
-        ),
-        titleSmall: TextStyle(
-          color: colors['textPrimary'], 
-          fontWeight: FontWeight.w500, 
-          fontSize: 14, 
-          letterSpacing: 0.1,
-          height: 1.43,
-        ),
-        bodyLarge: TextStyle(
-          color: colors['textPrimary'], 
-          fontWeight: FontWeight.w400, 
-          fontSize: 16, 
-          letterSpacing: 0.5,
-          height: 1.50,
-        ),
-        bodyMedium: TextStyle(
-          color: colors['textSecondary'], 
-          fontWeight: FontWeight.w400, 
-          fontSize: 14, 
-          letterSpacing: 0.25,
-          height: 1.43,
-        ),
-        bodySmall: TextStyle(
-          color: colors['textSecondary'], 
-          fontWeight: FontWeight.w400, 
-          fontSize: 12, 
-          letterSpacing: 0.4,
-          height: 1.33,
-        ),
-        labelLarge: TextStyle(
-          color: colors['textPrimary'], 
-          fontWeight: FontWeight.w500, 
-          fontSize: 14, 
-          letterSpacing: 0.1,
-          height: 1.43,
-        ),
-        labelMedium: TextStyle(
-          color: colors['textSecondary'], 
-          fontWeight: FontWeight.w500, 
-          fontSize: 12, 
-          letterSpacing: 0.5,
-          height: 1.33,
-        ),
-        labelSmall: TextStyle(
-          color: colors['textSecondary'], 
-          fontWeight: FontWeight.w500, 
-          fontSize: 11, 
-          letterSpacing: 0.5,
-          height: 1.45,
-        ),
+        displayLarge: TextStyle(color: colors['textPrimary'], fontWeight: FontWeight.w700, fontSize: 32),
+        displayMedium: TextStyle(color: colors['textPrimary'], fontWeight: FontWeight.w700, fontSize: 28),
+        displaySmall: TextStyle(color: colors['textPrimary'], fontWeight: FontWeight.w600, fontSize: 24),
+        headlineLarge: TextStyle(color: colors['textPrimary'], fontWeight: FontWeight.w600, fontSize: 22),
+        headlineMedium: TextStyle(color: colors['textPrimary'], fontWeight: FontWeight.w600, fontSize: 20),
+        headlineSmall: TextStyle(color: colors['textPrimary'], fontWeight: FontWeight.w600, fontSize: 18),
+        titleLarge: TextStyle(color: colors['textPrimary'], fontWeight: FontWeight.w600, fontSize: 16),
+        titleMedium: TextStyle(color: colors['textPrimary'], fontWeight: FontWeight.w500, fontSize: 14),
+        titleSmall: TextStyle(color: colors['textPrimary'], fontWeight: FontWeight.w500, fontSize: 12),
+        bodyLarge: TextStyle(color: colors['textPrimary'], fontWeight: FontWeight.w400, fontSize: 16),
+        bodyMedium: TextStyle(color: colors['textSecondary'], fontWeight: FontWeight.w400, fontSize: 14),
+        bodySmall: TextStyle(color: colors['textMuted'], fontWeight: FontWeight.w400, fontSize: 12),
+        labelLarge: TextStyle(color: colors['textPrimary'], fontWeight: FontWeight.w500, fontSize: 14),
+        labelMedium: TextStyle(color: colors['textSecondary'], fontWeight: FontWeight.w500, fontSize: 12),
+        labelSmall: TextStyle(color: colors['textMuted'], fontWeight: FontWeight.w500, fontSize: 11),
       ),
 
-      iconTheme: IconThemeData(
-        color: colors['textPrimary'], 
-        size: 24,
-      ),
-      
-      primaryIconTheme: IconThemeData(
-        color: colors['primary'], 
-        size: 24,
-      ),
-
-      dividerTheme: DividerThemeData(
-        color: colors['divider']!.withOpacity(0.12), 
-        thickness: 1,
-        space: 1,
-      ),
-
-      progressIndicatorTheme: ProgressIndicatorThemeData(
-        color: colors['primary'],
-        linearTrackColor: colors['primary']!.withOpacity(0.2),
-        circularTrackColor: colors['primary']!.withOpacity(0.2),
-      ),
-
-      snackBarTheme: SnackBarThemeData(
-        backgroundColor: colors['primaryVariant'],
-        contentTextStyle: TextStyle(color: colors['onPrimary']),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular((borderRadiusCfg['medium'] as num?)?.toDouble() ?? 12.0),
-        ),
-        behavior: SnackBarBehavior.floating,
-        elevation: (elevationCfg['medium'] as num?)?.toDouble() ?? 6.0,
-      ),
-
-      bottomNavigationBarTheme: BottomNavigationBarThemeData(
-        backgroundColor: colors['surface'],
-        selectedItemColor: colors['primary'],
-        unselectedItemColor: colors['textSecondary'],
-        type: BottomNavigationBarType.fixed,
-        elevation: (elevationCfg['medium'] as num?)?.toDouble() ?? 8.0,
-      ),
-
-      tabBarTheme: TabBarThemeData(
-        labelColor: colors['primary'],
-        unselectedLabelColor: colors['textSecondary'],
-        indicator: UnderlineTabIndicator(
-          borderSide: BorderSide(color: colors['primary']!, width: 2),
-        ),
-      ),
+      iconTheme: IconThemeData(color: colors['textPrimary'], size: 24),
+      dividerTheme: DividerThemeData(color: colors['border'], thickness: 1),
+      progressIndicatorTheme: ProgressIndicatorThemeData(color: colors['primary']),
     );
   }
 
   Map<String, dynamic> _getDefaultThemeConfig() {
     return {
       'colors': {
-        'primary': '#E16B3A',
-        'primaryVariant': '#1B3943',
-        'secondary': '#FBECE6',
-        'surface': '#F8F9FA',
-        'background': '#FFFFFF',
+        'primary': '#8B5CF6',
+        'primaryLight': '#A78BFA',
+        'primaryDark': '#7C3AED',
+        'surface': '#FFFFFF',
+        'background': '#F8FAFC',
+        'backgroundLight': '#FFFFFF',
+        'cardBackground': '#FFFFFF',
         'onPrimary': '#FFFFFF',
-        'onSurface': '#1F2937',
-        'onBackground': '#1F2937',
-        'textPrimary': '#1F2937',
-        'textSecondary': '#6B7280',
+        'onSurface': '#1E293B',
+        'onBackground': '#1E293B',
+        'textPrimary': '#1E293B',
+        'textSecondary': '#64748B',
+        'textMuted': '#94A3B8',
+        'border': '#E2E8F0',
+        'borderLight': '#F1F5F9',
         'success': '#10B981',
         'warning': '#F59E0B',
         'error': '#EF4444',
         'info': '#3B82F6',
-        'cardElevated': '#FFFFFF',
-        'divider': '#E5E7EB',
+        'shadow': '#64748B',
         'loginBgLeft': '#FBECE6',
         'loginBgRight': '#F7F7F7',
         'loginTextTitle': '#1f2937',
         'loginTextBody': '#6b7280',
-        'loginTextLink': '#E16B3A',
+        'loginTextLink': '#8B5CF6',
       },
       'imageUrls': {
         'logo_image': null,
         'login_left_bg_image': null,
         'login_right_bg_image': null
-      },
-      'typography': {
-        'fontFamily': 'Inter',
-        'headlineLarge': 32.0,
-        'headlineMedium': 28.0,
-        'headlineSmall': 24.0,
-        'titleLarge': 22.0,
-        'titleMedium': 16.0,
-        'titleSmall': 14.0,
-        'bodyLarge': 16.0,
-        'bodyMedium': 14.0,
-        'bodySmall': 12.0,
       },
       'spacing': {
         'xs': 4.0,
@@ -645,17 +410,16 @@ class DynamicThemeService {
         'xl': 32.0,
       },
       'borderRadius': {
-        'small': 8.0,
-        'medium': 12.0,
-        'large': 16.0,
-        'xl': 24.0,
+        'small': 6.0,
+        'medium': 8.0,
+        'large': 12.0,
+        'xl': 16.0,
       },
       'elevation': {
         'none': 0.0,
-        'low': 2.0,
-        'medium': 4.0,
-        'high': 8.0,
-        'highest': 16.0,
+        'low': 1.0,
+        'medium': 2.0,
+        'high': 4.0,
       },
       'source': 'default',
       'last_updated': DateTime.now().toIso8601String(),
@@ -702,270 +466,137 @@ class DynamicThemeService {
   double getBorderRadius(String radiusKey) {
     final borderRadius = _themeConfig?['borderRadius'] as Map<String, dynamic>? ?? {};
     final defaultRadii = _getDefaultThemeConfig()['borderRadius'] as Map<String, dynamic>;
-    return (borderRadius[radiusKey] as num?)?.toDouble() ?? (defaultRadii[radiusKey] as num?)?.toDouble() ?? 12.0;
+    return (borderRadius[radiusKey] as num?)?.toDouble() ?? (defaultRadii[radiusKey] as num?)?.toDouble() ?? 8.0;
   }
 
-  double getElevation(String elevationKey) {
-    final elevation = _themeConfig?['elevation'] as Map<String, dynamic>? ?? {};
-    final defaultElevation = _getDefaultThemeConfig()['elevation'] as Map<String, dynamic>;
-    return (elevation[elevationKey] as num?)?.toDouble() ?? (defaultElevation[elevationKey] as num?)?.toDouble() ?? 4.0;
-  }
-  
-  LinearGradient getDynamicButtonGradient() {
-    return LinearGradient(
-      colors: [
-        getColor('primary'),
-        getColor('primaryVariant'),
-      ],
-      begin: Alignment.topLeft,
-      end: Alignment.bottomRight,
+  BoxShadow getCardShadow({double opacity = 0.05}) {
+    return BoxShadow(
+      color: getColor('shadow').withOpacity(opacity),
+      spreadRadius: 0,
+      blurRadius: 10,
+      offset: const Offset(0, 4),
     );
   }
 
-  LinearGradient getDynamicBackgroundGradient() {
-    return LinearGradient(
-      begin: Alignment.topLeft,
-      end: Alignment.bottomRight,
-      colors: [
-        getColor('loginBgLeft'),
-        getColor('loginBgRight'),
-      ],
-    );
-  }
-
-  LinearGradient getCardGradient() {
-    return LinearGradient(
-      begin: Alignment.topLeft,
-      end: Alignment.bottomRight,
-      colors: [
-        getColor('surface'),
-        getColor('cardElevated'),
-      ],
-    );
-  }
-
-  LinearGradient getWelcomeGradient() {
-    return LinearGradient(
-      begin: Alignment.topLeft,
-      end: Alignment.bottomRight,
-      colors: [
-        getColor('primary').withOpacity(0.1),
-        getColor('primaryVariant').withOpacity(0.05),
-      ],
-    );
-  }
-
-  BoxDecoration getDynamicCardDecoration({
-    List<BoxShadow>? boxShadow,
-    BorderRadius? borderRadius,
-    Color? color,
+  BoxDecoration getCleanCardDecoration({
+    Color? backgroundColor,
+    double? borderRadius,
+    Color? borderColor,
+    List<BoxShadow>? customShadow,
   }) {
     return BoxDecoration(
-      color: color ?? getColor('cardElevated'),
-      borderRadius: borderRadius ?? BorderRadius.circular(getBorderRadius('medium')),
-      boxShadow: boxShadow ?? [
-        BoxShadow(
-          color: getColor('textPrimary').withOpacity(0.05),
-          spreadRadius: 0,
-          blurRadius: getElevation('medium') * 2,
-          offset: const Offset(0, 2),
-        ),
-        BoxShadow(
-          color: getColor('textPrimary').withOpacity(0.03),
-          spreadRadius: 0,
-          blurRadius: getElevation('low'),
-          offset: const Offset(0, 1),
-        ),
-      ],
+      color: backgroundColor ?? getColor('cardBackground'),
+      borderRadius: BorderRadius.circular(borderRadius ?? getBorderRadius('large')),
+      border: borderColor != null ? Border.all(color: borderColor, width: 1) : null,
+      boxShadow: customShadow ?? [getCardShadow()],
     );
   }
 
-  BoxDecoration getGlassmorphismDecoration({
-    double opacity = 0.1,
-    double blur = 10.0,
-  }) {
-    return BoxDecoration(
-      color: getColor('cardElevated').withOpacity(opacity),
-      borderRadius: BorderRadius.circular(getBorderRadius('medium')),
-      border: Border.all(
-        color: getColor('divider').withOpacity(0.2),
-        width: 1,
-      ),
-      boxShadow: [
-        BoxShadow(
-          color: getColor('textPrimary').withOpacity(0.1),
-          spreadRadius: 0,
-          blurRadius: blur,
-          offset: const Offset(0, 4),
-        ),
-      ],
-    );
-  }
-
-  BoxDecoration getElevatedCardDecoration({
-    double elevation = 8.0,
-    Color? color,
-  }) {
-    return BoxDecoration(
-      color: color ?? getColor('cardElevated'),
-      borderRadius: BorderRadius.circular(getBorderRadius('medium')),
-      boxShadow: [
-        BoxShadow(
-          color: getColor('primary').withOpacity(0.1),
-          spreadRadius: 0,
-          blurRadius: elevation,
-          offset: Offset(0, elevation / 2),
-        ),
-        BoxShadow(
-          color: getColor('textPrimary').withOpacity(0.05),
-          spreadRadius: 0,
-          blurRadius: elevation / 2,
-          offset: const Offset(0, 1),
-        ),
-      ],
-    );
-  }
-
-  ButtonStyle getPrimaryButtonStyle() {
-    return ElevatedButton.styleFrom(
-      backgroundColor: getColor('primary'),
-      foregroundColor: getColor('onPrimary'),
-      elevation: getElevation('medium'),
-      shadowColor: getColor('primary').withOpacity(0.4),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(getBorderRadius('medium')),
-      ),
-      padding: EdgeInsets.symmetric(
-        horizontal: getSpacing('lg'),
-        vertical: getSpacing('md'),
-      ),
-    );
-  }
-
-  ButtonStyle getSecondaryButtonStyle() {
-    return OutlinedButton.styleFrom(
-      foregroundColor: getColor('primary'),
-      side: BorderSide(color: getColor('primary'), width: 1.5),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(getBorderRadius('medium')),
-      ),
-      padding: EdgeInsets.symmetric(
-        horizontal: getSpacing('lg'),
-        vertical: getSpacing('md'),
-      ),
-    );
-  }
-
-  Color getStatusColor(String status) {
-    switch (status.toLowerCase()) {
-      case 'success':
-      case 'completed':
-      case 'active':
-        return getColor('success');
-      case 'warning':
-      case 'pending':
-      case 'in_progress':
-        return getColor('warning');
-      case 'error':
-      case 'failed':
-      case 'cancelled':
-        return getColor('error');
-      case 'info':
-      case 'draft':
-      case 'not_started':
-        return getColor('info');
-      default:
-        return getColor('textSecondary');
-    }
-  }
-
-  Widget buildGradientContainer({
-    required Widget child,
-    LinearGradient? gradient,
-    EdgeInsets? padding,
-    EdgeInsets? margin,
-    BorderRadius? borderRadius,
-    List<BoxShadow>? boxShadow,
-  }) {
-    return Container(
-      margin: margin,
-      padding: padding ?? EdgeInsets.all(getSpacing('md')),
-      decoration: BoxDecoration(
-        gradient: gradient ?? getDynamicButtonGradient(),
-        borderRadius: borderRadius ?? BorderRadius.circular(getBorderRadius('medium')),
-        boxShadow: boxShadow ?? [
-          BoxShadow(
-            color: getColor('primary').withOpacity(0.3),
-            blurRadius: getElevation('medium') * 2,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: child,
-    );
-  }
-
-  Widget buildFloatingCard({
+  Widget buildCleanCard({
     required Widget child,
     EdgeInsets? padding,
     EdgeInsets? margin,
-    Color? color,
-    double? elevation,
+    Color? backgroundColor,
+    VoidCallback? onTap,
   }) {
-    return Container(
-      margin: margin ?? EdgeInsets.all(getSpacing('sm')),
-      decoration: getDynamicCardDecoration(
-        color: color,
-        boxShadow: [
-          BoxShadow(
-            color: getColor('textPrimary').withOpacity(0.08),
-            spreadRadius: 0,
-            blurRadius: elevation ?? getElevation('medium'),
-            offset: Offset(0, (elevation ?? getElevation('medium')) / 2),
-          ),
-        ],
-      ),
+    Widget cardContent = Container(
+      margin: margin ?? EdgeInsets.symmetric(horizontal: getSpacing('xs')),
+      decoration: getCleanCardDecoration(backgroundColor: backgroundColor),
       child: Padding(
         padding: padding ?? EdgeInsets.all(getSpacing('md')),
         child: child,
       ),
     );
+
+    if (onTap != null) {
+      return Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(getBorderRadius('large')),
+          child: cardContent,
+        ),
+      );
+    }
+
+    return cardContent;
   }
 
-  InputDecoration getInputDecoration({
-    String? labelText,
-    String? hintText,
-    Widget? prefixIcon,
-    Widget? suffixIcon,
-    String? errorText,
+  Widget buildMetricCard({
+    required String title,
+    required String value,
+    required IconData icon,
+    required Color iconColor,
   }) {
-    return InputDecoration(
-      labelText: labelText,
-      hintText: hintText,
-      prefixIcon: prefixIcon,
-      suffixIcon: suffixIcon,
-      errorText: errorText,
-      filled: true,
-      fillColor: getColor('surface'),
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(getBorderRadius('medium')),
-        borderSide: BorderSide(color: getColor('divider').withOpacity(0.3)),
+    return buildCleanCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: EdgeInsets.all(getSpacing('xs')),
+                decoration: BoxDecoration(
+                  color: iconColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(getBorderRadius('small')),
+                ),
+                child: Icon(icon, color: iconColor, size: 20),
+              ),
+              const Spacer(),
+              Text(
+                value,
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.w700,
+                  color: getColor('textPrimary'),
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: getSpacing('sm')),
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+              color: getColor('textSecondary'),
+            ),
+          ),
+        ],
       ),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(getBorderRadius('medium')),
-        borderSide: BorderSide(color: getColor('divider').withOpacity(0.3)),
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(getBorderRadius('medium')),
-        borderSide: BorderSide(color: getColor('primary'), width: 2),
-      ),
-      errorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(getBorderRadius('medium')),
-        borderSide: BorderSide(color: getColor('error'), width: 1),
-      ),
-      contentPadding: EdgeInsets.symmetric(
-        vertical: getSpacing('md'),
-        horizontal: getSpacing('md'),
+    );
+  }
+
+  Widget buildSectionHeader({
+    required String title,
+    String? actionText,
+    VoidCallback? onActionTap,
+  }) {
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: getSpacing('md')),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+              color: getColor('textPrimary'),
+            ),
+          ),
+          if (actionText != null && onActionTap != null)
+            TextButton(
+              onPressed: onActionTap,
+              child: Text(
+                actionText,
+                style: TextStyle(
+                  color: getColor('primary'),
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }

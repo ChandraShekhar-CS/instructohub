@@ -24,18 +24,10 @@ class ApiService {
   String get uploadUrl => _uploadUrl ?? '';
   String get tenantName => _tenantName ?? '';
 
-  // --- No changes to existing methods like configure, loadConfiguration, etc. ---
-  // --- Add the new methods below your existing ones. ---
-
-  //============================================================================
-  // --- NEW CHAT AND CONTACTS API METHODS ---
-  //============================================================================
-
-  /// Fetches all chat conversations for the current user.
+  // --- Chat API Methods ---
   Future<List<dynamic>> getConversations(String token) async {
     try {
       final response = await _post('local_chat_get_conversations', token, {});
-      // The API is expected to return a list under the 'conversations' key
       return response['conversations'] is List ? response['conversations'] : [];
     } catch (e) {
       print('Error fetching conversations: ${e.toString()}');
@@ -43,25 +35,19 @@ class ApiService {
     }
   }
 
-  /// Fetches all messages for a specific conversation.
-  Future<List<dynamic>> getConversationMessages(
-      String token, int conversationId) async {
+  Future<List<dynamic>> getConversationMessages(String token, int conversationId) async {
     try {
       final response = await _post('local_chat_get_messages', token, {
         'conversationid': conversationId.toString(),
       });
-      // The API is expected to return a list under the 'messages' key
       return response['messages'] is List ? response['messages'] : [];
     } catch (e) {
-      print(
-          'Error fetching messages for conversation $conversationId: ${e.toString()}');
+      print('Error fetching messages for conversation $conversationId: ${e.toString()}');
       rethrow;
     }
   }
 
-  /// Sends a message to another user.
-  Future<dynamic> sendMessage(
-      String token, int recipientId, String text) async {
+  Future<dynamic> sendMessage(String token, int recipientId, String text) async {
     try {
       return await _post('local_chat_send_message', token, {
         'recipientid': recipientId.toString(),
@@ -73,7 +59,6 @@ class ApiService {
     }
   }
 
-  /// Marks all messages in a conversation as read.
   Future<dynamic> markMessagesAsRead(String token, int conversationId) async {
     try {
       return await _post('local_chat_mark_read', token, {
@@ -85,10 +70,8 @@ class ApiService {
     }
   }
 
-  /// Fetches the user's list of contacts.
   Future<List<dynamic>> getContacts(String token) async {
     try {
-      // Assuming you have an API function that returns the contact list
       final response = await _post('local_chat_get_contacts', token, {});
       return response is List ? response : [];
     } catch (e) {
@@ -97,7 +80,6 @@ class ApiService {
     }
   }
 
-  /// Searches for users to add as contacts.
   Future<List<dynamic>> searchUsers(String token, String query) async {
     try {
       final response = await _post('local_chat_search_users', token, {
@@ -110,16 +92,13 @@ class ApiService {
     }
   }
 
-  // --- KEEP ALL YOUR EXISTING METHODS BELOW ---
-
+  // --- Configuration Methods ---
   Future<void> configure(String domain) async {
     try {
       await ConfigurationService.instance.initialize();
 
-      // Clean and normalize the domain
       String cleanDomain = domain.trim();
 
-      // Remove protocol if present
       if (cleanDomain.startsWith('https://')) {
         cleanDomain = cleanDomain.replaceFirst('https://', '');
       }
@@ -127,15 +106,12 @@ class ApiService {
         cleanDomain = cleanDomain.replaceFirst('http://', '');
       }
 
-      // Remove trailing slash
       if (cleanDomain.endsWith('/')) {
         cleanDomain = cleanDomain.substring(0, cleanDomain.length - 1);
       }
 
-      // Construct the full domain URL
       String fullDomain = 'https://$cleanDomain';
 
-      // Extract tenant name for future use
       String? extractedTenant;
       if (cleanDomain.contains('.mdl.instructohub.com')) {
         extractedTenant = cleanDomain.split('.mdl.instructohub.com')[0];
@@ -257,23 +233,18 @@ class ApiService {
       'get_site_info': 'core_webservice_get_site_info',
       'get_user_courses': 'core_enrol_get_users_courses',
       'get_course_contents': 'core_course_get_contents',
-      'get_user_progress':
-          'local_instructohub_get_user_course_progress', // Updated this line
-      'local_instructohub_get_user_course_progress':
-          'local_instructohub_get_user_course_progress', // Added this line
+      'get_user_progress': 'local_instructohub_get_user_course_progress',
+      'local_instructohub_get_user_course_progress': 'local_instructohub_get_user_course_progress',
     };
 
     return fallbackMappings[functionKey] ?? functionKey;
   }
 
-  Future<dynamic> _post(
-      String functionKey, String token, Map<String, String> params,
-      {String? customUrl}) async {
+  Future<dynamic> _post(String functionKey, String token, Map<String, String> params, {String? customUrl}) async {
     _ensureConfigured();
 
     final wsfunction = _getAPIFunction(functionKey);
-    final url = Uri.parse(
-        '${customUrl ?? _baseUrl}?wsfunction=$wsfunction&moodlewsrestformat=json&wstoken=$token');
+    final url = Uri.parse('${customUrl ?? _baseUrl}?wsfunction=$wsfunction&moodlewsrestformat=json&wstoken=$token');
 
     try {
       final response = await http.post(url, body: params);
@@ -284,16 +255,14 @@ class ApiService {
         }
         return decoded;
       } else {
-        throw Exception(
-            'Failed to connect to the server. Status code: ${response.statusCode}');
+        throw Exception('Failed to connect to the server. Status code: ${response.statusCode}');
       }
     } catch (e) {
       rethrow;
     }
   }
 
-  Future<dynamic> _get(
-      String functionKey, String token, Map<String, String> params) async {
+  Future<dynamic> _get(String functionKey, String token, Map<String, String> params) async {
     _ensureConfigured();
 
     final wsfunction = _getAPIFunction(functionKey);
@@ -315,14 +284,14 @@ class ApiService {
         }
         return decoded;
       } else {
-        throw Exception(
-            'Failed to connect to the server. Status code: ${response.statusCode}');
+        throw Exception('Failed to connect to the server. Status code: ${response.statusCode}');
       }
     } catch (e) {
       rethrow;
     }
   }
 
+  // --- Authentication Methods ---
   Future<Map<String, dynamic>> login(String username, String password) async {
     _ensureConfigured();
 
@@ -356,8 +325,7 @@ class ApiService {
       } else {
         return {
           'success': false,
-          'error':
-              'Failed to connect to server. Status code: ${response.statusCode}',
+          'error': 'Failed to connect to server. Status code: ${response.statusCode}',
         };
       }
     } catch (e) {
@@ -402,6 +370,7 @@ class ApiService {
     }
   }
 
+  // --- Course Methods ---
   Future<List<dynamic>> getUserCourses(String token) async {
     try {
       final userInfoResult = await getUserInfo(token);
@@ -416,13 +385,11 @@ class ApiService {
 
       if (courses is List) {
         for (var course in courses) {
-          if (course['courseimage'] != null &&
-              course['courseimage'].contains('.svg')) {
+          if (course['courseimage'] != null && course['courseimage'].contains('.svg')) {
             course['courseimage'] = '/assets/defaults/course.svg';
           }
           if (course['summary'] != null) {
-            course['summary'] =
-                course['summary'].replaceAll(RegExp(r'<[^>]*>'), '');
+            course['summary'] = course['summary'].replaceAll(RegExp(r'<[^>]*>'), '');
           }
         }
       }
@@ -433,16 +400,45 @@ class ApiService {
     }
   }
 
+  Future<dynamic> getUserProgress(String token) async {
+    try {
+      final userInfoResult = await getUserInfo(token);
+      if (userInfoResult['success'] != true) {
+        throw Exception('Failed to get user info');
+      }
+
+      final userInfo = userInfoResult['data'];
+      final userId = userInfo['userid'];
+
+      if (userId == null) {
+        throw Exception('User ID not found');
+      }
+
+      print('DEBUG: Calling getUserProgress API for user ID: $userId');
+
+      final response = await _post(
+          'local_instructohub_get_user_course_progress',
+          token,
+          {'userid': userId.toString()});
+
+      print('DEBUG: getUserProgress API Response:');
+      print(json.encode(response));
+
+      return response;
+    } catch (e) {
+      print('Error getting user progress: $e');
+      rethrow;
+    }
+  }
+
+  // --- Course Content Methods ---
   Future<List<dynamic>> getCoursePages(String courseId, String token) async {
-    final response =
-        await _post('get_page_content', token, {'courseids[0]': courseId});
+    final response = await _post('get_page_content', token, {'courseids[0]': courseId});
     return response['pages'] ?? [];
   }
 
-  Future<List<dynamic>> getCourseAssignments(
-      String courseId, String token) async {
-    final response =
-        await _post('get_assignments', token, {'courseids[0]': courseId});
+  Future<List<dynamic>> getCourseAssignments(String courseId, String token) async {
+    final response = await _post('get_assignments', token, {'courseids[0]': courseId});
     return response['courses']?[0]?['assignments'] ?? [];
   }
 
@@ -450,22 +446,18 @@ class ApiService {
     return await _post('get_forums', token, {'courseids[0]': courseId});
   }
 
-  Future<List<dynamic>> getQuizzesInCourse(
-      String courseId, String token) async {
-    final response =
-        await _post('get_quizzes', token, {'courseids[0]': courseId});
+  Future<List<dynamic>> getQuizzesInCourse(String courseId, String token) async {
+    final response = await _post('get_quizzes', token, {'courseids[0]': courseId});
     return response['quizzes'] ?? [];
   }
 
   Future<List<dynamic>> getCourseResource(String courseId, String token) async {
-    final response =
-        await _post('get_resources', token, {'courseids[0]': courseId});
+    final response = await _post('get_resources', token, {'courseids[0]': courseId});
     return response['resources'] ?? [];
   }
 
   Future<List<dynamic>> getCourseContent(String courseId, String token) async {
-    final modules =
-        await _post('get_course_contents', token, {'courseid': courseId});
+    final modules = await _post('get_course_contents', token, {'courseid': courseId});
 
     final results = await Future.wait([
       getCoursePages(courseId, token),
@@ -488,29 +480,19 @@ class ApiService {
             dynamic foundContent;
             switch (item['modname']) {
               case 'page':
-                foundContent = pageData.firstWhere(
-                    (p) => p['coursemodule'] == item['id'],
-                    orElse: () => null);
+                foundContent = pageData.firstWhere((p) => p['coursemodule'] == item['id'], orElse: () => null);
                 break;
               case 'assign':
-                foundContent = assignData.firstWhere(
-                    (a) => a['cmid'] == item['id'],
-                    orElse: () => null);
+                foundContent = assignData.firstWhere((a) => a['cmid'] == item['id'], orElse: () => null);
                 break;
               case 'forum':
-                foundContent = forumData.firstWhere(
-                    (f) => f['cmid'] == item['id'],
-                    orElse: () => null);
+                foundContent = forumData.firstWhere((f) => f['cmid'] == item['id'], orElse: () => null);
                 break;
               case 'quiz':
-                foundContent = quizData.firstWhere(
-                    (q) => q['coursemodule'] == item['id'],
-                    orElse: () => null);
+                foundContent = quizData.firstWhere((q) => q['coursemodule'] == item['id'], orElse: () => null);
                 break;
               case 'resource':
-                foundContent = resourceData.firstWhere(
-                    (r) => r['coursemodule'] == item['id'],
-                    orElse: () => null);
+                foundContent = resourceData.firstWhere((r) => r['coursemodule'] == item['id'], orElse: () => null);
                 break;
             }
 
@@ -531,40 +513,12 @@ class ApiService {
     return await _post('get_upcoming_events', token, {});
   }
 
-  Future<dynamic> getUserProgress(String token) async {
-    try {
-      // Get user info first to extract userid
-      final userInfoResult = await getUserInfo(token);
-      if (userInfoResult['success'] != true) {
-        throw Exception('Failed to get user info');
-      }
-
-      final userInfo = userInfoResult['data'];
-      final userId = userInfo['userid'];
-
-      if (userId == null) {
-        throw Exception('User ID not found');
-      }
-
-      // Call the learning metrics API with userid parameter
-      final response = await _post(
-          'local_instructohub_get_user_course_progress',
-          token,
-          {'userid': userId.toString()});
-
-      return response;
-    } catch (e) {
-      print('Error getting user progress: $e');
-      rethrow;
-    }
-  }
-
   Future<List<dynamic>> getCourseCategories(String token) async {
     return await _post('get_categories', token, {});
   }
 
-  Future<dynamic> uploadFile(
-      String token, Map<String, dynamic> fileData) async {
+  // --- File Upload ---
+  Future<dynamic> uploadFile(String token, Map<String, dynamic> fileData) async {
     _ensureConfigured();
 
     try {
@@ -592,17 +546,15 @@ class ApiService {
       if (response.statusCode == 200) {
         return json.decode(responseBody);
       } else {
-        throw Exception(
-            'Upload failed with status code: ${response.statusCode}');
+        throw Exception('Upload failed with status code: ${response.statusCode}');
       }
     } catch (e) {
       throw Exception('File upload error: ${e.toString()}');
     }
   }
 
-  Future<dynamic> callCustomAPI(
-      String functionKey, String token, Map<String, String> params,
-      {String method = 'POST'}) async {
+  // --- Custom API Calls ---
+  Future<dynamic> callCustomAPI(String functionKey, String token, Map<String, String> params, {String method = 'POST'}) async {
     if (method.toUpperCase() == 'GET') {
       return await _get(functionKey, token, params);
     } else {
@@ -610,11 +562,10 @@ class ApiService {
     }
   }
 
-  /// Fetches comprehensive branding configuration for the login screen
+  // --- Branding & Theme Methods ---
   Future<Map<String, dynamic>?> getBrandingConfig() async {
     try {
-      final response =
-          await _post('local_instructohub_get_branding_config', '', {});
+      final response = await _post('local_instructohub_get_branding_config', '', {});
       return response is Map ? Map<String, dynamic>.from(response) : null;
     } catch (e) {
       print('Error fetching branding config: ${e.toString()}');
@@ -622,14 +573,9 @@ class ApiService {
     }
   }
 
-  /// Fetches theme configuration with optional token for personalized themes
   Future<Map<String, dynamic>?> getThemeConfig({String? token}) async {
     try {
-      final response = await _post(
-        'local_instructohub_get_theme_config',
-        token ?? '',
-        {},
-      );
+      final response = await _post('local_instructohub_get_theme_config', token ?? '', {});
       return response is Map ? Map<String, dynamic>.from(response) : null;
     } catch (e) {
       print('Error fetching theme config: ${e.toString()}');
@@ -637,14 +583,9 @@ class ApiService {
     }
   }
 
-  /// Fetches icon configuration for dynamic icons
   Future<Map<String, dynamic>?> getIconConfig({String? token}) async {
     try {
-      final response = await _post(
-        'local_instructohub_get_icon_config',
-        token ?? '',
-        {},
-      );
+      final response = await _post('local_instructohub_get_icon_config', token ?? '', {});
       return response is Map ? Map<String, dynamic>.from(response) : null;
     } catch (e) {
       print('Error fetching icon config: ${e.toString()}');
@@ -652,19 +593,14 @@ class ApiService {
     }
   }
 
-  /// Fetches tenant-specific configuration including branding, theme, and icons
   Future<Map<String, dynamic>?> getTenantConfig({String? token}) async {
     try {
-      final response = await _post(
-        'local_instructohub_get_tenant_config',
-        token ?? '',
-        {
-          'tenant': _tenantName ?? '',
-          'include_branding': 'true',
-          'include_theme': 'true',
-          'include_icons': 'true',
-        },
-      );
+      final response = await _post('local_instructohub_get_tenant_config', token ?? '', {
+        'tenant': _tenantName ?? '',
+        'include_branding': 'true',
+        'include_theme': 'true',
+        'include_icons': 'true',
+      });
       return response is Map ? Map<String, dynamic>.from(response) : null;
     } catch (e) {
       print('Error fetching tenant config: ${e.toString()}');
@@ -672,25 +608,20 @@ class ApiService {
     }
   }
 
-  /// Gets the logo URL for the current tenant/domain
   Future<String?> getLogoUrl() async {
     try {
-      // Try to get from branding config first
       final brandingConfig = await getBrandingConfig();
       if (brandingConfig != null) {
-        final logoUrl =
-            brandingConfig['logo_url'] ?? brandingConfig['site_logo'];
+        final logoUrl = brandingConfig['logo_url'] ?? brandingConfig['site_logo'];
         if (logoUrl != null && logoUrl.toString().isNotEmpty) {
           return logoUrl.toString();
         }
       }
 
-      // Fallback to tenant-specific logo
       if (_tenantName != null && _tenantName!.isNotEmpty) {
         return 'https://static.instructohub.com/staticfiles/assets/tenants/$_tenantName/logo.png';
       }
 
-      // Final fallback to default logo
       return 'https://static.instructohub.com/staticfiles/assets/images/website/Instructo_hub_logo.png';
     } catch (e) {
       print('Error getting logo URL: ${e.toString()}');
@@ -698,7 +629,6 @@ class ApiService {
     }
   }
 
-  /// Validates if a logo URL is accessible
   Future<bool> validateLogoUrl(String logoUrl) async {
     try {
       final response = await http.head(Uri.parse(logoUrl));
@@ -708,7 +638,6 @@ class ApiService {
     }
   }
 
-  /// Gets comprehensive site information including branding
   Future<Map<String, dynamic>> getComprehensiveSiteInfo() async {
     try {
       final siteInfo = await getUserInfo('');
@@ -733,6 +662,7 @@ class ApiService {
     }
   }
 
+  // --- Connection Testing ---
   Future<Map<String, dynamic>> testConnection(String domain) async {
     try {
       await ConfigurationService.instance.initialize();
@@ -754,8 +684,7 @@ class ApiService {
         tenantName = domain;
       }
 
-      if (!testDomain.startsWith('http://') &&
-          !testDomain.startsWith('https://')) {
+      if (!testDomain.startsWith('http://') && !testDomain.startsWith('https://')) {
         testDomain = 'https://$testDomain';
       }
 
@@ -769,12 +698,11 @@ class ApiService {
       String testUrl;
 
       if (config != null && config.apiEndpoints['base']?.isNotEmpty == true) {
-        testUrl =
-            '${config.apiEndpoints['base']}?wsfunction=${_getAPIFunction('get_site_info')}&moodlewsrestformat=json';
+        testUrl = '${config.apiEndpoints['base']}?wsfunction=${_getAPIFunction('get_site_info')}&moodlewsrestformat=json';
       } else {
-        testUrl =
-            '$testDomain/webservice/rest/server.php?wsfunction=core_webservice_get_site_info&moodlewsrestformat=json';
+        testUrl = '$testDomain/webservice/rest/server.php?wsfunction=core_webservice_get_site_info&moodlewsrestformat=json';
       }
+
       print('Testing connection to: $testUrl');
       print('Testing connection to: $testDomain');
 
@@ -783,8 +711,7 @@ class ApiService {
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
 
-        if (data['message'] != null &&
-            data['message'].toString().contains('Invalid token')) {
+        if (data['message'] != null && data['message'].toString().contains('Invalid token')) {
           return {
             'success': true,
             'siteName': tenantName?.toUpperCase() ?? 'LMS Instance',
@@ -793,8 +720,7 @@ class ApiService {
             'originalDomain': domain,
             'apiDomain': config?.apiEndpoints['api'] ?? testDomain,
             'tenantName': tenantName,
-            'message':
-                'Perfect! LMS API is working. The "Invalid token" error is expected during testing.',
+            'message': 'Perfect! LMS API is working. The "Invalid token" error is expected during testing.',
           };
         }
 
@@ -815,8 +741,7 @@ class ApiService {
           return {
             'success': true,
             'siteName': data['sitename'],
-            'siteUrl':
-                data['siteurl'] ?? config?.apiEndpoints['api'] ?? testDomain,
+            'siteUrl': data['siteurl'] ?? config?.apiEndpoints['api'] ?? testDomain,
             'version': data['release'] ?? 'LMS',
             'originalDomain': domain,
             'apiDomain': config?.apiEndpoints['api'] ?? testDomain,

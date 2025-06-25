@@ -249,12 +249,12 @@ class _LoginScreenState extends State<LoginScreen> {
             Container(
               padding: EdgeInsets.all(themeService.getSpacing('sm')),
               decoration: BoxDecoration(
-                color: themeService.getColor('secondary1').withOpacity(0.1),
+                color: themeService.getColor('primary').withOpacity(0.1),
                 borderRadius: BorderRadius.circular(themeService.getBorderRadius('small')),
               ),
               child: Icon(
                 DynamicIconService.instance.settingsIcon,
-                color: themeService.getColor('secondary1'),
+                color: themeService.getColor('primary'),
                 size: 20,
               ),
             ),
@@ -273,17 +273,16 @@ class _LoginScreenState extends State<LoginScreen> {
             SizedBox(height: themeService.getSpacing('md')),
             Container(
               padding: EdgeInsets.all(themeService.getSpacing('md')),
-              decoration: BoxDecoration(
-                color: themeService.getColor('background'),
-                borderRadius: BorderRadius.circular(themeService.getBorderRadius('medium')),
-                border: Border.all(color: themeService.getColor('textSecondary').withOpacity(0.2)),
+              decoration: themeService.getCleanCardDecoration(
+                backgroundColor: themeService.getColor('surface'),
+                borderColor: themeService.getColor('border'),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
                     children: [
-                      Icon(DynamicIconService.instance.domainIcon, size: 16, color: themeService.getColor('secondary1')),
+                      Icon(DynamicIconService.instance.domainIcon, size: 16, color: themeService.getColor('primary')),
                       SizedBox(width: themeService.getSpacing('sm')),
                       Expanded(
                         child: Text(
@@ -297,7 +296,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     SizedBox(height: themeService.getSpacing('sm')),
                     Row(
                       children: [
-                        Icon(DynamicIconService.instance.schoolIcon, size: 16, color: themeService.getColor('secondary1')),
+                        Icon(DynamicIconService.instance.schoolIcon, size: 16, color: themeService.getColor('primary')),
                         SizedBox(width: themeService.getSpacing('sm')),
                         Expanded(
                           child: Text(
@@ -306,7 +305,6 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                         ),
                       ],
-                    
                     ),
                   ],
                 ],
@@ -341,7 +339,6 @@ class _LoginScreenState extends State<LoginScreen> {
             },
             icon: Icon(DynamicIconService.instance.swapIcon, size: 18),
             label: const Text('Change Domain'),
-            // Style is inherited from the global theme
           ),
         ],
       ),
@@ -355,13 +352,13 @@ class _LoginScreenState extends State<LoginScreen> {
       return Container(
         height: height ?? 50,
         width: width ?? 150,
-        decoration: themeService.getDynamicCardDecoration().copyWith(
-          color: themeService.getColor('secondary1').withOpacity(0.1),
+        decoration: themeService.getCleanCardDecoration(
+          backgroundColor: themeService.getColor('primary').withOpacity(0.1),
         ),
         child: Center(
           child: CircularProgressIndicator(
             strokeWidth: 2,
-            color: themeService.getColor('secondary1'),
+            color: themeService.getColor('primary'),
           ),
         ),
       );
@@ -377,8 +374,8 @@ class _LoginScreenState extends State<LoginScreen> {
         return Container(
           height: height ?? 50,
           width: width ?? 150,
-          decoration: themeService.getDynamicCardDecoration().copyWith(
-            color: themeService.getColor('secondary1').withOpacity(0.1),
+          decoration: themeService.getCleanCardDecoration(
+            backgroundColor: themeService.getColor('primary').withOpacity(0.1),
           ),
           child: Center(
             child: CircularProgressIndicator(
@@ -386,7 +383,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
                   : null,
               strokeWidth: 2,
-              color: themeService.getColor('secondary1'),
+              color: themeService.getColor('primary'),
             ),
           ),
         );
@@ -396,23 +393,23 @@ class _LoginScreenState extends State<LoginScreen> {
           height: height ?? 50,
           padding: EdgeInsets.all(themeService.getSpacing('sm')),
           decoration: BoxDecoration(
-            color: themeService.getColor('secondary1').withOpacity(0.1),
+            color: themeService.getColor('primary').withOpacity(0.1),
             borderRadius: BorderRadius.circular(themeService.getBorderRadius('small')),
-            border: Border.all(color: themeService.getColor('secondary1').withOpacity(0.3)),
+            border: Border.all(color: themeService.getColor('primary').withOpacity(0.3)),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
               Icon(
                 DynamicIconService.instance.schoolIcon,
-                color: themeService.getColor('secondary1'),
+                color: themeService.getColor('primary'),
                 size: 24,
               ),
               SizedBox(width: themeService.getSpacing('sm')),
               Text(
                 _siteName ?? 'LMS',
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      color: themeService.getColor('secondary1'),
+                      color: themeService.getColor('primary'),
                 ),
               ),
             ],
@@ -432,7 +429,6 @@ class _LoginScreenState extends State<LoginScreen> {
     required String? Function(String?) validator,
   }) {
     final themeService = DynamicThemeService.instance;
-    final inputTheme = Theme.of(context).inputDecorationTheme;
 
     return TextFormField(
       controller: controller,
@@ -441,18 +437,43 @@ class _LoginScreenState extends State<LoginScreen> {
         labelText: _customLabels?[labelKey] ?? (labelKey == 'username' ? 'Username' : 'Password'),
         hintText: _customLabels?[hintKey] ?? (hintKey == 'username_hint' ? 'Enter your username' : 'Enter your password'),
         prefixIcon: Container(
-          margin: EdgeInsets.all(themeService.getSpacing('md')),
-          padding: EdgeInsets.all(themeService.getSpacing('sm')),
+          margin: EdgeInsets.all(themeService.getSpacing('xs')),
+          padding: EdgeInsets.all(themeService.getSpacing('xs')),
           decoration: BoxDecoration(
-            color: themeService.getColor('secondary3'),
+            color: themeService.getColor('primary').withOpacity(0.1),
             borderRadius: BorderRadius.circular(themeService.getBorderRadius('small')),
           ),
-          child: Icon(prefixIcon, color: themeService.getColor('secondary1'), size: 20),
+          child: Icon(prefixIcon, color: themeService.getColor('primary'), size: 20),
         ),
         suffixIcon: suffixIcon,
-      ).copyWith( // Inherit from theme and override specific properties
-        labelStyle: inputTheme.labelStyle?.copyWith(color: themeService.getColor('primary2')),
-        hintStyle: inputTheme.hintStyle?.copyWith(color: themeService.getColor('primary2')),
+        filled: true,
+        fillColor: themeService.getColor('surface'),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(themeService.getBorderRadius('medium')),
+          borderSide: BorderSide(color: themeService.getColor('border')),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(themeService.getBorderRadius('medium')),
+          borderSide: BorderSide(color: themeService.getColor('border')),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(themeService.getBorderRadius('medium')),
+          borderSide: BorderSide(color: themeService.getColor('primary'), width: 2),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(themeService.getBorderRadius('medium')),
+          borderSide: BorderSide(color: themeService.getColor('error'), width: 1),
+        ),
+        focusedErrorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(themeService.getBorderRadius('medium')),
+          borderSide: BorderSide(color: themeService.getColor('error'), width: 2),
+        ),
+        contentPadding: EdgeInsets.symmetric(
+          horizontal: themeService.getSpacing('md'),
+          vertical: themeService.getSpacing('md'),
+        ),
+        labelStyle: TextStyle(color: themeService.getColor('textSecondary')),
+        hintStyle: TextStyle(color: themeService.getColor('textMuted')),
       ),
       validator: validator,
     );
@@ -467,7 +488,14 @@ class _LoginScreenState extends State<LoginScreen> {
       backgroundColor: themeService.getColor('background'),
       body: Container(
         decoration: BoxDecoration(
-          gradient: themeService.getDynamicBackgroundGradient(),
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              themeService.getColor('background'),
+              themeService.getColor('surface'),
+            ],
+          ),
         ),
         child: SafeArea(
           child: Column(
@@ -487,13 +515,13 @@ class _LoginScreenState extends State<LoginScreen> {
                         child: _buildDynamicLogo(height: 50, width: 150),
                       ),
                     ),
-                    Container(
-                      decoration: themeService.getDynamicCardDecoration(),
+                    themeService.buildCleanCard(
+                      padding: EdgeInsets.all(themeService.getSpacing('xs')),
                       child: IconButton(
                         onPressed: _showDomainSettings,
                         icon: Icon(
                           DynamicIconService.instance.settingsIcon,
-                          color: themeService.getColor('secondary1'),
+                          color: themeService.getColor('primary'),
                           size: 20,
                         ),
                         tooltip: 'Domain Settings',
@@ -504,8 +532,8 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               if (_isLoadingBranding)
                 LinearProgressIndicator(
-                  backgroundColor: themeService.getColor('secondary1').withOpacity(0.2),
-                  color: themeService.getColor('secondary1'),
+                  backgroundColor: themeService.getColor('primary').withOpacity(0.2),
+                  color: themeService.getColor('primary'),
                 )
               else if (_siteName != null) ...[
                 Padding(
@@ -518,16 +546,16 @@ class _LoginScreenState extends State<LoginScreen> {
                           vertical: themeService.getSpacing('xs'),
                         ),
                         decoration: BoxDecoration(
-                          color: themeService.getColor('secondary3'),
+                          color: themeService.getColor('primary').withOpacity(0.1),
                           borderRadius: BorderRadius.circular(20),
                           border: Border.all(
-                            color: themeService.getColor('secondary1').withOpacity(0.3),
+                            color: themeService.getColor('primary').withOpacity(0.3),
                           ),
                         ),
                         child: Text(
                           _siteName!,
                           style: textTheme.labelLarge?.copyWith(
-                             color: themeService.getColor('secondary1'),
+                             color: themeService.getColor('primary'),
                           )
                         ),
                       ),
@@ -542,22 +570,26 @@ class _LoginScreenState extends State<LoginScreen> {
                     padding: EdgeInsets.symmetric(horizontal: themeService.getSpacing('lg')),
                     child: ConstrainedBox(
                       constraints: const BoxConstraints(maxWidth: 400),
-                      child: Container(
+                      child: themeService.buildCleanCard(
                         padding: EdgeInsets.all(themeService.getSpacing('xl')),
-                        decoration: themeService.getDynamicCardDecoration(),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
                             Text(
                               _welcomeMessage ?? 'Welcome Back!',
                               textAlign: TextAlign.center,
-                              style: textTheme.headlineMedium,
+                              style: textTheme.headlineMedium?.copyWith(
+                                color: themeService.getColor('textPrimary'),
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
                             SizedBox(height: themeService.getSpacing('sm')),
                             Text(
                               _loginSubtitle ?? 'Login to continue your learning journey',
                               textAlign: TextAlign.center,
-                              style: textTheme.bodyMedium,
+                              style: textTheme.bodyMedium?.copyWith(
+                                color: themeService.getColor('textSecondary'),
+                              ),
                             ),
                             SizedBox(height: themeService.getSpacing('xl')),
                             Form(
@@ -589,7 +621,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                         _obscurePassword
                                             ? DynamicIconService.instance.visibilityOffIcon
                                             : DynamicIconService.instance.visibilityOnIcon,
-                                        color: themeService.getColor('primary2'),
+                                        color: themeService.getColor('textSecondary'),
                                       ),
                                       onPressed: () {
                                         setState(() {
@@ -615,13 +647,14 @@ class _LoginScreenState extends State<LoginScreen> {
                                           },
                                           borderRadius: BorderRadius.circular(4),
                                           child: Row(
+                                            mainAxisSize: MainAxisSize.min,
                                             children: [
                                               Checkbox(
                                                 value: _rememberMe,
                                                 onChanged: (value) {
                                                   setState(() => _rememberMe = value ?? false);
                                                 },
-                                                // Checkbox theme is handled globally
+                                                activeColor: themeService.getColor('primary'),
                                               ),
                                               SizedBox(width: themeService.getSpacing('sm')),
                                               Flexible(
@@ -641,8 +674,8 @@ class _LoginScreenState extends State<LoginScreen> {
                                         child: Text(
                                           _customLabels?['forgot_password'] ?? 'Forgot password?',
                                           style: textTheme.bodyMedium?.copyWith(
-                                            color: themeService.getColor('secondary1'),
-                                            fontWeight: FontWeight.bold
+                                            color: themeService.getColor('primary'),
+                                            fontWeight: FontWeight.w500
                                           )
                                         ),
                                       ),
@@ -653,15 +686,15 @@ class _LoginScreenState extends State<LoginScreen> {
                                     width: double.infinity,
                                     height: 56,
                                     decoration: BoxDecoration(
-                                      borderRadius: BorderRadius.circular(themeService.getBorderRadius('large')),
-                                      gradient: themeService.getDynamicButtonGradient(),
+                                      borderRadius: BorderRadius.circular(themeService.getBorderRadius('medium')),
+                                      gradient: LinearGradient(
+                                        colors: [
+                                          themeService.getColor('primary'),
+                                          themeService.getColor('primaryDark'),
+                                        ],
+                                      ),
                                       boxShadow: [
-                                        BoxShadow(
-                                          color: themeService.getColor('secondary1').withOpacity(0.3),
-                                          spreadRadius: 0,
-                                          blurRadius: themeService.getElevation('medium') * 3,
-                                          offset: const Offset(0, 4),
-                                        ),
+                                        themeService.getCardShadow(opacity: 0.3),
                                       ],
                                     ),
                                     child: ElevatedButton(
@@ -670,7 +703,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                         backgroundColor: Colors.transparent,
                                         shadowColor: Colors.transparent,
                                         shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(themeService.getBorderRadius('large')),
+                                          borderRadius: BorderRadius.circular(themeService.getBorderRadius('medium')),
                                         ),
                                         elevation: 0,
                                       ),
@@ -680,7 +713,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                               width: 24,
                                               child: CircularProgressIndicator(
                                                 valueColor: AlwaysStoppedAnimation<Color>(
-                                                  themeService.getColor('loginButtonTextColor'),
+                                                  themeService.getColor('onPrimary'),
                                                 ),
                                                 strokeWidth: 2,
                                               ),
@@ -688,8 +721,8 @@ class _LoginScreenState extends State<LoginScreen> {
                                           : Text(
                                               _customLabels?['login_button'] ?? 'LOGIN',
                                                style: textTheme.labelLarge?.copyWith(
-                                                color: themeService.getColor('loginButtonTextColor'),
-                                                fontWeight: FontWeight.bold,
+                                                color: themeService.getColor('onPrimary'),
+                                                fontWeight: FontWeight.w600,
                                                 letterSpacing: 1,
                                               )
                                             ),
@@ -702,7 +735,9 @@ class _LoginScreenState extends State<LoginScreen> {
                                       children: [
                                         Text(
                                           _customLabels?['new_user_text'] ?? "New User? ",
-                                          style: textTheme.bodyMedium,
+                                          style: textTheme.bodyMedium?.copyWith(
+                                            color: themeService.getColor('textSecondary'),
+                                          ),
                                         ),
                                         TextButton(
                                           onPressed: () {},
@@ -714,8 +749,8 @@ class _LoginScreenState extends State<LoginScreen> {
                                           child: Text(
                                             _customLabels?['create_account'] ?? 'Create Account',
                                             style: textTheme.bodyMedium?.copyWith(
-                                              color: themeService.getColor('secondary1'),
-                                              fontWeight: FontWeight.bold,
+                                              color: themeService.getColor('primary'),
+                                              fontWeight: FontWeight.w600,
                                             )
                                           ),
                                         ),

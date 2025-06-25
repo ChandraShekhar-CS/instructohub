@@ -6,7 +6,7 @@ import 'package:dio/dio.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:InstructoHub/services/api_service.dart'; // CORRECTED: Was 'moodle_api_service.dart'
+import 'package:InstructoHub/services/api_service.dart';
 import 'package:InstructoHub/models/course_model.dart';
 
 class DownloadService {
