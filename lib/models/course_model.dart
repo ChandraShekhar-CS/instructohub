@@ -14,9 +14,6 @@ class Course {
   });
 
   factory Course.fromJson(Map<String, dynamic> json) {
-    print('DEBUG: Creating course from JSON keys: ${json.keys.toList()}');
-    print('DEBUG: Full JSON data: ${json.toString()}');
-    
     // Parse course ID - try different field names
     int courseId = 0;
     if (json['id'] != null) {
@@ -91,8 +88,6 @@ class Course {
         courseProgress = double.tryParse(json['progresspercentage'].toString());
       }
     }
-
-    print('DEBUG: Parsed course - ID: $courseId, Name: "$courseName", Progress: $courseProgress');
 
     return Course(
       id: courseId,

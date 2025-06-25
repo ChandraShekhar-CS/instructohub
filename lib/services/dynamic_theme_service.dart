@@ -16,6 +16,8 @@ class DynamicThemeService {
   String? _loginLeftBgUrl;
   String? _loginRightBgUrl;
 
+  final List<VoidCallback> _listeners = [];
+
   DynamicThemeService._internal();
 
   static DynamicThemeService get instance {
@@ -30,6 +32,24 @@ class DynamicThemeService {
   String? get siteName => _siteName;
   String? get loginLeftBgUrl => _loginLeftBgUrl;
   String? get loginRightBgUrl => _loginRightBgUrl;
+
+  void addListener(VoidCallback listener) {
+    _listeners.add(listener);
+  }
+
+  void removeListener(VoidCallback listener) {
+    _listeners.remove(listener);
+  }
+
+  void _notifyListeners() {
+    for (var listener in _listeners) {
+      try {
+        listener();
+      } catch (e) {
+        // Error in theme listener
+      }
+    }
+  }
 
   Future<void> loadTheme({String? token}) async {
     try {
@@ -47,7 +67,7 @@ class DynamicThemeService {
             fetchedLogoUrl = remoteTheme?['imageUrls']?['logo_image'] ?? siteInfo['userpictureurl'];
           }
         } catch (e) {
-          print('Could not fetch site name, will use fallback. Error: $e');
+          // Could not fetch site name, will use fallback.
         }
       }
       
@@ -59,21 +79,16 @@ class DynamicThemeService {
         finalThemeConfig['siteName'] = fetchedSiteName ?? ApiService.instance.tenantName.toUpperCase();
         finalThemeConfig['logoUrl'] = fetchedLogoUrl ?? finalThemeConfig['imageUrls']?['logo_image'];
         await _saveCachedTheme(finalThemeConfig);
-        print('✅ Using remote theme configuration.');
       } else if (cachedTheme != null && _isValidThemeConfig(cachedTheme)) {
         finalThemeConfig = cachedTheme;
-        print('✅ Using cached theme configuration.');
       } else {
         finalThemeConfig = _getDefaultThemeConfig();
         finalThemeConfig['siteName'] = fetchedSiteName ?? 'InstructoHub';
-        print('⚠️ Using default theme configuration.');
       }
       
       _applyThemeConfig(finalThemeConfig);
       _isLoaded = true;
-      print('🎨 Dynamic theme and branding loaded successfully.');
     } catch (e) {
-      print('❌ CRITICAL: Error loading dynamic theme: $e');
       _loadDefaultTheme();
     }
   }
@@ -88,6 +103,8 @@ class DynamicThemeService {
     final imageUrls = config['imageUrls'] as Map<String, dynamic>? ?? {};
     _loginLeftBgUrl = imageUrls['login_left_bg_image'];
     _loginRightBgUrl = imageUrls['login_right_bg_image'];
+    
+    _notifyListeners();
   }
 
   void _loadDefaultTheme() {
@@ -112,7 +129,6 @@ class DynamicThemeService {
         );
 
         if (activeThemeData == null) {
-          print('API WARNING: No active theme found in the response.');
           return null;
         }
 
@@ -133,11 +149,9 @@ class DynamicThemeService {
           'source': 'remote',
           'last_updated': DateTime.now().toIso8601String(),
         };
-      } else {
-        print('API ERROR: Failed to fetch theme. Status code: ${response.statusCode}');
       }
     } catch (e) {
-      print('❌ Exception during theme fetch or processing: $e');
+      // Exception during theme fetch or processing
     }
     return null;
   }
@@ -187,7 +201,7 @@ class DynamicThemeService {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('dynamic_theme_v7', json.encode(themeConfig));
     } catch (e) {
-      print('Error saving cached theme: $e');
+      // Error saving cached theme
     }
   }
 
@@ -199,7 +213,7 @@ class DynamicThemeService {
         return Map<String, dynamic>.from(json.decode(cachedData));
       }
     } catch (e) {
-      print('Error loading cached theme: $e');
+      // Error loading cached theme
     }
     return null;
   }
@@ -208,10 +222,10 @@ class DynamicThemeService {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove('dynamic_theme_v7');
-      print('Theme cache cleared.');
       forceReload();
+      _notifyListeners();
     } catch (e) {
-      print('Error clearing theme cache: $e');
+      // Error clearing theme cache
     }
   }
   
@@ -238,7 +252,6 @@ class DynamicThemeService {
             parsedColors[key] = defaultColorValues[key] ?? defaultColorValues['textSecondary']!;
           }
         } catch (e) {
-          print('Error parsing color $key: $value. Using default.');
           parsedColors[key] = defaultColorValues[key] ?? defaultColorValues['textSecondary']!;
         }
       }
@@ -500,7 +513,7 @@ class DynamicThemeService {
     VoidCallback? onTap,
   }) {
     Widget cardContent = Container(
-      margin: margin ?? EdgeInsets.symmetric(horizontal: getSpacing('xs')),
+      margin: margin,
       decoration: getCleanCardDecoration(backgroundColor: backgroundColor),
       child: Padding(
         padding: padding ?? EdgeInsets.all(getSpacing('md')),
@@ -522,6 +535,7 @@ class DynamicThemeService {
     return cardContent;
   }
 
+  // REVERTED this method to its original form to avoid potential side effects
   Widget buildMetricCard({
     required String title,
     required String value,
@@ -567,6 +581,7 @@ class DynamicThemeService {
     );
   }
 
+  // REVERTED this method to its original form to avoid potential side effects
   Widget buildSectionHeader({
     required String title,
     String? actionText,

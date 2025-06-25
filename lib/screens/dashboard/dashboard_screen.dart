@@ -7,78 +7,12 @@ import 'package:InstructoHub/services/api_service.dart';
 import 'package:InstructoHub/services/enhanced_icon_service.dart';
 import 'package:InstructoHub/services/dynamic_theme_service.dart';
 
-import 'package:InstructoHub/screens/dashboard/course_catalog_screen.dart';
-import 'package:InstructoHub/screens/dashboard/course_detail_screen.dart';
+import 'course_catalog_screen.dart';
+import 'course_detail_screen.dart';
 import 'package:InstructoHub/features/messaging/screens/chat_list_screen.dart';
 import 'package:InstructoHub/screens/domain_config/domain_config_screen.dart';
-
-
-class QuickActionsScreen extends StatelessWidget {
-  final String token;
-  const QuickActionsScreen({required this.token, Key? key}) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Quick Actions')),
-      body: const Center(child: Text('Quick Actions Screen - Coming Soon')),
-    );
-  }
-}
-
-class RecommendedCoursesScreen extends StatelessWidget {
-  final String token;
-  const RecommendedCoursesScreen({required this.token, Key? key})
-      : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Recommended Courses')),
-      body:
-          const Center(child: Text('Recommended Courses Screen - Coming Soon')),
-    );
-  }
-}
-
-class MetricsScreen extends StatelessWidget {
-  final String token;
-  const MetricsScreen({required this.token, Key? key}) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Metrics')),
-      body: const Center(child: Text('Metrics Screen - Coming Soon')),
-    );
-  }
-}
-
-class UpcomingEventsScreen extends StatelessWidget {
-  final String token;
-  const UpcomingEventsScreen({required this.token, Key? key}) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Upcoming Events')),
-      body: const Center(child: Text('Upcoming Events Screen - Coming Soon')),
-    );
-  }
-}
-
-class RecentActivityScreen extends StatelessWidget {
-  final String token;
-  const RecentActivityScreen({required this.token, Key? key}) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Recent Activity')),
-      body: const Center(child: Text('Recent Activity Screen - Coming Soon')),
-    );
-  }
-}
+import 'downloaded_courses_screen.dart';
+import 'dashboard_widgets.dart';
 
 class AppStrings {
   static const String dashboard = 'Dashboard';
@@ -207,6 +141,7 @@ class UpcomingEvent {
   }
 }
 
+
 class DashboardScreen extends StatefulWidget {
   final String token;
 
@@ -232,7 +167,7 @@ class _DashboardScreenState extends State<DashboardScreen>
   String? _errorMessage;
 
   late final List<DashboardItem> _drawerItems;
-  late final List<QuickActionItem> _quickActions;
+  late List<QuickActionItem> _quickActions;
 
   @override
   void initState() {
@@ -244,6 +179,8 @@ class _DashboardScreenState extends State<DashboardScreen>
     _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
     );
+
+    DynamicThemeService.instance.addListener(_onThemeChanged);
 
     _initializeServices();
     _fetchAllData();
@@ -258,6 +195,10 @@ class _DashboardScreenState extends State<DashboardScreen>
       DashboardItem(id: 7, type: DashboardWidgetType.downloadedCourses),
     ];
 
+    _initializeQuickActions();
+  }
+
+  void _initializeQuickActions() {
     final themeService = DynamicThemeService.instance;
     _quickActions = [
       QuickActionItem(
@@ -286,21 +227,30 @@ class _DashboardScreenState extends State<DashboardScreen>
       ),
     ];
   }
+  
+  void _onThemeChanged() {
+    if (mounted) {
+      setState(() {
+        _initializeQuickActions();
+      });
+    }
+  }
 
   Future<void> _initializeServices() async {
     try {
       await DynamicIconService.instance.loadIcons(token: widget.token);
     } catch (e) {
-      print('Failed to initialize icon service: $e');
+      // Failed to initialize icon service
     }
   }
 
   @override
   void dispose() {
     _animationController.dispose();
+    DynamicThemeService.instance.removeListener(_onThemeChanged);
     super.dispose();
   }
-
+  
   Future<void> _fetchAllData() async {
     await Future.wait([
       _fetchUserInfo(),
@@ -323,7 +273,6 @@ class _DashboardScreenState extends State<DashboardScreen>
     } catch (e) {
       if (mounted) {
         setState(() => _isUserLoading = false);
-        print('Failed to get user info: $e');
       }
     }
   }
@@ -335,12 +284,6 @@ class _DashboardScreenState extends State<DashboardScreen>
           await ApiService.instance.getUserProgress(widget.token);
 
       if (mounted && progressData != null) {
-        // Print the raw API response to debug
-        print('=== RAW API RESPONSE ===');
-        print(json.encode(progressData));
-        print('=== END RAW RESPONSE ===');
-
-        // Parse metrics data
         final metrics = {
           'totalCourses': progressData['totalcourses']?.toString() ?? '0',
           'notStarted': progressData['notstartedcount']?.toString() ?? '0',
@@ -353,23 +296,16 @@ class _DashboardScreenState extends State<DashboardScreen>
 
         List<Course> courses = [];
 
-        // Try multiple ways to get course data
         if (progressData['courses'] is List &&
             (progressData['courses'] as List).isNotEmpty) {
-          print('=== PARSING COURSES FROM PROGRESS API ===');
           courses = (progressData['courses'] as List).map((courseData) {
-            print('Processing course data: ${json.encode(courseData)}');
             return Course.fromJson(courseData);
           }).toList();
         } else {
-          // Fallback: try to get courses from regular API
-          print('=== NO COURSES IN PROGRESS API, TRYING FALLBACK ===');
           try {
             final fallbackCourses =
                 await ApiService.instance.getUserCourses(widget.token);
             courses = fallbackCourses.map((courseData) {
-              print(
-                  'Processing fallback course data: ${json.encode(courseData)}');
               return Course.fromJson({
                 'id': courseData['id'],
                 'fullname': courseData['fullname'] ??
@@ -378,20 +314,14 @@ class _DashboardScreenState extends State<DashboardScreen>
                     'Course ${courseData['id']}',
                 'summary': courseData['summary'] ?? '',
                 'courseimage': courseData['courseimage'] ?? '',
-                'progress': 0.0, // Default progress for fallback
+                'progress': 0.0,
               });
             }).toList();
           } catch (e) {
-            print('Fallback course fetch failed: $e');
+            // Fallback course fetch failed
           }
         }
 
-        print('=== FINAL COURSES LIST ===');
-        for (var course in courses) {
-          print('Course: ID=${course.id}, Name="${course.fullname}"');
-        }
-
-        // Update the state with fetched data
         setState(() {
           _learningMetrics = metrics;
           _myCourses = courses;
@@ -406,7 +336,6 @@ class _DashboardScreenState extends State<DashboardScreen>
           _isCoursesLoading = false;
           _errorMessage = e.toString();
         });
-        print('Failed to get learning metrics: $e');
       }
     }
   }
@@ -434,7 +363,6 @@ class _DashboardScreenState extends State<DashboardScreen>
     } catch (e) {
       if (mounted) {
         setState(() => _isEventsLoading = false);
-        print('Failed to get events: $e');
       }
     }
   }
@@ -446,7 +374,6 @@ class _DashboardScreenState extends State<DashboardScreen>
         MaterialPageRoute(builder: (context) => screen),
       );
     } catch (e) {
-      print('Navigation error to $screenName: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -457,7 +384,7 @@ class _DashboardScreenState extends State<DashboardScreen>
       }
     }
   }
-
+  
   void _navigateToCourse(Course course) {
     try {
       _saveLastViewedCourse(course);
@@ -471,7 +398,6 @@ class _DashboardScreenState extends State<DashboardScreen>
         ),
       );
     } catch (e) {
-      print('Error navigating to course: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -488,7 +414,7 @@ class _DashboardScreenState extends State<DashboardScreen>
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('lastViewedCourse', json.encode(course.toJson()));
     } catch (e) {
-      print('Error saving last viewed course: $e');
+      // Error saving last viewed course
     }
   }
 
@@ -597,6 +523,7 @@ class _DashboardScreenState extends State<DashboardScreen>
       margin: EdgeInsets.all(themeService.getSpacing('md')),
       child: themeService.buildCleanCard(
         backgroundColor: themeService.getColor('primary'),
+        padding: EdgeInsets.all(themeService.getSpacing('md')),
         child: Row(
           children: [
             Expanded(
@@ -715,6 +642,7 @@ class _DashboardScreenState extends State<DashboardScreen>
     if (_isMetricsLoading) {
       return Center(
         child: themeService.buildCleanCard(
+          margin: EdgeInsets.all(themeService.getSpacing('md')),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -865,55 +793,34 @@ class _DashboardScreenState extends State<DashboardScreen>
               crossAxisCount: 4,
               crossAxisSpacing: themeService.getSpacing('sm'),
               mainAxisSpacing: themeService.getSpacing('sm'),
-              childAspectRatio: 1.0,
+              childAspectRatio: 0.9,
             ),
             itemCount: _quickActions.length,
             itemBuilder: (context, index) {
               final action = _quickActions[index];
-              IconData actionIcon;
-
-              switch (action.icon) {
-                case 'quiz':
-                  actionIcon = Icons.quiz;
-                  break;
-                case 'certificate':
-                  actionIcon = Icons.workspace_premium;
-                  break;
-                case 'discussions':
-                  actionIcon = Icons.forum;
-                  break;
-                case 'assignments':
-                  actionIcon = Icons.assignment;
-                  break;
-                default:
-                  actionIcon = Icons.help_outline;
-              }
-
-              return themeService.buildCleanCard(
+              return GestureDetector(
                 onTap: () => _navigateTo(action.type),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Container(
-                      padding: EdgeInsets.all(themeService.getSpacing('xs')),
+                      padding: EdgeInsets.all(themeService.getSpacing('md')),
                       decoration: BoxDecoration(
                         color: action.color.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(
-                            themeService.getBorderRadius('small')),
+                          themeService.getBorderRadius('large'),
+                        ),
                       ),
                       child: Icon(
-                        actionIcon,
+                        _getActionIcon(action.icon),
                         color: action.color,
-                        size: 20,
+                        size: 28,
                       ),
                     ),
-                    SizedBox(height: themeService.getSpacing('xs')),
+                    SizedBox(height: themeService.getSpacing('sm')),
                     Text(
                       action.title,
-                      style: textTheme.bodySmall?.copyWith(
-                        fontWeight: FontWeight.w500,
-                        color: themeService.getColor('textPrimary'),
-                      ),
+                      style: textTheme.bodySmall,
                       textAlign: TextAlign.center,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -926,6 +833,17 @@ class _DashboardScreenState extends State<DashboardScreen>
         ),
       ],
     );
+  }
+
+  IconData _getActionIcon(String iconKey) {
+    const Map<String, IconData> iconMap = {
+      'quiz': Icons.quiz,
+      'certificate': Icons.workspace_premium,
+      'discussions': Icons.forum,
+      'assignments': Icons.assignment,
+    };
+
+    return iconMap[iconKey] ?? Icons.help_outline;
   }
 
   Widget _buildMyCoursesSection() {
@@ -1011,9 +929,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                 return Container(
                   width: 280,
                   margin: EdgeInsets.only(
-                    right: index == _myCourses.length - 1
-                        ? 0
-                        : themeService.getSpacing('sm'),
+                    right: themeService.getSpacing('sm'),
                   ),
                   child: themeService.buildCleanCard(
                     onTap: () => _navigateToCourse(course),
@@ -1025,9 +941,6 @@ class _DashboardScreenState extends State<DashboardScreen>
                           height: 100,
                           width: double.infinity,
                           decoration: BoxDecoration(
-                            color: themeService
-                                .getColor('primary')
-                                .withOpacity(0.1),
                             borderRadius: BorderRadius.only(
                               topLeft: Radius.circular(
                                   themeService.getBorderRadius('large')),
@@ -1051,7 +964,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                                       child: Icon(
                                         Icons.school,
                                         color: themeService.getColor('primary'),
-                                        size: 32,
+                                        size: 40,
                                       ),
                                     ),
                                   ),
@@ -1060,41 +973,25 @@ class _DashboardScreenState extends State<DashboardScreen>
                                   child: Icon(
                                     Icons.school,
                                     color: themeService.getColor('primary'),
-                                    size: 32,
+                                    size: 40,
                                   ),
                                 ),
                         ),
                         Expanded(
                           child: Padding(
                             padding:
-                                EdgeInsets.all(themeService.getSpacing('md')),
+                                EdgeInsets.all(themeService.getSpacing('sm')),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
                                   course.fullname,
-                                  style: textTheme.titleSmall?.copyWith(
+                                  style: textTheme.titleMedium?.copyWith(
                                     fontWeight: FontWeight.w600,
-                                    color: themeService.getColor('textPrimary'),
                                   ),
                                   maxLines: 2,
                                   overflow: TextOverflow.ellipsis,
                                 ),
-                                if (course.summary.isNotEmpty) ...[
-                                  SizedBox(
-                                      height: themeService.getSpacing('xs')),
-                                  Text(
-                                    course.summary
-                                        .replaceAll(RegExp(r'<[^>]*>'), '')
-                                        .trim(),
-                                    style: textTheme.bodySmall?.copyWith(
-                                      color: themeService
-                                          .getColor('textSecondary'),
-                                    ),
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ],
                                 const Spacer(),
                                 if (course.progress != null) ...[
                                   Row(
@@ -1102,118 +999,29 @@ class _DashboardScreenState extends State<DashboardScreen>
                                         MainAxisAlignment.spaceBetween,
                                     children: [
                                       Text(
-                                        'Progress',
+                                        '${course.progress!.toStringAsFixed(0)}% complete',
                                         style: textTheme.bodySmall?.copyWith(
-                                          color: themeService
-                                              .getColor('textSecondary'),
-                                          fontWeight: FontWeight.w500,
-                                        ),
-                                      ),
-                                      Container(
-                                        padding: EdgeInsets.symmetric(
-                                          horizontal:
-                                              themeService.getSpacing('xs'),
-                                          vertical: 2,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: _getProgressColor(
-                                                  course.progress!)
-                                              .withOpacity(0.1),
-                                          borderRadius: BorderRadius.circular(
-                                            themeService
-                                                .getBorderRadius('small'),
-                                          ),
-                                        ),
-                                        child: Text(
-                                          '${course.progress!.toStringAsFixed(0)}%',
-                                          style: textTheme.bodySmall?.copyWith(
-                                            fontWeight: FontWeight.w600,
-                                            color: _getProgressColor(
-                                                course.progress!),
-                                          ),
-                                        ),
+                                            color: themeService
+                                                .getColor('textSecondary')),
                                       ),
                                     ],
                                   ),
                                   SizedBox(
                                       height: themeService.getSpacing('xs')),
-                                  Container(
-                                    height: 6,
-                                    decoration: BoxDecoration(
-                                      borderRadius: BorderRadius.circular(
-                                        themeService.getBorderRadius('small'),
-                                      ),
-                                      color:
-                                          themeService.getColor('borderLight'),
+                                  LinearProgressIndicator(
+                                    value: course.progress! / 100,
+                                    backgroundColor:
+                                        themeService.getColor('borderLight'),
+                                    valueColor:
+                                        AlwaysStoppedAnimation<Color>(
+                                      _getProgressColor(course.progress!),
                                     ),
-                                    child: ClipRRect(
-                                      borderRadius: BorderRadius.circular(
-                                        themeService.getBorderRadius('small'),
-                                      ),
-                                      child: LinearProgressIndicator(
-                                        value: course.progress! / 100,
-                                        backgroundColor: Colors.transparent,
-                                        valueColor:
-                                            AlwaysStoppedAnimation<Color>(
-                                          _getProgressColor(course.progress!),
-                                        ),
-                                        minHeight: 6,
-                                      ),
+                                    minHeight: 6,
+                                    borderRadius: BorderRadius.circular(
+                                      themeService.getBorderRadius('small'),
                                     ),
                                   ),
-                                  SizedBox(
-                                      height: themeService.getSpacing('sm')),
-                                  Container(
-                                    padding: EdgeInsets.symmetric(
-                                      horizontal: themeService.getSpacing('sm'),
-                                      vertical: themeService.getSpacing('xs'),
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: _getProgressColor(course.progress!)
-                                          .withOpacity(0.1),
-                                      borderRadius: BorderRadius.circular(
-                                        themeService.getBorderRadius('medium'),
-                                      ),
-                                      border: Border.all(
-                                        color:
-                                            _getProgressColor(course.progress!)
-                                                .withOpacity(0.3),
-                                        width: 1,
-                                      ),
-                                    ),
-                                    child: Text(
-                                      _getProgressStatus(course.progress!),
-                                      style: textTheme.labelSmall?.copyWith(
-                                        color:
-                                            _getProgressColor(course.progress!),
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                  ),
-                                ] else ...[
-                                  Container(
-                                    padding: EdgeInsets.symmetric(
-                                      horizontal: themeService.getSpacing('sm'),
-                                      vertical: themeService.getSpacing('xs'),
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: themeService
-                                          .getColor('textMuted')
-                                          .withOpacity(0.1),
-                                      borderRadius: BorderRadius.circular(
-                                        themeService.getBorderRadius('medium'),
-                                      ),
-                                    ),
-                                    child: Text(
-                                      'Not Started',
-                                      style: textTheme.labelSmall?.copyWith(
-                                        color:
-                                            themeService.getColor('textMuted'),
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                  ),
-                                ],
+                                ]
                               ],
                             ),
                           ),
@@ -1279,26 +1087,27 @@ class _DashboardScreenState extends State<DashboardScreen>
             child: Column(
               children: _upcomingEvents
                   .take(3)
-                  .map((event) => Container(
-                        margin: EdgeInsets.only(
+                  .map((event) => Padding(
+                        padding: EdgeInsets.only(
                             bottom: themeService.getSpacing('xs')),
                         child: themeService.buildCleanCard(
+                          padding: EdgeInsets.all(themeService.getSpacing('sm')),
                           child: Row(
                             children: [
                               Container(
                                 padding: EdgeInsets.all(
-                                    themeService.getSpacing('xs')),
+                                    themeService.getSpacing('sm')),
                                 decoration: BoxDecoration(
                                   color: themeService
                                       .getColor('warning')
                                       .withOpacity(0.1),
                                   borderRadius: BorderRadius.circular(
-                                      themeService.getBorderRadius('small')),
+                                      themeService.getBorderRadius('medium')),
                                 ),
                                 child: Icon(
-                                  Icons.event,
+                                  Icons.event_available,
                                   color: themeService.getColor('warning'),
-                                  size: 16,
+                                  size: 24,
                                 ),
                               ),
                               SizedBox(width: themeService.getSpacing('sm')),
@@ -1368,13 +1177,15 @@ class _DashboardScreenState extends State<DashboardScreen>
         children: [
           Container(
             width: double.infinity,
-            padding: EdgeInsets.all(themeService.getSpacing('lg')),
+            padding: EdgeInsets.fromLTRB(
+              themeService.getSpacing('lg'),
+              themeService.getSpacing('lg') + MediaQuery.of(context).padding.top,
+              themeService.getSpacing('lg'),
+              themeService.getSpacing('lg')),
             decoration: BoxDecoration(
               color: themeService.getColor('primary'),
             ),
-            child: SafeArea(
-              bottom: false,
-              child: _isUserLoading
+            child: _isUserLoading
                   ? Center(
                       child: CircularProgressIndicator(
                         color: themeService.getColor('onPrimary'),
@@ -1434,7 +1245,6 @@ class _DashboardScreenState extends State<DashboardScreen>
                         ),
                       ],
                     ),
-            ),
           ),
           Expanded(
             child: ListView(
@@ -1525,6 +1335,7 @@ class _DashboardScreenState extends State<DashboardScreen>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          SizedBox(height: themeService.getSpacing('sm')),
           if (!_isUserLoading) _buildWelcomeSection(),
           SizedBox(height: themeService.getSpacing('sm')),
           _buildContinueLearningWidget(),
@@ -1549,13 +1360,11 @@ class _DashboardScreenState extends State<DashboardScreen>
     return Scaffold(
       backgroundColor: themeService.getColor('background'),
       appBar: AppBar(
-        title: const Text(AppStrings.dashboard),
-        backgroundColor: themeService.getColor('backgroundLight'),
-        elevation: 0,
+        title: Text(DynamicThemeService.instance.siteName ?? AppStrings.dashboard),
         actions: [
           IconButton(
             icon: Icon(
-              Icons.notifications,
+              Icons.notifications_outlined,
               color: themeService.getColor('textPrimary'),
             ),
             onPressed: () {},
@@ -1568,6 +1377,7 @@ class _DashboardScreenState extends State<DashboardScreen>
         child: RefreshIndicator(
           onRefresh: _fetchAllData,
           color: themeService.getColor('primary'),
+          backgroundColor: themeService.getColor('backgroundLight'),
           child: _buildMainContent(),
         ),
       ),
@@ -1578,87 +1388,8 @@ class _DashboardScreenState extends State<DashboardScreen>
         ),
         backgroundColor: themeService.getColor('primary'),
         child: Icon(
-          Icons.chat,
+          Icons.chat_bubble,
           color: themeService.getColor('onPrimary'),
-        ),
-      ),
-    );
-  }
-}
-
-// Downloaded Courses Screen
-class DownloadedCoursesScreen extends StatelessWidget {
-  final String token;
-
-  const DownloadedCoursesScreen({required this.token, Key? key})
-      : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    final themeService = DynamicThemeService.instance;
-    final textTheme = Theme.of(context).textTheme;
-
-    return Scaffold(
-      backgroundColor: themeService.getColor('background'),
-      appBar: AppBar(
-        title: const Text(AppStrings.downloadedCourses),
-        backgroundColor: themeService.getColor('backgroundLight'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: () {},
-            tooltip: 'Refresh',
-          ),
-        ],
-      ),
-      body: Center(
-        child: Padding(
-          padding: EdgeInsets.all(themeService.getSpacing('lg')),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                padding: EdgeInsets.all(themeService.getSpacing('xl')),
-                decoration: BoxDecoration(
-                  color: themeService.getColor('primary').withOpacity(0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  Icons.download,
-                  size: 64,
-                  color: themeService.getColor('primary'),
-                ),
-              ),
-              SizedBox(height: themeService.getSpacing('lg')),
-              Text(
-                'No Downloaded Courses',
-                style: textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              SizedBox(height: themeService.getSpacing('sm')),
-              Text(
-                'Download courses from the catalog to access them offline',
-                style: textTheme.bodyMedium?.copyWith(
-                  color: themeService.getColor('textSecondary'),
-                ),
-                textAlign: TextAlign.center,
-              ),
-              SizedBox(height: themeService.getSpacing('xl')),
-              ElevatedButton.icon(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => CourseCatalogScreen(token: token),
-                    ),
-                  );
-                },
-                icon: const Icon(Icons.school),
-                label: const Text('Browse Courses'),
-              ),
-            ],
-          ),
         ),
       ),
     );

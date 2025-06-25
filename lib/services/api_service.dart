@@ -30,7 +30,6 @@ class ApiService {
       final response = await _post('local_chat_get_conversations', token, {});
       return response['conversations'] is List ? response['conversations'] : [];
     } catch (e) {
-      print('Error fetching conversations: ${e.toString()}');
       rethrow;
     }
   }
@@ -42,7 +41,6 @@ class ApiService {
       });
       return response['messages'] is List ? response['messages'] : [];
     } catch (e) {
-      print('Error fetching messages for conversation $conversationId: ${e.toString()}');
       rethrow;
     }
   }
@@ -54,7 +52,6 @@ class ApiService {
         'text': text,
       });
     } catch (e) {
-      print('Error sending message: ${e.toString()}');
       rethrow;
     }
   }
@@ -65,7 +62,6 @@ class ApiService {
         'conversationid': conversationId.toString(),
       });
     } catch (e) {
-      print('Error marking messages as read: ${e.toString()}');
       rethrow;
     }
   }
@@ -75,7 +71,6 @@ class ApiService {
       final response = await _post('local_chat_get_contacts', token, {});
       return response is List ? response : [];
     } catch (e) {
-      print('Error fetching contacts: ${e.toString()}');
       rethrow;
     }
   }
@@ -87,7 +82,6 @@ class ApiService {
       });
       return response is List ? response : [];
     } catch (e) {
-      print('Error searching users: ${e.toString()}');
       rethrow;
     }
   }
@@ -128,16 +122,10 @@ class ApiService {
         _baseUrl = config.apiEndpoints['base'];
         _loginUrl = config.apiEndpoints['login'];
         _uploadUrl = config.apiEndpoints['upload'];
-
-        print('✅ Using dynamic configuration for tenant: $_tenantName');
-        print('✅ Base URL: $_baseUrl');
       } else {
         _baseUrl = '$fullDomain/webservice/rest/server.php';
         _loginUrl = '$fullDomain/login/token.php';
         _uploadUrl = '$fullDomain/webservice/upload.php';
-        print('✅ Using standard configuration for tenant: $_tenantName');
-        print('✅ Base URL: $_baseUrl');
-        print('✅ Login URL: $_loginUrl');
       }
 
       final prefs = await SharedPreferences.getInstance();
@@ -147,7 +135,6 @@ class ApiService {
       await prefs.setString('api_login_url', _loginUrl!);
       await prefs.setString('api_upload_url', _uploadUrl!);
     } catch (e) {
-      print('Error in tenant configuration: $e');
       rethrow;
     }
   }
@@ -156,7 +143,7 @@ class ApiService {
     try {
       await ConfigurationService.instance.initialize();
     } catch (e) {
-      print('Configuration service initialization failed: $e');
+      // Configuration service initialization failed
     }
 
     final prefs = await SharedPreferences.getInstance();
@@ -180,7 +167,7 @@ class ApiService {
         try {
           await ConfigurationService.instance.loadForDomain(domain);
         } catch (e) {
-          print('Failed to load configuration for cached domain: $e');
+          // Failed to load configuration for cached domain
         }
       }
 
@@ -193,7 +180,7 @@ class ApiService {
     try {
       await ConfigurationService.instance.clearConfiguration();
     } catch (e) {
-      print('Error clearing configuration service: $e');
+      // Error clearing configuration service
     }
 
     final prefs = await SharedPreferences.getInstance();
@@ -226,7 +213,7 @@ class ApiService {
         }
       }
     } catch (e) {
-      print('Error getting API function from config: $e');
+      // Error getting API function from config
     }
 
     const fallbackMappings = {
@@ -414,19 +401,13 @@ class ApiService {
         throw Exception('User ID not found');
       }
 
-      print('DEBUG: Calling getUserProgress API for user ID: $userId');
-
       final response = await _post(
           'local_instructohub_get_user_course_progress',
           token,
           {'userid': userId.toString()});
 
-      print('DEBUG: getUserProgress API Response:');
-      print(json.encode(response));
-
       return response;
     } catch (e) {
-      print('Error getting user progress: $e');
       rethrow;
     }
   }
@@ -568,7 +549,6 @@ class ApiService {
       final response = await _post('local_instructohub_get_branding_config', '', {});
       return response is Map ? Map<String, dynamic>.from(response) : null;
     } catch (e) {
-      print('Error fetching branding config: ${e.toString()}');
       return null;
     }
   }
@@ -578,7 +558,6 @@ class ApiService {
       final response = await _post('local_instructohub_get_theme_config', token ?? '', {});
       return response is Map ? Map<String, dynamic>.from(response) : null;
     } catch (e) {
-      print('Error fetching theme config: ${e.toString()}');
       return null;
     }
   }
@@ -588,7 +567,6 @@ class ApiService {
       final response = await _post('local_instructohub_get_icon_config', token ?? '', {});
       return response is Map ? Map<String, dynamic>.from(response) : null;
     } catch (e) {
-      print('Error fetching icon config: ${e.toString()}');
       return null;
     }
   }
@@ -603,7 +581,6 @@ class ApiService {
       });
       return response is Map ? Map<String, dynamic>.from(response) : null;
     } catch (e) {
-      print('Error fetching tenant config: ${e.toString()}');
       return null;
     }
   }
@@ -624,7 +601,6 @@ class ApiService {
 
       return 'https://static.instructohub.com/staticfiles/assets/images/website/Instructo_hub_logo.png';
     } catch (e) {
-      print('Error getting logo URL: ${e.toString()}');
       return 'https://static.instructohub.com/staticfiles/assets/images/website/Instructo_hub_logo.png';
     }
   }
@@ -702,9 +678,6 @@ class ApiService {
       } else {
         testUrl = '$testDomain/webservice/rest/server.php?wsfunction=core_webservice_get_site_info&moodlewsrestformat=json';
       }
-
-      print('Testing connection to: $testUrl');
-      print('Testing connection to: $testDomain');
 
       final response = await http.get(Uri.parse(testUrl));
 
