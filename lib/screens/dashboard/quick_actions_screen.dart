@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'course_catalog_screen.dart';
-import '../../services/dynamic_theme_service.dart';
-import '../../services/enhanced_icon_service.dart';
+import 'package:InstructoHub/services/dynamic_theme_service.dart';
+import 'package:InstructoHub/services/enhanced_icon_service.dart';
 
 class QuickActionsScreen extends StatelessWidget {
   final String token;
@@ -109,7 +109,8 @@ class QuickActionsScreen extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       elevation: 2.0,
       shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(themeService.getBorderRadius('medium'))),
+          borderRadius:
+              BorderRadius.circular(themeService.getBorderRadius('medium'))),
       child: InkWell(
         onTap: onTap,
         child: Column(
@@ -121,10 +122,12 @@ class QuickActionsScreen extends StatelessWidget {
                 color: color.withOpacity(0.1),
                 shape: BoxShape.circle,
               ),
-              child: Icon(DynamicIconService.instance.getIcon(iconKey), color: color, size: 32),
+              child: Icon(DynamicIconService.instance.getIcon(iconKey),
+                  color: color, size: 32),
             ),
             const SizedBox(height: 12),
-            Text(title, textAlign: TextAlign.center, style: textTheme.titleSmall),
+            Text(title,
+                textAlign: TextAlign.center, style: textTheme.titleSmall),
           ],
         ),
       ),

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../../services/dynamic_theme_service.dart';
-import '../../services/enhanced_icon_service.dart';
+import 'package:InstructoHub/services/dynamic_theme_service.dart';
+import 'package:InstructoHub/services/enhanced_icon_service.dart';
 
 class ModuleDetailScreen extends StatelessWidget {
   final dynamic module;

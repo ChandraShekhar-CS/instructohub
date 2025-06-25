@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import '../../services/api_service.dart';
-import '../../services/dynamic_theme_service.dart'; // Updated import
-import '../../services/enhanced_icon_service.dart';
-import '../login/login_screen.dart';
-
-// The DynamicAppTheme class is no longer needed.
+import 'package:InstructoHub/services/api_service.dart';
+import 'package:InstructoHub/services/dynamic_theme_service.dart';
+import 'package:InstructoHub/services/enhanced_icon_service.dart';
+import 'package:InstructoHub/screens/login/login_screen.dart';
 
 class DomainConfigScreen extends StatefulWidget {
   const DomainConfigScreen({super.key});
@@ -23,6 +21,9 @@ class _DomainConfigScreenState extends State<DomainConfigScreen>
   Map<String, dynamic>? _connectionResult;
   String? _constructedUrl;
 
+  // State to hold branding info after successful test
+  bool _isBrandingLoaded = false;
+
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
@@ -30,8 +31,6 @@ class _DomainConfigScreenState extends State<DomainConfigScreen>
   @override
   void initState() {
     super.initState();
-    // DynamicAppTheme.loadTheme(); // This should be loaded once when the app starts, not here.
-
     _animationController = AnimationController(
       duration: const Duration(milliseconds: 800),
       vsync: this,
@@ -79,8 +78,8 @@ class _DomainConfigScreenState extends State<DomainConfigScreen>
     if (cleanValue.length > 20) {
       return 'Name must be less than 20 characters';
     }
-    if (!RegExp(r'^[a-zA-Z0-9]+$').hasMatch(cleanValue)) {
-      return 'Only letters and numbers allowed';
+    if (!RegExp(r'^[a-zA-Z0-9\-]+$').hasMatch(cleanValue)) {
+      return 'Only letters, numbers, and hyphens allowed';
     }
     return null;
   }
@@ -97,66 +96,71 @@ class _DomainConfigScreenState extends State<DomainConfigScreen>
     setState(() {
       _isTestingConnection = true;
       _connectionResult = null;
+      _isBrandingLoaded = false;
       _constructedUrl = constructedUrl;
     });
 
     try {
-      final result = await ApiService.instance.testConnection(constructedUrl).timeout(
-        const Duration(seconds: 10),
-        onTimeout: () => {
-          'success': false,
-          'error': 'Connection timeout. Please check your internet connection.',
-          'originalDomain': constructedUrl,
-        },
-      );
+      // First, test the basic connection
+      final result = await ApiService.instance
+          .testConnection(constructedUrl)
+          .timeout(const Duration(seconds: 10));
 
       if (!mounted) return;
 
-      setState(() {
-        _connectionResult = result;
-      });
-      
-      final snackBarContent = Row(
-        children: [
-          Icon(
-            DynamicIconService.instance.getIcon(result['success'] == true ? 'success' : 'error'),
-            color: Colors.white,
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              result['success'] == true
-                  ? 'Connected to $tenantName LMS!'
-                  : 'Not registered. Please try again or contact your admin.',
-            ),
-          ),
-        ],
-      );
+      if (result['success'] == true) {
+        // If connection is good, configure the API service to fetch theme
+        await ApiService.instance.configure(constructedUrl);
+        // Now, load the theme and branding data from the new domain
+        await themeService.loadTheme();
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
+        setState(() {
+          _connectionResult = result;
+          _isBrandingLoaded = true;
+        });
+
+        final snackBarContent = Row(
+          children: [
+            Icon(DynamicIconService.instance.getIcon('success'),
+                color: themeService.getColor('loginButtonTextColor')),
+            const SizedBox(width: 8),
+            Expanded(
+                child: Text(
+                    'Connected to ${themeService.siteName ?? tenantName} LMS!')),
+          ],
+        );
+
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: snackBarContent,
-          backgroundColor: themeService.getColor(result['success'] == true ? 'success' : 'error'),
+          backgroundColor: themeService.getColor('success'),
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(themeService.getBorderRadius('small'))),
-        ),
-      );
-
+          shape: RoundedRectangleBorder(
+              borderRadius:
+                  BorderRadius.circular(themeService.getBorderRadius('small'))),
+        ));
+      } else {
+        // Handle failed connection
+        setState(() => _connectionResult = result);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: const Text(
+              'Not registered. Please try again or contact your admin.'),
+          backgroundColor: themeService.getColor('error'),
+          behavior: SnackBarBehavior.floating,
+        ));
+      }
     } catch (e) {
       if (!mounted) return;
       setState(() {
         _connectionResult = {
           'success': false,
           'error': 'An unexpected error occurred.',
-          'originalDomain': constructedUrl,
+          'originalDomain': constructedUrl
         };
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('An error occurred. Please try again.'),
-          backgroundColor: themeService.getColor('error'),
-        ),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: const Text('An error occurred. Please try again.'),
+        backgroundColor: themeService.getColor('error'),
+      ));
     } finally {
       if (mounted) {
         setState(() {
@@ -171,20 +175,20 @@ class _DomainConfigScreenState extends State<DomainConfigScreen>
     if (!_formKey.currentState!.validate()) return;
 
     if (_connectionResult == null || _connectionResult!['success'] != true) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('Please establish a successful connection first'),
-          backgroundColor: themeService.getColor(_connectionResult == null ? 'info' : 'error'),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: const Text('Please establish a successful connection first'),
+        backgroundColor:
+            themeService.getColor(_connectionResult == null ? 'info' : 'error'),
+        behavior: SnackBarBehavior.floating,
+      ));
       return;
     }
 
     setState(() => _isLoading = true);
 
     try {
-      await ApiService.instance.configure(_constructedUrl!);
+      // The configuration is already set from the successful test
+      // No need to call ApiService.instance.configure again
       if (mounted) {
         Navigator.pushReplacement(
           context,
@@ -193,13 +197,11 @@ class _DomainConfigScreenState extends State<DomainConfigScreen>
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Configuration failed: ${e.toString()}'),
-            backgroundColor: themeService.getColor('error'),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Configuration failed: ${e.toString()}'),
+          backgroundColor: themeService.getColor('error'),
+          behavior: SnackBarBehavior.floating,
+        ));
       }
     } finally {
       if (mounted) {
@@ -213,54 +215,47 @@ class _DomainConfigScreenState extends State<DomainConfigScreen>
       _connectionResult!['success'] == true &&
       !_isLoading;
 
-  Widget _buildConnectionStatus() {
+  Widget _buildLogoHeader() {
     final themeService = DynamicThemeService.instance;
-    if (_connectionResult == null) return const SizedBox.shrink();
+    final logoUrl = themeService.logoUrl;
+    final siteName = themeService.siteName;
 
-    final bool isSuccess = _connectionResult!['success'] == true;
-    final String tenantName = _tenantController.text.trim();
-    final statusKey = isSuccess ? 'success' : 'error';
-    
-    final statusColor = themeService.getColor(statusKey);
-    final statusTextColor = statusColor.computeLuminance() > 0.5 ? Colors.black : Colors.white;
-
-    return Container(
-      padding: EdgeInsets.all(themeService.getSpacing('md')),
-      decoration: BoxDecoration(
-          color: statusColor.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(themeService.getBorderRadius('medium')),
-          border: Border.all(color: statusColor)),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+    // Show the logo and site name if branding is loaded
+    if (_isBrandingLoaded && logoUrl != null && logoUrl.isNotEmpty) {
+      return Column(
         children: [
-          Row(
-            children: [
-              Icon(
-                DynamicIconService.instance.getIcon(statusKey),
-                color: statusColor,
-                size: 20,
-              ),
-              SizedBox(width: themeService.getSpacing('sm')),
-              Expanded(
-                child: Text(
-                  isSuccess ? 'Connected to $tenantName LMS' : 'Not Registered',
-                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                        color: themeService.getColor('textPrimary'),
-                        fontWeight: FontWeight.bold,
-                      ),
-                ),
-              ),
-            ],
+          Image.network(
+            logoUrl,
+            height: 64,
+            fit: BoxFit.contain,
+            errorBuilder: (context, error, stacktrace) {
+              // Fallback to text if image fails to load
+              return Text(
+                siteName ?? 'InstructoHub',
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                      color: themeService.getColor('secondary1'),
+                    ),
+              );
+            },
           ),
-          if (!isSuccess) ...[
-            SizedBox(height: themeService.getSpacing('sm')),
+          if (siteName != null) ...[
+            const SizedBox(height: 16),
             Text(
-              'Please try again or contact your admin.',
-              style: Theme.of(context).textTheme.bodyMedium,
+              siteName,
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.headlineSmall,
             ),
-          ],
+          ]
         ],
-      ),
+      );
+    }
+
+    // Default icon before connection test
+    return Icon(
+      DynamicIconService.instance.getIcon('cloud'),
+      size: 64,
+      color: themeService.getColor('secondary1'),
     );
   }
 
@@ -269,7 +264,7 @@ class _DomainConfigScreenState extends State<DomainConfigScreen>
     final themeService = DynamicThemeService.instance;
     final textTheme = Theme.of(context).textTheme;
     final inputDecorationTheme = Theme.of(context).inputDecorationTheme;
-    
+
     return Scaffold(
       backgroundColor: themeService.getColor('background'),
       body: Container(
@@ -298,50 +293,67 @@ class _DomainConfigScreenState extends State<DomainConfigScreen>
                         constraints: const BoxConstraints(maxWidth: 500),
                         child: Container(
                           padding: const EdgeInsets.all(32),
-                          decoration: themeService.getDynamicCardDecoration(),
+                          decoration: BoxDecoration(
+                            color: themeService.getColor('cardColor'),
+                            borderRadius: BorderRadius.circular(
+                                themeService.getBorderRadius('large')),
+                            boxShadow: [
+                              BoxShadow(
+                                color: themeService
+                                    .getColor('textPrimary')
+                                    .withOpacity(0.1),
+                                spreadRadius: 5,
+                                blurRadius: 15,
+                                offset: const Offset(0, 5),
+                              ),
+                            ],
+                          ),
                           child: Form(
                             key: _formKey,
                             child: Column(
                               mainAxisSize: MainAxisSize.min,
                               crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
-                                Icon(
-                                  DynamicIconService.instance.cloudIcon,
-                                  size: 64,
-                                  color: themeService.getColor('secondary1'),
-                                ),
+                                _buildLogoHeader(),
                                 const SizedBox(height: 24),
-                                Text(
-                                  'Connect to Your LMS',
-                                  textAlign: TextAlign.center,
-                                  style: textTheme.headlineMedium,
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  'Enter your organization name to get started',
-                                  textAlign: TextAlign.center,
-                                  style: textTheme.bodyMedium,
-                                ),
+                                if (!_isBrandingLoaded) ...[
+                                  Text(
+                                    'Connect to Your LMS',
+                                    textAlign: TextAlign.center,
+                                    style: textTheme.headlineMedium,
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    'Enter your organization name to get started',
+                                    textAlign: TextAlign.center,
+                                    style: textTheme.bodyMedium,
+                                  ),
+                                ],
                                 const SizedBox(height: 32),
                                 TextFormField(
                                   controller: _tenantController,
                                   decoration: InputDecoration(
                                     labelText: 'LMS Domain',
                                     hintText: 'e.g., my-organization',
-                                    helperText: 'Enter only your organization name',
+                                    helperText:
+                                        'Enter only your organization name',
                                     prefixIcon: Icon(
-                                      DynamicIconService.instance.getIcon('domain'),
-                                      color: themeService.getColor('secondary1'),
+                                      DynamicIconService.instance
+                                          .getIcon('domain'),
+                                      color:
+                                          themeService.getColor('secondary1'),
                                     ),
-                                    // These properties are now inherited from the global theme
                                     border: inputDecorationTheme.border,
-                                    enabledBorder: inputDecorationTheme.enabledBorder,
-                                    focusedBorder: inputDecorationTheme.focusedBorder,
+                                    enabledBorder:
+                                        inputDecorationTheme.enabledBorder,
+                                    focusedBorder:
+                                        inputDecorationTheme.focusedBorder,
                                     filled: inputDecorationTheme.filled,
                                     fillColor: inputDecorationTheme.fillColor,
                                   ),
                                   inputFormatters: [
-                                    FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9]')),
+                                    FilteringTextInputFormatter.allow(
+                                        RegExp(r'[a-zA-Z0-9\-]')),
                                     LengthLimitingTextInputFormatter(20),
                                   ],
                                   validator: _validateTenant,
@@ -349,6 +361,7 @@ class _DomainConfigScreenState extends State<DomainConfigScreen>
                                     if (_connectionResult != null) {
                                       setState(() {
                                         _connectionResult = null;
+                                        _isBrandingLoaded = false;
                                         _constructedUrl = null;
                                       });
                                     }
@@ -356,43 +369,52 @@ class _DomainConfigScreenState extends State<DomainConfigScreen>
                                 ),
                                 const SizedBox(height: 16),
                                 ElevatedButton.icon(
-                                  onPressed: _isTestingConnection ? null : _testTenantConnection,
+                                  onPressed: _isTestingConnection
+                                      ? null
+                                      : _testTenantConnection,
                                   icon: _isTestingConnection
                                       ? SizedBox(
                                           width: 16,
                                           height: 16,
                                           child: CircularProgressIndicator(
                                             strokeWidth: 2,
-                                            color: themeService.getColor('primary1'),
+                                            color: themeService
+                                                .getColor('textPrimary'),
                                           ),
                                         )
-                                      : Icon(DynamicIconService.instance.getIcon('wifi'), color: themeService.getColor('textPrimary')),
+                                      : Icon(
+                                          DynamicIconService.instance
+                                              .getIcon('wifi'),
+                                          color: themeService
+                                              .getColor('textPrimary')),
                                   label: Text(
                                     _isTestingConnection
                                         ? 'Checking...'
                                         : 'Check Registration',
-                                    style: textTheme.bodyLarge?.copyWith(color: themeService.getColor('textPrimary')),
+                                    style: textTheme.bodyLarge?.copyWith(
+                                        color: themeService
+                                            .getColor('textPrimary')),
                                   ),
                                   style: ElevatedButton.styleFrom(
-                                    backgroundColor: themeService.getColor('cardColor'),
-                                    side: BorderSide(color: themeService.getColor('secondary1')),
+                                    backgroundColor:
+                                        themeService.getColor('cardColor'),
+                                    side: BorderSide(
+                                        color: themeService
+                                            .getColor('secondary1')),
                                   ),
                                 ),
-                                if (_connectionResult != null) ...[
-                                  const SizedBox(height: 16),
-                                  _buildConnectionStatus(),
-                                ],
                                 const SizedBox(height: 24),
                                 ElevatedButton(
-                                  onPressed: _canProceed ? _saveAndContinue : null,
-                                  // Style is inherited from the global theme
+                                  onPressed:
+                                      _canProceed ? _saveAndContinue : null,
                                   child: _isLoading
                                       ? SizedBox(
                                           height: 20,
                                           width: 20,
                                           child: CircularProgressIndicator(
                                             strokeWidth: 2,
-                                            color: themeService.getColor('loginButtonTextColor'),
+                                            color: themeService.getColor(
+                                                'loginButtonTextColor'),
                                           ),
                                         )
                                       : const Text('Continue to Login'),

@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import '../../services/api_service.dart';
-import '../../services/dynamic_theme_service.dart';
-import '../../screens/login/login_screen.dart';
-import '../../screens/domain_config/domain_config_screen.dart';
+import 'package:InstructoHub/services/api_service.dart';
+import 'package:InstructoHub/services/dynamic_theme_service.dart';
+import 'package:InstructoHub/screens/login/login_screen.dart';
+import 'package:InstructoHub/screens/domain_config/domain_config_screen.dart';
 
 class SplashScreen extends StatefulWidget {
   final ValueNotifier<ThemeData> themeNotifier;

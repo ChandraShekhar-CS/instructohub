@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import '../../services/api_service.dart';
-import '../../services/dynamic_theme_service.dart';
-import '../../services/enhanced_icon_service.dart';
+import 'package:InstructoHub/services/api_service.dart';
+import 'package:InstructoHub/services/dynamic_theme_service.dart';
+import 'package:InstructoHub/services/enhanced_icon_service.dart';
 
 class MetricsScreen extends StatefulWidget {
   final String token;
@@ -72,30 +72,41 @@ class _MetricsScreenState extends State<MetricsScreen> {
                         children: [
                           _buildStatCard(
                             title: 'Courses Enrolled',
-                            value: _metricsData['totalcourses']?.toString() ?? '0',
+                            value:
+                                _metricsData['totalcourses']?.toString() ?? '0',
                             iconKey: 'school',
-                            color: DynamicThemeService.instance.getColor('secondary1'),
+                            color: DynamicThemeService.instance
+                                .getColor('secondary1'),
                           ),
                           const SizedBox(height: 16.0),
                           _buildStatCard(
                             title: 'Courses Completed',
-                            value: _metricsData['completedcoursescount']?.toString() ?? '0',
+                            value: _metricsData['completedcoursescount']
+                                    ?.toString() ??
+                                '0',
                             iconKey: 'check_circle',
-                            color: DynamicThemeService.instance.getColor('success'),
+                            color: DynamicThemeService.instance
+                                .getColor('success'),
                           ),
                           const SizedBox(height: 16.0),
                           _buildStatCard(
                             title: 'In Progress',
-                            value: _metricsData['activecoursescount']?.toString() ?? '0',
+                            value: _metricsData['activecoursescount']
+                                    ?.toString() ??
+                                '0',
                             iconKey: 'play_circle',
-                            color: DynamicThemeService.instance.getColor('info'),
+                            color:
+                                DynamicThemeService.instance.getColor('info'),
                           ),
                           const SizedBox(height: 16.0),
                           _buildStatCard(
                             title: 'Not Started',
-                            value: _metricsData['notstartedcount']?.toString() ?? '0',
+                            value:
+                                _metricsData['notstartedcount']?.toString() ??
+                                    '0',
                             iconKey: 'schedule',
-                            color: DynamicThemeService.instance.getColor('textSecondary'),
+                            color: DynamicThemeService.instance
+                                .getColor('textSecondary'),
                           ),
                           const SizedBox(height: 16.0),
                           _buildProgressCard(),
@@ -115,11 +126,13 @@ class _MetricsScreenState extends State<MetricsScreen> {
           children: [
             const Icon(Icons.error, color: Colors.red, size: 50),
             const SizedBox(height: 16),
-            const Text("Failed to load metrics.", style: TextStyle(fontSize: 18)),
+            const Text("Failed to load metrics.",
+                style: TextStyle(fontSize: 18)),
             const SizedBox(height: 8),
             Text(_errorMessage ?? 'An unknown error occurred.'),
             const SizedBox(height: 16),
-            ElevatedButton(onPressed: _fetchMetricsData, child: const Text("Try Again"))
+            ElevatedButton(
+                onPressed: _fetchMetricsData, child: const Text("Try Again"))
           ],
         ),
       ),
@@ -138,7 +151,8 @@ class _MetricsScreenState extends State<MetricsScreen> {
     return Card(
       elevation: 2.0,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(themeService.getBorderRadius('medium')),
+        borderRadius:
+            BorderRadius.circular(themeService.getBorderRadius('medium')),
       ),
       child: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -148,9 +162,11 @@ class _MetricsScreenState extends State<MetricsScreen> {
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
                 color: color.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(themeService.getBorderRadius('small')),
+                borderRadius: BorderRadius.circular(
+                    themeService.getBorderRadius('small')),
               ),
-              child: Icon(DynamicIconService.instance.getIcon(iconKey), color: color, size: 24),
+              child: Icon(DynamicIconService.instance.getIcon(iconKey),
+                  color: color, size: 24),
             ),
             const SizedBox(width: 16.0),
             Column(
@@ -158,7 +174,8 @@ class _MetricsScreenState extends State<MetricsScreen> {
               children: [
                 Text(title, style: textTheme.titleMedium),
                 const SizedBox(height: 4.0),
-                Text(value, style: textTheme.headlineSmall?.copyWith(color: color)),
+                Text(value,
+                    style: textTheme.headlineSmall?.copyWith(color: color)),
               ],
             ),
           ],
@@ -185,7 +202,8 @@ class _MetricsScreenState extends State<MetricsScreen> {
     return Card(
       elevation: 2.0,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(themeService.getBorderRadius('medium')),
+        borderRadius:
+            BorderRadius.circular(themeService.getBorderRadius('medium')),
       ),
       child: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -198,17 +216,23 @@ class _MetricsScreenState extends State<MetricsScreen> {
               children: [
                 Expanded(
                   child: ClipRRect(
-                    borderRadius: BorderRadius.circular(themeService.getBorderRadius('large')),
+                    borderRadius: BorderRadius.circular(
+                        themeService.getBorderRadius('large')),
                     child: LinearProgressIndicator(
                       value: progress / 100.0,
                       minHeight: 12,
-                      backgroundColor: themeService.getColor('textSecondary').withOpacity(0.2),
-                      valueColor: AlwaysStoppedAnimation<Color>(themeService.getColor('secondary1')),
+                      backgroundColor: themeService
+                          .getColor('textSecondary')
+                          .withOpacity(0.2),
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                          themeService.getColor('secondary1')),
                     ),
                   ),
                 ),
                 const SizedBox(width: 16.0),
-                Text('${progress.toStringAsFixed(0)}%', style: textTheme.titleLarge?.copyWith(color: themeService.getColor('secondary1'))),
+                Text('${progress.toStringAsFixed(0)}%',
+                    style: textTheme.titleLarge
+                        ?.copyWith(color: themeService.getColor('secondary1'))),
               ],
             ),
           ],

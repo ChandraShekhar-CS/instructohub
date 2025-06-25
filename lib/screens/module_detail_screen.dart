@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../services/enhanced_icon_service.dart';
-import '../services/dynamic_theme_service.dart';
+import 'package:InstructoHub/services/enhanced_icon_service.dart';
+import 'package:InstructoHub/services/dynamic_theme_service.dart';
 
 class ModuleDetailScreen extends StatelessWidget {
   final dynamic module;
@@ -21,12 +21,12 @@ class ModuleDetailScreen extends StatelessWidget {
     return Scaffold(
       // Use the background color from the dynamic theme
       backgroundColor: themeService.getColor('background'),
-      
+
       // Use a standard AppBar; styling is automatically applied from the global theme
       appBar: AppBar(
         title: Text(moduleName),
       ),
-      
+
       body: Center(
         child: Padding(
           // Use dynamic spacing from the theme service

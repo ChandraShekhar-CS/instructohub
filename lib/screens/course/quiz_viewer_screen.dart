@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_html/flutter_html.dart';
-import '../../services/dynamic_theme_service.dart';
-import '../../services/enhanced_icon_service.dart';
+import 'package:InstructoHub/services/dynamic_theme_service.dart';
+import 'package:InstructoHub/services/enhanced_icon_service.dart';
 
 class QuizViewerScreen extends StatelessWidget {
   final dynamic module;

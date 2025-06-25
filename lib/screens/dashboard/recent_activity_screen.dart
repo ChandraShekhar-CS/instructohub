@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../../services/api_service.dart';
-import '../../services/dynamic_theme_service.dart';
-import '../../services/enhanced_icon_service.dart';
+import 'package:InstructoHub/services/api_service.dart';
+import 'package:InstructoHub/services/dynamic_theme_service.dart';
+import 'package:InstructoHub/services/enhanced_icon_service.dart';
 
 class RecentActivityScreen extends StatefulWidget {
   final String token;
@@ -52,7 +52,9 @@ class _RecentActivityScreenState extends State<RecentActivityScreen> {
       List<dynamic> activitiesData = [];
       if (data is List) {
         activitiesData = data;
-      } else if (data is Map && data.containsKey('activities') && data['activities'] is List) {
+      } else if (data is Map &&
+          data.containsKey('activities') &&
+          data['activities'] is List) {
         activitiesData = data['activities'];
       }
 
@@ -111,11 +113,13 @@ class _RecentActivityScreenState extends State<RecentActivityScreen> {
           children: [
             const Icon(Icons.error, color: Colors.red, size: 50),
             const SizedBox(height: 16),
-            const Text("Failed to load activity.", style: TextStyle(fontSize: 18)),
+            const Text("Failed to load activity.",
+                style: TextStyle(fontSize: 18)),
             const SizedBox(height: 8),
             Text(_errorMessage ?? 'An unknown error occurred.'),
             const SizedBox(height: 16),
-            ElevatedButton(onPressed: _fetchRecentActivity, child: const Text("Try Again"))
+            ElevatedButton(
+                onPressed: _fetchRecentActivity, child: const Text("Try Again"))
           ],
         ),
       ),
@@ -151,7 +155,8 @@ class _RecentActivityScreenState extends State<RecentActivityScreen> {
       if (timeCreated is String) {
         timeCreated = int.tryParse(timeCreated) ?? 0;
       }
-      timestamp = DateTime.fromMillisecondsSinceEpoch((timeCreated ?? 0) * 1000);
+      timestamp =
+          DateTime.fromMillisecondsSinceEpoch((timeCreated ?? 0) * 1000);
     } catch (e) {
       timestamp = DateTime.now();
     }
@@ -163,8 +168,10 @@ class _RecentActivityScreenState extends State<RecentActivityScreen> {
           DynamicIconService.instance.getIcon(actionType),
           color: themeService.getColor('secondary1'),
         ),
-        title: Text(activity['name'] ?? 'Unknown Activity', style: theme.textTheme.titleSmall),
-        subtitle: Text(activity['course']?['fullname'] ?? '', style: theme.textTheme.bodySmall),
+        title: Text(activity['name'] ?? 'Unknown Activity',
+            style: theme.textTheme.titleSmall),
+        subtitle: Text(activity['course']?['fullname'] ?? '',
+            style: theme.textTheme.bodySmall),
         trailing: Text(
           _formatTimeAgo(timestamp),
           style: theme.textTheme.bodySmall,

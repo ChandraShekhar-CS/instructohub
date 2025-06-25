@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'dart:convert';
-import '../../models/course_model.dart';
+import 'package:InstructoHub/models/course_model.dart';
 import 'course_detail_screen.dart';
-import '../../services/api_service.dart';
-import '../../services/dynamic_theme_service.dart';
-import '../../services/enhanced_icon_service.dart';
+import 'package:InstructoHub/services/api_service.dart';
+import 'package:InstructoHub/services/dynamic_theme_service.dart';
+import 'package:InstructoHub/services/enhanced_icon_service.dart';
 
 class RecommendedCoursesScreen extends StatefulWidget {
   final String token;
@@ -30,13 +30,14 @@ class _RecommendedCoursesScreenState extends State<RecommendedCoursesScreen> {
 
   Future<void> _fetchRecommendedCourses() async {
     setState(() {
-       _isLoading = true;
-       _errorMessage = null;
+      _isLoading = true;
+      _errorMessage = null;
     });
 
     try {
-      final data = await ApiService.instance.callCustomAPI('local_instructohub_get_trending_courses', widget.token, {});
-      
+      final data = await ApiService.instance.callCustomAPI(
+          'local_instructohub_get_trending_courses', widget.token, {});
+
       List<dynamic> coursesData = [];
       if (data is List) {
         coursesData = data;
@@ -67,7 +68,7 @@ class _RecommendedCoursesScreenState extends State<RecommendedCoursesScreen> {
         );
       }
     } finally {
-        if(mounted) setState(() => _isLoading = false);
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -80,22 +81,22 @@ class _RecommendedCoursesScreenState extends State<RecommendedCoursesScreen> {
           : RefreshIndicator(
               onRefresh: _fetchRecommendedCourses,
               child: _errorMessage != null
-              ? _buildErrorView()
-              : _recommendedCourses.isEmpty
-                  ? _buildEmptyView()
-                  : ListView.builder(
-                      padding: const EdgeInsets.all(16.0),
-                      itemCount: _recommendedCourses.length,
-                      itemBuilder: (context, index) {
-                        final course = _recommendedCourses[index];
-                        return _buildCourseCard(course);
-                      },
-                    ),
+                  ? _buildErrorView()
+                  : _recommendedCourses.isEmpty
+                      ? _buildEmptyView()
+                      : ListView.builder(
+                          padding: const EdgeInsets.all(16.0),
+                          itemCount: _recommendedCourses.length,
+                          itemBuilder: (context, index) {
+                            final course = _recommendedCourses[index];
+                            return _buildCourseCard(course);
+                          },
+                        ),
             ),
     );
   }
 
-   Widget _buildErrorView() {
+  Widget _buildErrorView() {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -104,11 +105,14 @@ class _RecommendedCoursesScreenState extends State<RecommendedCoursesScreen> {
           children: [
             const Icon(Icons.error, color: Colors.red, size: 50),
             const SizedBox(height: 16),
-            const Text("Failed to load recommendations.", style: TextStyle(fontSize: 18)),
+            const Text("Failed to load recommendations.",
+                style: TextStyle(fontSize: 18)),
             const SizedBox(height: 8),
             Text(_errorMessage ?? 'An unknown error occurred.'),
             const SizedBox(height: 16),
-            ElevatedButton(onPressed: _fetchRecommendedCourses, child: const Text("Try Again"))
+            ElevatedButton(
+                onPressed: _fetchRecommendedCourses,
+                child: const Text("Try Again"))
           ],
         ),
       ),
@@ -170,7 +174,10 @@ class _RecommendedCoursesScreenState extends State<RecommendedCoursesScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(course.fullname, style: theme.textTheme.titleLarge, maxLines: 2, overflow: TextOverflow.ellipsis),
+                  Text(course.fullname,
+                      style: theme.textTheme.titleLarge,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis),
                   const SizedBox(height: 8.0),
                   if (course.summary.isNotEmpty)
                     Text(
@@ -184,11 +191,14 @@ class _RecommendedCoursesScreenState extends State<RecommendedCoursesScreen> {
                     children: [
                       Chip(
                         label: const Text('Recommended'),
-                        backgroundColor: themeService.getColor('info').withOpacity(0.1),
-                        labelStyle: theme.textTheme.labelSmall?.copyWith(color: themeService.getColor('info')),
+                        backgroundColor:
+                            themeService.getColor('info').withOpacity(0.1),
+                        labelStyle: theme.textTheme.labelSmall
+                            ?.copyWith(color: themeService.getColor('info')),
                       ),
                       const Spacer(),
-                      Icon(DynamicIconService.instance.getIcon('arrow_forward'), size: 16, color: theme.textTheme.bodyMedium?.color),
+                      Icon(DynamicIconService.instance.getIcon('arrow_forward'),
+                          size: 16, color: theme.textTheme.bodyMedium?.color),
                     ],
                   ),
                 ],

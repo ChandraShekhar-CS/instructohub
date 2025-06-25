@@ -2,12 +2,12 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../../models/course_model.dart';
-import '../../models/course_category_model.dart';
+import 'package:InstructoHub/models/course_model.dart';
+import 'package:InstructoHub/models/course_category_model.dart';
 import 'course_detail_screen.dart';
-import '../../services/api_service.dart';
-import '../../services/dynamic_theme_service.dart';
-import '../../services/enhanced_icon_service.dart';
+import 'package:InstructoHub/services/api_service.dart';
+import 'package:InstructoHub/services/dynamic_theme_service.dart';
+import 'package:InstructoHub/services/enhanced_icon_service.dart';
 
 class CourseCatalogScreen extends StatefulWidget {
   final String token;
@@ -71,24 +71,24 @@ class _CourseCatalogScreenState extends State<CourseCatalogScreen> {
       }
     }
   }
-  
+
   Future<void> _handleCategoryChange() async {
-      setState(() => _isLoading = true);
-      try {
-          final courses = await _fetchCourses();
-          if(mounted) {
-              setState(() {
-                  _courses = courses;
-                  _filterCourses();
-              });
-          }
-      } catch (e) {
-          if (mounted) {
-              setState(() => _errorMessage = 'Error fetching data: ${e.toString()}');
-          }
-      } finally {
-          if (mounted) setState(() => _isLoading = false);
+    setState(() => _isLoading = true);
+    try {
+      final courses = await _fetchCourses();
+      if (mounted) {
+        setState(() {
+          _courses = courses;
+          _filterCourses();
+        });
       }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _errorMessage = 'Error fetching data: ${e.toString()}');
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
 
   Future<List<CourseCategory>> _fetchCourseCategories() async {
@@ -126,7 +126,7 @@ class _CourseCatalogScreenState extends State<CourseCatalogScreen> {
       params,
       method: 'POST',
     );
-    
+
     List<Course> courses = [];
     if (response is List) {
       courses = response
@@ -159,7 +159,7 @@ class _CourseCatalogScreenState extends State<CourseCatalogScreen> {
           .where((course) => course.fullname.toLowerCase().contains(searchTerm))
           .toList();
     }
-    
+
     setState(() {
       _filteredCourses = tempCourses;
     });
@@ -228,8 +228,10 @@ class _CourseCatalogScreenState extends State<CourseCatalogScreen> {
         margin: EdgeInsets.all(themeService.getSpacing('lg')),
         decoration: BoxDecoration(
             color: themeService.getColor('error').withOpacity(0.1),
-            borderRadius: BorderRadius.circular(themeService.getBorderRadius('medium')),
-            border: Border.all(color: themeService.getColor('error').withOpacity(0.3))),
+            borderRadius:
+                BorderRadius.circular(themeService.getBorderRadius('medium')),
+            border: Border.all(
+                color: themeService.getColor('error').withOpacity(0.3))),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -237,7 +239,8 @@ class _CourseCatalogScreenState extends State<CourseCatalogScreen> {
                 size: 64, color: themeService.getColor('error')),
             SizedBox(height: themeService.getSpacing('md')),
             Text('Failed to Load Courses',
-                style: textTheme.headlineSmall?.copyWith(color: themeService.getColor('error'))),
+                style: textTheme.headlineSmall
+                    ?.copyWith(color: themeService.getColor('error'))),
             SizedBox(height: themeService.getSpacing('sm')),
             Text(_errorMessage ?? 'An unexpected error occurred',
                 textAlign: TextAlign.center, style: textTheme.bodyMedium),
@@ -300,7 +303,9 @@ class _CourseCatalogScreenState extends State<CourseCatalogScreen> {
             ? 4
             : (constraints.maxWidth > 800)
                 ? 3
-                : (constraints.maxWidth > 500) ? 2 : 1;
+                : (constraints.maxWidth > 500)
+                    ? 2
+                    : 1;
         double childAspectRatio = (crossAxisCount == 1) ? 3.0 : 0.8;
 
         return GridView.builder(
@@ -318,7 +323,9 @@ class _CourseCatalogScreenState extends State<CourseCatalogScreen> {
               course: course,
               token: widget.token,
               onCoursePressed: _openCourse,
-              layoutType: crossAxisCount == 1 ? CardLayoutType.list : CardLayoutType.grid,
+              layoutType: crossAxisCount == 1
+                  ? CardLayoutType.list
+                  : CardLayoutType.grid,
             );
           },
         );
@@ -329,7 +336,8 @@ class _CourseCatalogScreenState extends State<CourseCatalogScreen> {
   Widget _buildEmptyState() {
     final themeService = DynamicThemeService.instance;
     final textTheme = Theme.of(context).textTheme;
-    final bool hasContent = _searchController.text.isNotEmpty || _selectedCategoryIds.isNotEmpty;
+    final bool hasContent =
+        _searchController.text.isNotEmpty || _selectedCategoryIds.isNotEmpty;
 
     return Center(
       child: Padding(
@@ -338,15 +346,19 @@ class _CourseCatalogScreenState extends State<CourseCatalogScreen> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(
-              DynamicIconService.instance.getIcon(hasContent ? 'search' : 'courses'),
+              DynamicIconService.instance
+                  .getIcon(hasContent ? 'search' : 'courses'),
               size: 64,
               color: themeService.getColor('textSecondary').withOpacity(0.5),
             ),
             SizedBox(height: themeService.getSpacing('md')),
-            Text(hasContent ? 'No courses found' : 'No courses available', style: textTheme.headlineSmall),
+            Text(hasContent ? 'No courses found' : 'No courses available',
+                style: textTheme.headlineSmall),
             SizedBox(height: themeService.getSpacing('sm')),
             Text(
-              hasContent ? 'Try adjusting your search or filters' : 'Check back later for new courses',
+              hasContent
+                  ? 'Try adjusting your search or filters'
+                  : 'Check back later for new courses',
               textAlign: TextAlign.center,
               style: textTheme.bodyMedium,
             ),
@@ -370,7 +382,7 @@ class _CourseCatalogScreenState extends State<CourseCatalogScreen> {
       ),
     );
   }
-  
+
   Widget _buildFilterPanel() {
     final themeService = DynamicThemeService.instance;
     return Material(
@@ -403,7 +415,8 @@ class _CourseCatalogScreenState extends State<CourseCatalogScreen> {
             children: [
               if (_selectedCategoryIds.isNotEmpty)
                 IconButton(
-                  icon: Icon(DynamicIconService.instance.getIcon('refresh'), color: themeService.getColor('secondary1')),
+                  icon: Icon(DynamicIconService.instance.getIcon('refresh'),
+                      color: themeService.getColor('secondary1')),
                   onPressed: () {
                     setState(() => _selectedCategoryIds.clear());
                     _handleCategoryChange();
@@ -517,11 +530,16 @@ class CourseCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(course.fullname, style: textTheme.titleMedium, maxLines: 2, overflow: TextOverflow.ellipsis),
+                Text(course.fullname,
+                    style: textTheme.titleMedium,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis),
                 const SizedBox(height: 4),
                 Expanded(
                   child: Text(
-                    course.summary.isNotEmpty ? _cleanHtmlContent(course.summary) : 'Explore this course to learn new skills.',
+                    course.summary.isNotEmpty
+                        ? _cleanHtmlContent(course.summary)
+                        : 'Explore this course to learn new skills.',
                     style: textTheme.bodySmall,
                     overflow: TextOverflow.ellipsis,
                     maxLines: 3,
@@ -547,14 +565,18 @@ class CourseCard extends StatelessWidget {
 
     return Row(
       children: [
-        SizedBox(width: 120, child: _buildCourseImage(context, course.courseimage)),
+        SizedBox(
+            width: 120, child: _buildCourseImage(context, course.courseimage)),
         Expanded(
           child: Padding(
             padding: const EdgeInsets.all(16.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(course.fullname, style: textTheme.titleMedium, maxLines: 2, overflow: TextOverflow.ellipsis),
+                Text(course.fullname,
+                    style: textTheme.titleMedium,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis),
                 const Spacer(),
                 if (course.progress != null)
                   Column(
@@ -566,7 +588,8 @@ class CourseCard extends StatelessWidget {
                         minHeight: 8,
                       ),
                       const SizedBox(height: 6),
-                      Text('${progress.toStringAsFixed(0)}% Complete', style: textTheme.bodySmall),
+                      Text('${progress.toStringAsFixed(0)}% Complete',
+                          style: textTheme.bodySmall),
                     ],
                   ),
               ],
@@ -585,8 +608,10 @@ class CourseCard extends StatelessWidget {
           ? CachedNetworkImage(
               imageUrl: course.courseimage,
               fit: BoxFit.cover,
-              placeholder: (context, url) => const Center(child: CircularProgressIndicator()),
-              errorWidget: (context, url, error) => _buildImagePlaceholder(context),
+              placeholder: (context, url) =>
+                  const Center(child: CircularProgressIndicator()),
+              errorWidget: (context, url, error) =>
+                  _buildImagePlaceholder(context),
             )
           : _buildImagePlaceholder(context),
     );

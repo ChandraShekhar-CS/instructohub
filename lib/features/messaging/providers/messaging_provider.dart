@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import '../../../services/api_service.dart';
-import '../models/conversation_model.dart';
-import '../models/message_model.dart';
+import 'package:InstructoHub/services/api_service.dart';
+import 'package:InstructoHub/features/messaging/models/conversation_model.dart';
+import 'package:InstructoHub/features/messaging/models/message_model.dart';
 
 class MessagingProvider with ChangeNotifier {
   final ApiService _apiService = ApiService.instance;
@@ -22,7 +22,8 @@ class MessagingProvider with ChangeNotifier {
     notifyListeners();
     try {
       final response = await _apiService.getConversations(_token);
-      _conversations = response.map((data) => Conversation.fromJson(data)).toList();
+      _conversations =
+          response.map((data) => Conversation.fromJson(data)).toList();
     } catch (e) {
       print("Error in fetchConversations: $e");
     } finally {
@@ -33,8 +34,9 @@ class MessagingProvider with ChangeNotifier {
 
   Future<List<Message>> fetchMessagesForConversation(int conversationId) async {
     try {
-       final response = await _apiService.getConversationMessages(_token, conversationId);
-       return response.map((data) => Message.fromJson(data)).toList();
+      final response =
+          await _apiService.getConversationMessages(_token, conversationId);
+      return response.map((data) => Message.fromJson(data)).toList();
     } catch (e) {
       print("Error in fetchMessagesForConversation: $e");
       return [];
@@ -47,7 +49,7 @@ class MessagingProvider with ChangeNotifier {
       // Refresh conversations to show the new message
       await fetchConversations();
       return true;
-    } catch(e) {
+    } catch (e) {
       print("Error sending message: $e");
       return false;
     }

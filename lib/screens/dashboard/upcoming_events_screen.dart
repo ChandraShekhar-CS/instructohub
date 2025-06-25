@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import '../../services/api_service.dart';
-import '../../services/dynamic_theme_service.dart';
-import '../../services/enhanced_icon_service.dart';
+import 'package:InstructoHub/services/api_service.dart';
+import 'package:InstructoHub/services/dynamic_theme_service.dart';
+import 'package:InstructoHub/services/enhanced_icon_service.dart';
 
 class UpcomingEventsScreen extends StatefulWidget {
   final String token;
@@ -86,13 +86,13 @@ class _UpcomingEventsScreenState extends State<UpcomingEventsScreen> {
           children: [
             const Icon(Icons.error, color: Colors.red, size: 50),
             const SizedBox(height: 16),
-            const Text("Failed to load events.", style: TextStyle(fontSize: 18)),
+            const Text("Failed to load events.",
+                style: TextStyle(fontSize: 18)),
             const SizedBox(height: 8),
             Text(_errorMessage ?? 'An unknown error occurred.'),
             const SizedBox(height: 16),
             ElevatedButton(
-                onPressed: _fetchUpcomingEvents,
-                child: const Text("Try Again"))
+                onPressed: _fetchUpcomingEvents, child: const Text("Try Again"))
           ],
         ),
       ),
@@ -174,11 +174,13 @@ class UpcomingEvent {
     final now = DateTime.now();
     final difference = date.difference(now);
 
-    if (date.year == now.year && date.month == now.month && date.day == now.day) {
+    if (date.year == now.year &&
+        date.month == now.month &&
+        date.day == now.day) {
       return 'Today at ${_formatTime(date)}';
     }
-    if (difference.inDays == 1 && date.day == now.day +1) {
-       return 'Tomorrow at ${_formatTime(date)}';
+    if (difference.inDays == 1 && date.day == now.day + 1) {
+      return 'Tomorrow at ${_formatTime(date)}';
     }
 
     final weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];

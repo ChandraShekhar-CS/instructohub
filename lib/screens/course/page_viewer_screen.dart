@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
-import '../../services/dynamic_theme_service.dart';
+import 'package:InstructoHub/services/dynamic_theme_service.dart';
 
 class PageViewerScreen extends StatefulWidget {
   final dynamic module;

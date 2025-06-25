@@ -3,18 +3,18 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
-import '../../models/course_model.dart';
-import '../../services/api_service.dart';
-import '../../services/download_service.dart';
-import '../course/module_detail_screen.dart';
-import '../course/page_viewer_screen.dart';
-import '../course/assignment_viewer_screen.dart';
-import '../course/quiz_viewer_screen.dart';
-import '../course/forum_viewer_screen.dart';
-import '../course/resource_viewer_screen.dart';
+import 'package:InstructoHub/models/course_model.dart';
+import 'package:InstructoHub/services/api_service.dart';
+import 'package:InstructoHub/services/download_service.dart';
+import 'package:InstructoHub/screens/course/module_detail_screen.dart';
+import 'package:InstructoHub/screens/course/page_viewer_screen.dart';
+import 'package:InstructoHub/screens/course/assignment_viewer_screen.dart';
+import 'package:InstructoHub/screens/course/quiz_viewer_screen.dart';
+import 'package:InstructoHub/screens/course/forum_viewer_screen.dart';
+import 'package:InstructoHub/screens/course/resource_viewer_screen.dart';
 import 'course_catalog_screen.dart';
-import '../../services/enhanced_icon_service.dart';
-import '../../services/dynamic_theme_service.dart';
+import 'package:InstructoHub/services/enhanced_icon_service.dart';
+import 'package:InstructoHub/services/dynamic_theme_service.dart';
 
 class CourseDetailScreen extends StatefulWidget {
   final Course course;
@@ -51,7 +51,7 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
     });
     _listenToDownloadProgress();
   }
-  
+
   @override
   void dispose() {
     _progressSubscription?.cancel();
@@ -73,7 +73,8 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
       },
       onError: (error) {
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Download failed: $error')));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Download failed: $error')));
         setState(() => _downloadProgress = null);
       },
     );
@@ -93,7 +94,8 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
       if (_isDownloaded) {
         contents = await _loadCourseContentFromLocal();
       } else {
-        contents = await ApiService.instance.getCourseContent(widget.course.id.toString(), widget.token);
+        contents = await ApiService.instance
+            .getCourseContent(widget.course.id.toString(), widget.token);
       }
 
       await _fetchExtendedCourseInfo();
@@ -119,7 +121,8 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
 
   Future<List<dynamic>> _loadCourseContentFromLocal() async {
     final appDir = await getApplicationDocumentsDirectory();
-    final courseDir = Directory('${appDir.path}/offline_courses/${widget.course.id}');
+    final courseDir =
+        Directory('${appDir.path}/offline_courses/${widget.course.id}');
     final metadataFile = File('${courseDir.path}/course_data.json');
 
     if (await metadataFile.exists()) {
@@ -137,7 +140,9 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
           widget.token,
           {'field': 'id', 'value': widget.course.id.toString()},
           method: 'GET');
-      if (mounted && response['courses'] != null && response['courses'].isNotEmpty) {
+      if (mounted &&
+          response['courses'] != null &&
+          response['courses'].isNotEmpty) {
         setState(() => _courseDetails = response['courses'][0]);
       }
     } catch (e) {
@@ -160,19 +165,34 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
     final theme = Theme.of(context);
 
     final modScreenMap = {
-      'forum': ForumViewerScreen(module: module, foundContent: foundContent, token: widget.token),
-      'assign': AssignmentViewerScreen(module: module, foundContent: foundContent, token: widget.token),
-      'quiz': QuizViewerScreen(module: module, foundContent: foundContent, token: widget.token),
-      'resource': ResourceViewerScreen(module: module, isOffline: _isDownloaded, foundContent: foundContent, token: widget.token),
-      'page': PageViewerScreen(module: module, isOffline: _isDownloaded, foundContent: foundContent, token: widget.token),
+      'forum': ForumViewerScreen(
+          module: module, foundContent: foundContent, token: widget.token),
+      'assign': AssignmentViewerScreen(
+          module: module, foundContent: foundContent, token: widget.token),
+      'quiz': QuizViewerScreen(
+          module: module, foundContent: foundContent, token: widget.token),
+      'resource': ResourceViewerScreen(
+          module: module,
+          isOffline: _isDownloaded,
+          foundContent: foundContent,
+          token: widget.token),
+      'page': PageViewerScreen(
+          module: module,
+          isOffline: _isDownloaded,
+          foundContent: foundContent,
+          token: widget.token),
     };
 
-    destinationScreen = modScreenMap[module['modname']] ?? ModuleDetailScreen(module: module, token: widget.token);
+    destinationScreen = modScreenMap[module['modname']] ??
+        ModuleDetailScreen(module: module, token: widget.token);
 
     return ListTile(
-      leading: Icon(DynamicIconService.instance.getIcon(module['modname']), color: theme.textTheme.bodyMedium?.color),
-      title: Text(module['name'] ?? 'Unnamed Module', style: theme.textTheme.titleSmall),
-      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => destinationScreen)),
+      leading: Icon(DynamicIconService.instance.getIcon(module['modname']),
+          color: theme.textTheme.bodyMedium?.color),
+      title: Text(module['name'] ?? 'Unnamed Module',
+          style: theme.textTheme.titleSmall),
+      onTap: () => Navigator.push(
+          context, MaterialPageRoute(builder: (context) => destinationScreen)),
     );
   }
 
@@ -180,7 +200,7 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
     final themeService = DynamicThemeService.instance;
     final textTheme = Theme.of(context).textTheme;
     final double progress = widget.course.progress ?? 0.0;
-    
+
     String statusText;
     Color statusColor;
 
@@ -209,19 +229,25 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
                     vertical: themeService.getSpacing('xs')),
                 decoration: BoxDecoration(
                     color: statusColor.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(themeService.getBorderRadius('small'))),
-                child: Text(statusText, style: textTheme.labelSmall?.copyWith(color: statusColor, fontWeight: FontWeight.bold)),
+                    borderRadius: BorderRadius.circular(
+                        themeService.getBorderRadius('small'))),
+                child: Text(statusText,
+                    style: textTheme.labelSmall?.copyWith(
+                        color: statusColor, fontWeight: FontWeight.bold)),
               ),
-              Text('${progress.toStringAsFixed(0)}%', style: textTheme.bodySmall?.copyWith(color: statusColor)),
+              Text('${progress.toStringAsFixed(0)}%',
+                  style: textTheme.bodySmall?.copyWith(color: statusColor)),
             ],
           ),
           SizedBox(height: themeService.getSpacing('sm')),
           ClipRRect(
-            borderRadius: BorderRadius.circular(themeService.getBorderRadius('large')),
+            borderRadius:
+                BorderRadius.circular(themeService.getBorderRadius('large')),
             child: LinearProgressIndicator(
               value: progress / 100.0,
               minHeight: 8,
-              backgroundColor: themeService.getColor('textSecondary').withOpacity(0.2),
+              backgroundColor:
+                  themeService.getColor('textSecondary').withOpacity(0.2),
               valueColor: AlwaysStoppedAnimation<Color>(statusColor),
             ),
           ),
@@ -243,13 +269,16 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
       );
     }
 
-    if (_downloadProgress != null && _downloadProgress! > 0 && _downloadProgress! < 1) {
+    if (_downloadProgress != null &&
+        _downloadProgress! > 0 &&
+        _downloadProgress! < 1) {
       return Padding(
         padding: const EdgeInsets.all(8.0),
         child: SizedBox(
           width: 24,
           height: 24,
-          child: CircularProgressIndicator(value: _downloadProgress, strokeWidth: 3),
+          child: CircularProgressIndicator(
+              value: _downloadProgress, strokeWidth: 3),
         ),
       );
     }
@@ -257,7 +286,8 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
     return IconButton(
       icon: Icon(DynamicIconService.instance.getIcon('download')),
       tooltip: 'Download Course',
-      onPressed: () => _downloadService.downloadCourse(widget.course, widget.token),
+      onPressed: () =>
+          _downloadService.downloadCourse(widget.course, widget.token),
     );
   }
 
@@ -316,13 +346,16 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(widget.course.fullname, style: textTheme.headlineSmall),
+                        Text(widget.course.fullname,
+                            style: textTheme.headlineSmall),
                         if (widget.course.summary.isNotEmpty) ...[
                           SizedBox(height: themeService.getSpacing('sm')),
-                          Text(widget.course.summary, style: textTheme.bodyMedium),
+                          Text(widget.course.summary,
+                              style: textTheme.bodyMedium),
                         ],
                         SizedBox(height: themeService.getSpacing('md')),
-                        if (_courseDetails != null && _courseDetails!['enrolledusercount'] != null)
+                        if (_courseDetails != null &&
+                            _courseDetails!['enrolledusercount'] != null)
                           Row(
                             children: [
                               Icon(
@@ -331,7 +364,9 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
                                 color: themeService.getColor('textSecondary'),
                               ),
                               SizedBox(width: themeService.getSpacing('sm')),
-                              Text('${_courseDetails!['enrolledusercount']} enrolled', style: textTheme.bodySmall),
+                              Text(
+                                  '${_courseDetails!['enrolledusercount']} enrolled',
+                                  style: textTheme.bodySmall),
                             ],
                           ),
                       ],
@@ -340,17 +375,20 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
                   const Divider(),
                   if (_courseContents.isEmpty)
                     const Center(
-                      child: Padding(
-                        padding: EdgeInsets.all(16.0),
-                        child: Text('No course content available.'),
-                      ))
+                        child: Padding(
+                      padding: EdgeInsets.all(16.0),
+                      child: Text('No course content available.'),
+                    ))
                   else
                     Builder(
                       builder: (context) {
-                        final filteredSections = _courseContents.asMap().entries.where((entry) {
+                        final filteredSections =
+                            _courseContents.asMap().entries.where((entry) {
                           final section = entry.value;
-                          final modules = section['modules'] as List<dynamic>? ?? [];
-                          return !(section['name'] == 'General' && modules.isEmpty);
+                          final modules =
+                              section['modules'] as List<dynamic>? ?? [];
+                          return !(section['name'] == 'General' &&
+                              modules.isEmpty);
                         }).toList();
 
                         return ListView.builder(
@@ -360,7 +398,8 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
                           itemBuilder: (context, index) {
                             final entry = filteredSections[index];
                             final section = entry.value;
-                            final modules = section['modules'] as List<dynamic>? ?? [];
+                            final modules =
+                                section['modules'] as List<dynamic>? ?? [];
 
                             return Card(
                               key: Key('card_$index'),
@@ -369,16 +408,23 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
                                   vertical: themeService.getSpacing('sm')),
                               clipBehavior: Clip.antiAlias,
                               child: ExpansionTile(
-                                key: PageStorageKey('section_$index'), // Maintain expansion state
-                                title: Text(section['name'] ?? 'Unnamed Section', style: textTheme.titleMedium),
+                                key: PageStorageKey(
+                                    'section_$index'), // Maintain expansion state
+                                title: Text(
+                                    section['name'] ?? 'Unnamed Section',
+                                    style: textTheme.titleMedium),
                                 children: [
                                   if (modules.isEmpty)
                                     const Padding(
                                       padding: EdgeInsets.all(16.0),
-                                      child: Text('No modules in this section.'),
+                                      child:
+                                          Text('No modules in this section.'),
                                     )
                                   else
-                                    ...modules.map((module) => _buildModuleItem(module)).toList()
+                                    ...modules
+                                        .map((module) =>
+                                            _buildModuleItem(module))
+                                        .toList()
                                 ],
                               ),
                             );

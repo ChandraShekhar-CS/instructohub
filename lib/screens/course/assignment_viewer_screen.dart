@@ -1,10 +1,10 @@
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_html/flutter_html.dart';
-import '../../models/offline_submission_model.dart';
-import '../../services/dynamic_theme_service.dart';
-import '../../services/enhanced_icon_service.dart';
-import '../../services/sync_service.dart';
+import 'package:InstructoHub/models/offline_submission_model.dart';
+import 'package:InstructoHub/services/dynamic_theme_service.dart';
+import 'package:InstructoHub/services/enhanced_icon_service.dart';
+import 'package:InstructoHub/services/sync_service.dart';
 
 class AssignmentViewerScreen extends StatefulWidget {
   final dynamic module;

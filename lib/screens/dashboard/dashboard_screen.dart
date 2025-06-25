@@ -102,6 +102,7 @@ class _DashboardScreenState extends State<DashboardScreen>
       DashboardItem(id: 6, type: DashboardWidgetType.recentActivity),
     ];
 
+    // CHANGED: Actions now get colors dynamically
     final themeService = DynamicThemeService.instance;
     _quickActions = [
       QuickActionItem(
@@ -130,7 +131,7 @@ class _DashboardScreenState extends State<DashboardScreen>
       ),
     ];
   }
-  
+
   Future<void> _initializeServices() async {
     try {
       await DynamicIconService.instance.loadIcons(token: widget.token);
@@ -162,7 +163,7 @@ class _DashboardScreenState extends State<DashboardScreen>
           _isUserLoading = false;
         });
       } else {
-        if(mounted) setState(() => _isUserLoading = false);
+        if (mounted) setState(() => _isUserLoading = false);
       }
     } catch (e) {
       if (mounted) {
@@ -242,7 +243,7 @@ class _DashboardScreenState extends State<DashboardScreen>
       }
     }
   }
-  
+
   void _navigateToScreen(Widget screen, String screenName) {
     try {
       Navigator.push(
@@ -255,6 +256,7 @@ class _DashboardScreenState extends State<DashboardScreen>
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Unable to open $screenName. Please try again.'),
+            // CHANGED: Using dynamic color
             backgroundColor: DynamicThemeService.instance.getColor('error'),
           ),
         );
@@ -281,6 +283,7 @@ class _DashboardScreenState extends State<DashboardScreen>
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: const Text('Unable to open course. Please try again.'),
+            // CHANGED: Using dynamic color
             backgroundColor: DynamicThemeService.instance.getColor('error'),
           ),
         );
@@ -341,34 +344,40 @@ class _DashboardScreenState extends State<DashboardScreen>
   }
 
   Widget _buildDrawer() {
+    // ADDED: Get theme service instance
     final themeService = DynamicThemeService.instance;
     final textTheme = Theme.of(context).textTheme;
-    
+    final drawerHeaderColor = themeService.getColor('secondary2');
+    final drawerBackgroundColor = themeService.getColor('secondary1');
+    final iconColor = themeService.getColor('loginButtonTextColor');
+
     return Drawer(
       child: Container(
-        color: themeService.getColor('secondary1'),
+        // CHANGED: Dynamic color
+        color: drawerBackgroundColor,
         child: ListView(
           padding: EdgeInsets.zero,
           children: [
             _isUserLoading
                 ? DrawerHeader(
-                    decoration: BoxDecoration(color: themeService.getColor('secondary2')),
-                    child: const Center(
-                        child: CircularProgressIndicator(color: Colors.white)),
+                    decoration: BoxDecoration(color: drawerHeaderColor),
+                    child: Center(
+                        child: CircularProgressIndicator(color: iconColor)),
                   )
                 : UserAccountsDrawerHeader(
                     accountName: Text(
                       _userInfo?['fullname'] ?? 'User',
-                      style: textTheme.titleLarge?.copyWith(color: Colors.white),
+                      style: textTheme.titleLarge?.copyWith(color: iconColor),
                     ),
                     accountEmail: Text(
                       _userInfo?['email'] ?? 'user@email.com',
-                      style: textTheme.bodyMedium?.copyWith(color: Colors.white.withOpacity(0.9)),
+                      style: textTheme.bodyMedium
+                          ?.copyWith(color: iconColor.withOpacity(0.9)),
                     ),
                     currentAccountPicture: Container(
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        border: Border.all(color: Colors.white, width: 2),
+                        border: Border.all(color: iconColor, width: 2),
                       ),
                       child: CircleAvatar(
                         backgroundColor: themeService.getColor('secondary3'),
@@ -383,7 +392,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                       ),
                     ),
                     decoration: BoxDecoration(
-                      color: themeService.getColor('secondary2'),
+                      color: drawerHeaderColor,
                     ),
                   ),
             ..._drawerItems.map((item) {
@@ -391,24 +400,25 @@ class _DashboardScreenState extends State<DashboardScreen>
                 margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(12),
-                  color: Colors.white.withOpacity(0.1),
+                  // CHANGED: Dynamic color
+                  color: iconColor.withOpacity(0.1),
                 ),
                 child: ListTile(
                   leading: Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
+                      color: iconColor.withOpacity(0.2),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Icon(
                       DynamicIconService.instance.getIcon(item.type.name),
-                      color: Colors.white,
+                      color: iconColor,
                       size: 20,
                     ),
                   ),
                   title: Text(
                     item.title,
-                    style: textTheme.bodyLarge?.copyWith(color: Colors.white),
+                    style: textTheme.bodyLarge?.copyWith(color: iconColor),
                   ),
                   onTap: () => _navigateTo(item.type),
                 ),
@@ -419,24 +429,24 @@ class _DashboardScreenState extends State<DashboardScreen>
               margin: const EdgeInsets.symmetric(horizontal: 8),
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(12),
-                color: Colors.red.withOpacity(0.2),
+                color: themeService.getColor('error').withOpacity(0.2),
               ),
               child: ListTile(
                 leading: Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: Colors.red.withOpacity(0.3),
+                    color: themeService.getColor('error').withOpacity(0.3),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Icon(
                     DynamicIconService.instance.getIcon('logout'),
-                    color: Colors.white,
+                    color: iconColor,
                     size: 20,
                   ),
                 ),
                 title: Text(
                   AppStrings.logout,
-                  style: textTheme.bodyLarge?.copyWith(color: Colors.white),
+                  style: textTheme.bodyLarge?.copyWith(color: iconColor),
                 ),
                 onTap: _logout,
               ),
@@ -450,21 +460,10 @@ class _DashboardScreenState extends State<DashboardScreen>
   Widget _buildWelcomeSection() {
     final themeService = DynamicThemeService.instance;
     final textTheme = Theme.of(context).textTheme;
-    
-    return Container(
-      margin: const EdgeInsets.all(16),
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: themeService.getDynamicButtonGradient(),
-        borderRadius: BorderRadius.circular(themeService.getBorderRadius('large')),
-        boxShadow: [
-          BoxShadow(
-            color: themeService.getColor('secondary1').withOpacity(0.3),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
+
+    return themeService.buildGradientContainer(
+      margin: EdgeInsets.all(themeService.getSpacing('md')),
+      gradient: themeService.getWelcomeGradient(),
       child: Row(
         children: [
           Expanded(
@@ -473,30 +472,38 @@ class _DashboardScreenState extends State<DashboardScreen>
               children: [
                 Text(
                   '${_getGreeting()},',
-                  style: textTheme.bodyLarge?.copyWith(color: Colors.white.withOpacity(0.9)),
+                  style: textTheme.bodyLarge?.copyWith(
+                    color: themeService.getColor('textSecondary'),
+                  ),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   _userInfo?['fullname']?.split(' ').first ?? 'User',
-                  style: textTheme.headlineSmall?.copyWith(color: Colors.white, fontWeight: FontWeight.bold),
+                  style: textTheme.headlineSmall?.copyWith(
+                    color: themeService.getColor('textPrimary'),
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
                 const SizedBox(height: 8),
                 Text(
                   AppStrings.readyToContinue,
-                  style: textTheme.bodyMedium?.copyWith(color: Colors.white.withOpacity(0.8)),
+                  style: textTheme.bodyMedium?.copyWith(
+                    color: themeService.getColor('textSecondary'),
+                  ),
                 ),
               ],
             ),
           ),
           Container(
-            padding: const EdgeInsets.all(12),
+            padding: EdgeInsets.all(themeService.getSpacing('sm') + 4),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(themeService.getBorderRadius('medium')),
+              color: themeService.getColor('primary').withOpacity(0.15),
+              borderRadius:
+                  BorderRadius.circular(themeService.getBorderRadius('medium')),
             ),
             child: Icon(
               DynamicIconService.instance.getIcon('school'),
-              color: Colors.white,
+              color: themeService.getColor('primary'),
               size: 32,
             ),
           ),
@@ -518,13 +525,17 @@ class _DashboardScreenState extends State<DashboardScreen>
 
     if (_isMetricsLoading) {
       return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(20),
+        child: themeService.buildFloatingCard(
           child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              CircularProgressIndicator(color: themeService.getColor('secondary1')),
-              const SizedBox(height: 12),
-              Text(AppStrings.loadingMetrics, style: textTheme.bodyMedium),
+              CircularProgressIndicator(
+                  color: themeService.getColor('primary')),
+              SizedBox(height: themeService.getSpacing('sm')),
+              Text(
+                AppStrings.loadingMetrics,
+                style: textTheme.bodyMedium,
+              ),
             ],
           ),
         ),
@@ -533,56 +544,62 @@ class _DashboardScreenState extends State<DashboardScreen>
 
     if (_errorMessage != null) {
       return Container(
-        margin: const EdgeInsets.symmetric(horizontal: 16),
-        child: Card(
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              children: [
-                Icon(Icons.error_outline,
-                    color: themeService.getColor('error'),
-                    size: 48),
-                const SizedBox(height: 12),
-                Text(AppStrings.errorLoadingData,
-                  style: textTheme.titleMedium?.copyWith(color: themeService.getColor('error'))),
-                const SizedBox(height: 8),
-                Text(_errorMessage!, style: textTheme.bodySmall, textAlign: TextAlign.center),
-                const SizedBox(height: 16),
-                ElevatedButton(
-                  onPressed: _fetchLearningMetrics,
-                  child: const Text(AppStrings.tryAgain),
+        margin: EdgeInsets.symmetric(horizontal: themeService.getSpacing('md')),
+        child: themeService.buildFloatingCard(
+          child: Column(
+            children: [
+              Icon(
+                Icons.error_outline,
+                color: themeService.getColor('error'),
+                size: 48,
+              ),
+              SizedBox(height: themeService.getSpacing('sm')),
+              Text(
+                AppStrings.errorLoadingData,
+                style: textTheme.titleMedium?.copyWith(
+                  color: themeService.getColor('error'),
                 ),
-              ],
-            ),
+              ),
+              SizedBox(height: themeService.getSpacing('xs')),
+              Text(
+                _errorMessage!,
+                style: textTheme.bodySmall,
+                textAlign: TextAlign.center,
+              ),
+              SizedBox(height: themeService.getSpacing('md')),
+              ElevatedButton(
+                onPressed: _fetchLearningMetrics,
+                style: themeService.getPrimaryButtonStyle(),
+                child: const Text(AppStrings.tryAgain),
+              ),
+            ],
           ),
         ),
       );
     }
 
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
+      margin: EdgeInsets.symmetric(horizontal: themeService.getSpacing('md')),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(AppStrings.yourLearningMetrics, style: textTheme.headlineSmall),
-          const SizedBox(height: 16),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  themeService.getColor('secondary1').withOpacity(0.1),
-                  themeService.getColor('secondary2').withOpacity(0.1)
-                ],
-              ),
-              borderRadius: BorderRadius.circular(themeService.getBorderRadius('large')),
-              border: Border.all(color: themeService.getColor('secondary1').withOpacity(0.3)),
-            ),
+          Text(
+            AppStrings.yourLearningMetrics,
+            style: textTheme.headlineSmall,
+          ),
+          SizedBox(height: themeService.getSpacing('md')),
+
+          // Overall Progress Card
+          themeService.buildFloatingCard(
             child: Column(
               children: [
-                Text(AppStrings.overallProgress, style: textTheme.titleLarge),
-                const SizedBox(height: 16),
+                Text(
+                  AppStrings.overallProgress,
+                  style: textTheme.titleLarge?.copyWith(
+                    color: themeService.getColor('textPrimary'),
+                  ),
+                ),
+                SizedBox(height: themeService.getSpacing('md')),
                 SizedBox(
                   width: 120,
                   height: 120,
@@ -593,15 +610,38 @@ class _DashboardScreenState extends State<DashboardScreen>
                         width: 120,
                         height: 120,
                         child: CircularProgressIndicator(
-                          value: (_learningMetrics['overallProgress'] ?? 0.0) / 100,
+                          value: (_learningMetrics['overallProgress'] ?? 0.0) /
+                              100,
                           strokeWidth: 12,
-                          backgroundColor: themeService.getColor('textSecondary').withOpacity(0.2),
-                          valueColor: AlwaysStoppedAnimation<Color>(themeService.getColor('secondary1')),
+                          backgroundColor:
+                              themeService.getColor('divider').withOpacity(0.3),
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            themeService.getColor('primary'),
+                          ),
                         ),
                       ),
-                      Text(
-                        '${(_learningMetrics['overallProgress'] ?? 0.0).toStringAsFixed(0)}%',
-                        style: textTheme.headlineSmall,
+                      Container(
+                        padding: EdgeInsets.all(themeService.getSpacing('sm')),
+                        decoration: BoxDecoration(
+                          color: themeService.getColor('cardElevated'),
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: themeService
+                                  .getColor('textPrimary')
+                                  .withOpacity(0.1),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Text(
+                          '${(_learningMetrics['overallProgress'] ?? 0.0).toStringAsFixed(0)}%',
+                          style: textTheme.headlineSmall?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: themeService.getColor('primary'),
+                          ),
+                        ),
                       ),
                     ],
                   ),
@@ -609,34 +649,37 @@ class _DashboardScreenState extends State<DashboardScreen>
               ],
             ),
           ),
-          const SizedBox(height: 16),
+
+          SizedBox(height: themeService.getSpacing('md')),
+
+          // Metrics Grid
           GridView.count(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             crossAxisCount: 2,
-            crossAxisSpacing: 12,
-            mainAxisSpacing: 12,
+            crossAxisSpacing: themeService.getSpacing('sm'),
+            mainAxisSpacing: themeService.getSpacing('sm'),
             childAspectRatio: 1.3,
             children: [
-              _buildMetricCard(
+              _buildEnhancedMetricCard(
                 AppStrings.totalCourses,
                 _learningMetrics['totalCourses'] ?? '0',
                 DynamicIconService.instance.getIcon('courses'),
                 themeService.getColor('info'),
               ),
-              _buildMetricCard(
+              _buildEnhancedMetricCard(
                 AppStrings.completed,
                 _learningMetrics['completed'] ?? '0',
                 DynamicIconService.instance.getIcon('check_circle'),
                 themeService.getColor('success'),
               ),
-              _buildMetricCard(
+              _buildEnhancedMetricCard(
                 AppStrings.activeCourses,
                 _learningMetrics['activeCourses'] ?? '0',
                 DynamicIconService.instance.getIcon('play'),
                 themeService.getColor('warning'),
               ),
-              _buildMetricCard(
+              _buildEnhancedMetricCard(
                 AppStrings.notStarted,
                 _learningMetrics['notStarted'] ?? '0',
                 DynamicIconService.instance.getIcon('schedule'),
@@ -649,14 +692,77 @@ class _DashboardScreenState extends State<DashboardScreen>
     );
   }
 
-  Widget _buildMetricCard(String title, String value, IconData icon, Color color) {
-    final textTheme = Theme.of(context).textTheme;
+  Widget _buildEnhancedMetricCard(
+      String title, String value, IconData icon, Color color) {
     final themeService = DynamicThemeService.instance;
+    final textTheme = Theme.of(context).textTheme;
+
+    return Container(
+      decoration: themeService.getDynamicCardDecoration(
+        boxShadow: [
+          BoxShadow(
+            color: color.withOpacity(0.1),
+            spreadRadius: 0,
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+          BoxShadow(
+            color: themeService.getColor('textPrimary').withOpacity(0.05),
+            spreadRadius: 0,
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: EdgeInsets.all(themeService.getSpacing('md')),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: EdgeInsets.all(themeService.getSpacing('sm')),
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(
+                    themeService.getBorderRadius('small')),
+              ),
+              child: Icon(icon, color: color, size: 28),
+            ),
+            SizedBox(height: themeService.getSpacing('xs')),
+            Text(
+              value,
+              style: textTheme.headlineSmall?.copyWith(
+                color: themeService.getColor('textPrimary'),
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            SizedBox(height: themeService.getSpacing('xs') / 2),
+            Text(
+              title,
+              style: textTheme.bodySmall?.copyWith(
+                color: themeService.getColor('textSecondary'),
+              ),
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMetricCard(
+      String title, String value, IconData icon, Color color) {
+    // ADDED: Get theme service instance
+    final themeService = DynamicThemeService.instance;
+    final textTheme = Theme.of(context).textTheme;
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(themeService.getBorderRadius('medium')),
+        borderRadius:
+            BorderRadius.circular(themeService.getBorderRadius('medium')),
         border: Border.all(color: color.withOpacity(0.3)),
       ),
       child: Column(
@@ -664,11 +770,14 @@ class _DashboardScreenState extends State<DashboardScreen>
         children: [
           Icon(icon, color: color, size: 32),
           const SizedBox(height: 8),
-          Text(value, style: textTheme.headlineSmall?.copyWith(color: themeService.getColor('textPrimary'))),
+          Text(value,
+              style: textTheme.headlineSmall
+                  ?.copyWith(color: themeService.getColor('textPrimary'))),
           const SizedBox(height: 4),
           Text(
             title,
-            style: textTheme.bodySmall?.copyWith(color: themeService.getColor('textSecondary')),
+            style: textTheme.bodySmall
+                ?.copyWith(color: themeService.getColor('textSecondary')),
             textAlign: TextAlign.center,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
@@ -679,46 +788,88 @@ class _DashboardScreenState extends State<DashboardScreen>
   }
 
   Widget _buildQuickActions() {
+    final themeService = DynamicThemeService.instance;
     final textTheme = Theme.of(context).textTheme;
+
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
+      margin: EdgeInsets.symmetric(horizontal: themeService.getSpacing('md')),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(AppStrings.quickActions, style: textTheme.headlineSmall),
-          const SizedBox(height: 12),
+          Text(
+            AppStrings.quickActions,
+            style: textTheme.headlineSmall,
+          ),
+          SizedBox(height: themeService.getSpacing('sm')),
           GridView.builder(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: 4,
-              crossAxisSpacing: 12,
-              mainAxisSpacing: 12,
+              crossAxisSpacing: themeService.getSpacing('sm'),
+              mainAxisSpacing: themeService.getSpacing('sm'),
+              childAspectRatio: 0.85,
             ),
             itemCount: _quickActions.length,
             itemBuilder: (context, index) {
               final action = _quickActions[index];
-              return GestureDetector(
-                onTap: () => _navigateTo(action.type),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: action.color.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: action.color.withOpacity(0.3), width: 1),
-                      ),
-                      child: Icon(DynamicIconService.instance.getIcon(action.icon), color: action.color, size: 24),
+              return Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: () => _navigateTo(action.type),
+                  borderRadius: BorderRadius.circular(
+                      themeService.getBorderRadius('medium')),
+                  child: Container(
+                    decoration: themeService.getDynamicCardDecoration(
+                      boxShadow: [
+                        BoxShadow(
+                          color: action.color.withOpacity(0.15),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 8),
-                    Text(
-                      action.title,
-                      style: textTheme.bodySmall,
-                      textAlign: TextAlign.center,
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Container(
+                          padding:
+                              EdgeInsets.all(themeService.getSpacing('sm')),
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [
+                                action.color.withOpacity(0.1),
+                                action.color.withOpacity(0.05),
+                              ],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                            borderRadius: BorderRadius.circular(
+                                themeService.getBorderRadius('small')),
+                            border: Border.all(
+                              color: action.color.withOpacity(0.2),
+                              width: 1,
+                            ),
+                          ),
+                          child: Icon(
+                            DynamicIconService.instance.getIcon(action.icon),
+                            color: action.color,
+                            size: 24,
+                          ),
+                        ),
+                        SizedBox(height: themeService.getSpacing('xs')),
+                        Text(
+                          action.title,
+                          style: textTheme.bodySmall?.copyWith(
+                            fontWeight: FontWeight.w500,
+                          ),
+                          textAlign: TextAlign.center,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
               );
             },
@@ -733,7 +884,7 @@ class _DashboardScreenState extends State<DashboardScreen>
     final textTheme = Theme.of(context).textTheme;
 
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
+      margin: EdgeInsets.symmetric(horizontal: themeService.getSpacing('md')),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -742,42 +893,70 @@ class _DashboardScreenState extends State<DashboardScreen>
             children: [
               Text(AppStrings.myCourses, style: textTheme.headlineSmall),
               TextButton(
-                onPressed: () => _navigateToScreen(CourseCatalogScreen(token: widget.token), 'Course Catalog'),
-                child: Text(AppStrings.viewAll, style: TextStyle(color: themeService.getColor('secondary1'))),
+                onPressed: () => _navigateToScreen(
+                  CourseCatalogScreen(token: widget.token),
+                  'Course Catalog',
+                ),
+                style: themeService.getSecondaryButtonStyle().copyWith(
+                      padding: MaterialStateProperty.all(
+                        EdgeInsets.symmetric(
+                          horizontal: themeService.getSpacing('md'),
+                          vertical: themeService.getSpacing('xs'),
+                        ),
+                      ),
+                    ),
+                child: Text(
+                  AppStrings.viewAll,
+                  style: TextStyle(color: themeService.getColor('primary')),
+                ),
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: themeService.getSpacing('sm')),
           if (_isCoursesLoading)
-            const Center(child: CircularProgressIndicator())
-          else if (_myCourses.isEmpty)
-            Container(
-              padding: const EdgeInsets.all(32),
-              width: double.infinity,
-              decoration: BoxDecoration(
-                color: themeService.getColor('cardColor'),
-                borderRadius: BorderRadius.circular(themeService.getBorderRadius('medium'))
+            Center(
+              child: CircularProgressIndicator(
+                color: themeService.getColor('primary'),
               ),
+            )
+          else if (_myCourses.isEmpty)
+            themeService.buildFloatingCard(
               child: Column(
                 children: [
-                  Icon(
-                    DynamicIconService.instance.getIcon('school'),
-                    size: 64,
-                    color: themeService.getColor('textSecondary').withOpacity(0.5),
+                  Container(
+                    padding: EdgeInsets.all(themeService.getSpacing('md')),
+                    decoration: BoxDecoration(
+                      color: themeService.getColor('primary').withOpacity(0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      DynamicIconService.instance.getIcon('school'),
+                      size: 48,
+                      color: themeService.getColor('primary'),
+                    ),
                   ),
-                  const SizedBox(height: 16),
-                  Text(AppStrings.noCoursesEnrolled, style: textTheme.titleMedium),
-                  const SizedBox(height: 8),
+                  SizedBox(height: themeService.getSpacing('md')),
+                  Text(
+                    AppStrings.noCoursesEnrolled,
+                    style: textTheme.titleMedium,
+                  ),
+                  SizedBox(height: themeService.getSpacing('xs')),
                   TextButton(
-                    onPressed: () => _navigateToScreen(CourseCatalogScreen(token: widget.token), 'Course Catalog'),
-                    child: const Text(AppStrings.browseCourses),
+                    onPressed: () => _navigateToScreen(
+                      CourseCatalogScreen(token: widget.token),
+                      'Course Catalog',
+                    ),
+                    child: Text(
+                      AppStrings.browseCourses,
+                      style: TextStyle(color: themeService.getColor('primary')),
+                    ),
                   ),
                 ],
               ),
             )
           else
             SizedBox(
-              height: 200,
+              height: 220,
               child: ListView.builder(
                 scrollDirection: Axis.horizontal,
                 itemCount: _myCourses.take(10).length,
@@ -785,65 +964,134 @@ class _DashboardScreenState extends State<DashboardScreen>
                   final course = _myCourses[index];
                   return Container(
                     width: 280,
-                    margin: const EdgeInsets.only(right: 12),
-                    child: Card(
-                      clipBehavior: Clip.antiAlias,
+                    margin:
+                        EdgeInsets.only(right: themeService.getSpacing('sm')),
+                    child: Material(
+                      color: Colors.transparent,
                       child: InkWell(
                         onTap: () => _navigateToCourse(course),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Container(
-                              height: 80,
-                              width: double.infinity,
-                              color: themeService.getColor('secondary3'),
-                              child: course.courseimage.isNotEmpty
-                                  ? Image.network(
-                                      course.courseimage,
-                                      fit: BoxFit.cover,
-                                      errorBuilder: (context, error, stackTrace) =>
-                                        Icon(DynamicIconService.instance.getIcon('school'), color: themeService.getColor('secondary1'), size: 32),
-                                    )
-                                  : Icon(DynamicIconService.instance.getIcon('school'), color: themeService.getColor('secondary1'), size: 32),
-                            ),
-                            Expanded(
-                              child: Padding(
-                                padding: const EdgeInsets.all(12),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Text(
-                                      course.fullname,
-                                      style: textTheme.titleSmall,
-                                      maxLines: 2,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                    const Spacer(),
-                                    if (course.progress != null)
-                                      Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Row(
-                                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                            children: [
-                                              Text('Progress', style: textTheme.bodySmall),
-                                              Text('${course.progress!.toStringAsFixed(0)}%', style: textTheme.bodySmall?.copyWith(fontWeight: FontWeight.bold)),
-                                            ],
+                        borderRadius: BorderRadius.circular(
+                            themeService.getBorderRadius('medium')),
+                        child: Container(
+                          decoration: themeService.getElevatedCardDecoration(),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Container(
+                                height: 100,
+                                width: double.infinity,
+                                decoration: BoxDecoration(
+                                  color: themeService
+                                      .getColor('primary')
+                                      .withOpacity(0.1),
+                                  borderRadius: BorderRadius.only(
+                                    topLeft: Radius.circular(
+                                        themeService.getBorderRadius('medium')),
+                                    topRight: Radius.circular(
+                                        themeService.getBorderRadius('medium')),
+                                  ),
+                                ),
+                                child: course.courseimage.isNotEmpty
+                                    ? ClipRRect(
+                                        borderRadius: BorderRadius.only(
+                                          topLeft: Radius.circular(themeService
+                                              .getBorderRadius('medium')),
+                                          topRight: Radius.circular(themeService
+                                              .getBorderRadius('medium')),
+                                        ),
+                                        child: Image.network(
+                                          course.courseimage,
+                                          fit: BoxFit.cover,
+                                          errorBuilder:
+                                              (context, error, stackTrace) =>
+                                                  Center(
+                                            child: Icon(
+                                              DynamicIconService.instance
+                                                  .getIcon('school'),
+                                              color: themeService
+                                                  .getColor('primary'),
+                                              size: 32,
+                                            ),
                                           ),
-                                          const SizedBox(height: 4),
-                                          LinearProgressIndicator(
-                                            value: course.progress! / 100,
-                                            backgroundColor: themeService.getColor('textSecondary').withOpacity(0.2),
-                                            valueColor: AlwaysStoppedAnimation<Color>(themeService.getColor('secondary1')),
-                                          ),
-                                        ],
+                                        ),
+                                      )
+                                    : Center(
+                                        child: Icon(
+                                          DynamicIconService.instance
+                                              .getIcon('school'),
+                                          color:
+                                              themeService.getColor('primary'),
+                                          size: 32,
+                                        ),
                                       ),
-                                  ],
+                              ),
+                              Expanded(
+                                child: Padding(
+                                  padding: EdgeInsets.all(
+                                      themeService.getSpacing('md')),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        course.fullname,
+                                        style: textTheme.titleSmall?.copyWith(
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                      const Spacer(),
+                                      if (course.progress != null) ...[
+                                        Row(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.spaceBetween,
+                                          children: [
+                                            Text(
+                                              'Progress',
+                                              style:
+                                                  textTheme.bodySmall?.copyWith(
+                                                color: themeService
+                                                    .getColor('textSecondary'),
+                                              ),
+                                            ),
+                                            Text(
+                                              '${course.progress!.toStringAsFixed(0)}%',
+                                              style:
+                                                  textTheme.bodySmall?.copyWith(
+                                                fontWeight: FontWeight.bold,
+                                                color: themeService
+                                                    .getColor('primary'),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        SizedBox(
+                                            height:
+                                                themeService.getSpacing('xs')),
+                                        ClipRRect(
+                                          borderRadius: BorderRadius.circular(
+                                              themeService
+                                                  .getBorderRadius('small')),
+                                          child: LinearProgressIndicator(
+                                            value: course.progress! / 100,
+                                            backgroundColor: themeService
+                                                .getColor('divider')
+                                                .withOpacity(0.3),
+                                            valueColor:
+                                                AlwaysStoppedAnimation<Color>(
+                                              themeService.getColor('primary'),
+                                            ),
+                                            minHeight: 6,
+                                          ),
+                                        ),
+                                      ],
+                                    ],
+                                  ),
                                 ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                       ),
                     ),
@@ -857,11 +1105,12 @@ class _DashboardScreenState extends State<DashboardScreen>
   }
 
   Widget _buildUpcomingEventsSection() {
+    // ADDED: Get theme service instance
     final themeService = DynamicThemeService.instance;
     final textTheme = Theme.of(context).textTheme;
 
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
+      margin: EdgeInsets.symmetric(horizontal: themeService.getSpacing('md')),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -875,17 +1124,20 @@ class _DashboardScreenState extends State<DashboardScreen>
               width: double.infinity,
               decoration: BoxDecoration(
                 color: themeService.getColor('cardColor'),
-                borderRadius: BorderRadius.circular(themeService.getBorderRadius('medium')),
+                borderRadius: BorderRadius.circular(
+                    themeService.getBorderRadius('medium')),
               ),
               child: Column(
                 children: [
                   Icon(
                     DynamicIconService.instance.getIcon('event'),
                     size: 48,
-                    color: themeService.getColor('textSecondary').withOpacity(0.5),
+                    color:
+                        themeService.getColor('textSecondary').withOpacity(0.5),
                   ),
                   const SizedBox(height: 12),
-                  Text(AppStrings.noUpcomingEvents, style: textTheme.titleMedium),
+                  Text(AppStrings.noUpcomingEvents,
+                      style: textTheme.titleMedium),
                 ],
               ),
             )
@@ -896,8 +1148,10 @@ class _DashboardScreenState extends State<DashboardScreen>
                     leading: Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: themeService.getColor('warning').withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(themeService.getBorderRadius('small')),
+                        color:
+                            themeService.getColor('warning').withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(
+                            themeService.getBorderRadius('small')),
                       ),
                       child: Icon(
                         DynamicIconService.instance.getIcon('event'),
@@ -911,7 +1165,9 @@ class _DashboardScreenState extends State<DashboardScreen>
                       mainAxisAlignment: MainAxisAlignment.center,
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
-                        Text(event.formattedDate, style: textTheme.bodySmall?.copyWith(fontWeight: FontWeight.bold)),
+                        Text(event.formattedDate,
+                            style: textTheme.bodySmall
+                                ?.copyWith(fontWeight: FontWeight.bold)),
                         Text(event.formattedTime, style: textTheme.bodySmall),
                       ],
                     ),
@@ -924,6 +1180,7 @@ class _DashboardScreenState extends State<DashboardScreen>
 
   @override
   Widget build(BuildContext context) {
+    // ADDED: Get theme service instance
     final themeService = DynamicThemeService.instance;
 
     return Scaffold(
@@ -965,8 +1222,11 @@ class _DashboardScreenState extends State<DashboardScreen>
         ),
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () => _navigateToScreen(ChatListScreen(token: widget.token), 'Chat'),
-        child: Icon(DynamicIconService.instance.getIcon('chat'), color: Colors.white),
+        onPressed: () =>
+            _navigateToScreen(ChatListScreen(token: widget.token), 'Chat'),
+        // CHANGED: Dynamic icon color
+        child: Icon(DynamicIconService.instance.getIcon('chat'),
+            color: themeService.getColor('loginButtonTextColor')),
       ),
     );
   }
@@ -990,13 +1250,20 @@ class DashboardItem {
 
   String get title {
     switch (type) {
-      case DashboardWidgetType.continueLearning: return 'Continue Learning';
-      case DashboardWidgetType.courseCatalog: return 'Course Catalog';
-      case DashboardWidgetType.quickActions: return 'Quick Actions';
-      case DashboardWidgetType.recommendedCourses: return 'Recommended Courses';
-      case DashboardWidgetType.keyMetrics: return 'Key Metrics';
-      case DashboardWidgetType.upcomingEvents: return 'Upcoming Events';
-      case DashboardWidgetType.recentActivity: return 'Recent Activity';
+      case DashboardWidgetType.continueLearning:
+        return 'Continue Learning';
+      case DashboardWidgetType.courseCatalog:
+        return 'Course Catalog';
+      case DashboardWidgetType.quickActions:
+        return 'Quick Actions';
+      case DashboardWidgetType.recommendedCourses:
+        return 'Recommended Courses';
+      case DashboardWidgetType.keyMetrics:
+        return 'Key Metrics';
+      case DashboardWidgetType.upcomingEvents:
+        return 'Upcoming Events';
+      case DashboardWidgetType.recentActivity:
+        return 'Recent Activity';
     }
   }
 }
@@ -1031,7 +1298,7 @@ class UpcomingEvent {
   factory UpcomingEvent.fromJson(Map<String, dynamic> json) {
     final timestamp = json['timestart'];
     DateTime date = DateTime.now();
-    if(timestamp is int) {
+    if (timestamp is int) {
       date = DateTime.fromMillisecondsSinceEpoch(timestamp * 1000);
     }
 
@@ -1078,7 +1345,8 @@ class _ContinueLearningWidgetState extends State<ContinueLearningWidget> {
     if (jsonString != null) {
       try {
         if (mounted) {
-          setState(() => _lastViewedCourse = Course.fromJson(json.decode(jsonString)));
+          setState(() =>
+              _lastViewedCourse = Course.fromJson(json.decode(jsonString)));
         }
       } catch (_) {}
     }
@@ -1108,9 +1376,10 @@ class _ContinueLearningWidgetState extends State<ContinueLearningWidget> {
       print('Error in continue learning navigation: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(AppStrings.unableToContinue),
-            backgroundColor: Colors.red,
+          SnackBar(
+            content: const Text(AppStrings.unableToContinue),
+            // CHANGED: Dynamic color
+            backgroundColor: DynamicThemeService.instance.getColor('error'),
           ),
         );
       }
@@ -1119,12 +1388,13 @@ class _ContinueLearningWidgetState extends State<ContinueLearningWidget> {
 
   @override
   Widget build(BuildContext context) {
+    // ADDED: Get theme service instance
     final themeService = DynamicThemeService.instance;
     final textTheme = Theme.of(context).textTheme;
     final successColor = themeService.getColor('success');
 
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
+      margin: EdgeInsets.symmetric(horizontal: themeService.getSpacing('md')),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
@@ -1132,23 +1402,26 @@ class _ContinueLearningWidgetState extends State<ContinueLearningWidget> {
             successColor.withOpacity(0.05),
           ],
         ),
-        borderRadius: BorderRadius.circular(themeService.getBorderRadius('large')),
+        borderRadius:
+            BorderRadius.circular(themeService.getBorderRadius('large')),
         border: Border.all(color: successColor.withOpacity(0.3)),
       ),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
           onTap: _handleTap,
-          borderRadius: BorderRadius.circular(themeService.getBorderRadius('large')),
+          borderRadius:
+              BorderRadius.circular(themeService.getBorderRadius('large')),
           child: Padding(
-            padding: const EdgeInsets.all(20),
+            padding: EdgeInsets.all(themeService.getSpacing('lg') - 4), // 20
             child: Row(
               children: [
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
                     color: successColor.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(themeService.getBorderRadius('medium')),
+                    borderRadius: BorderRadius.circular(
+                        themeService.getBorderRadius('medium')),
                   ),
                   child: Icon(
                     DynamicIconService.instance.getIcon('play'),
@@ -1162,12 +1435,15 @@ class _ContinueLearningWidgetState extends State<ContinueLearningWidget> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        _lastViewedCourse == null ? AppStrings.startLearning : AppStrings.continueLearning,
+                        _lastViewedCourse == null
+                            ? AppStrings.startLearning
+                            : AppStrings.continueLearning,
                         style: textTheme.titleMedium,
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        _lastViewedCourse?.fullname ?? AppStrings.exploreCatalog,
+                        _lastViewedCourse?.fullname ??
+                            AppStrings.exploreCatalog,
                         style: textTheme.bodyMedium,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
