@@ -2,20 +2,20 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 
-import '../../models/course_model.dart';
-import '../../services/api_service.dart';
-import '../../services/enhanced_icon_service.dart';
-import '../../services/dynamic_theme_service.dart';
+import 'package:InstructoHub/models/course_model.dart';
+import 'package:InstructoHub/services/api_service.dart';
+import 'package:InstructoHub/services/enhanced_icon_service.dart';
+import 'package:InstructoHub/services/dynamic_theme_service.dart';
 
-import 'course_catalog_screen.dart';
-import 'course_detail_screen.dart';
-import 'metrics_screen.dart';
-import 'quick_actions_screen.dart';
-import 'recent_activity_screen.dart';
-import 'recommended_courses_screen.dart';
-import 'upcoming_events_screen.dart';
-import '../../features/messaging/screens/chat_list_screen.dart';
-import '../domain_config/domain_config_screen.dart';
+import 'package:InstructoHub/screens/dashboard/course_catalog_screen.dart';
+import 'package:InstructoHub/screens/dashboard/course_detail_screen.dart';
+import 'package:InstructoHub/screens/dashboard/metrics_screen.dart';
+import 'package:InstructoHub/screens/dashboard/quick_actions_screen.dart';
+import 'package:InstructoHub/screens/dashboard/recent_activity_screen.dart';
+import 'package:InstructoHub/screens/dashboard/recommended_courses_screen.dart';
+import 'package:InstructoHub/screens/dashboard/upcoming_events_screen.dart';
+import 'package:InstructoHub/features/messaging/screens/chat_list_screen.dart';
+import 'package:InstructoHub/screens/domain_config/domain_config_screen.dart';
 
 // Constants class remains the same
 class AppStrings {

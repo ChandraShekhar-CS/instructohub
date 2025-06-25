@@ -1,5 +1,5 @@
-import './chat_user_model.dart';
-import './message_model.dart';
+import 'package:InstructoHub/features/messaging/models/chat_user_model.dart';
+import 'package:InstructoHub/features/messaging/models/message_model.dart';
 
 class Conversation {
   final int id;

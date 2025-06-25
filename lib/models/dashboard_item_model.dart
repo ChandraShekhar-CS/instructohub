@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
-import '../models/course_model.dart';
-import '../services/dynamic_theme_service.dart';
-import '../services/enhanced_icon_service.dart';
+import 'package:InstructoHub/models/course_model.dart';
+import 'package:InstructoHub/services/dynamic_theme_service.dart';
+import 'package:InstructoHub/services/enhanced_icon_service.dart';
 
 enum DashboardWidgetType {
   continueLearning,

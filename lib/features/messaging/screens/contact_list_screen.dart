@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import '../../../services/api_service.dart';
-import '../../../services/dynamic_theme_service.dart';
-import '../models/chat_user_model.dart';
-import './conversation_screen.dart'; 
+import 'package:InstructoHub/services/api_service.dart';
+import 'package:InstructoHub/services/dynamic_theme_service.dart';
+import 'package:InstructoHub/features/messaging/models/chat_user_model.dart';
+import 'package:InstructoHub/features/messaging/screens/conversation_screen.dart'; 
 
 class ContactListScreen extends StatefulWidget {
   final String token;

@@ -2,12 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 
-import '../../../services/dynamic_theme_service.dart';
-import '../../../services/enhanced_icon_service.dart';
-import '../providers/messaging_provider.dart';
-import '../models/conversation_model.dart';
-import './conversation_screen.dart';
-import './contact_list_screen.dart';
+import 'package:InstructoHub/services/dynamic_theme_service.dart';
+import 'package:InstructoHub/services/enhanced_icon_service.dart';
+import 'package:InstructoHub/features/messaging/providers/messaging_provider.dart';
+import 'package:InstructoHub/features/messaging/models/conversation_model.dart';
+import 'package:InstructoHub/features/messaging/screens/conversation_screen.dart';
+import 'package:InstructoHub/features/messaging/screens/contact_list_screen.dart';
 
 class ChatListScreen extends StatelessWidget {
   final String token;

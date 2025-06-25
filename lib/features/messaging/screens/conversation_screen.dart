@@ -4,11 +4,11 @@ import 'package:flutter/foundation.dart' as foundation;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 
-import '../../../services/api_service.dart';
-import '../../../services/dynamic_theme_service.dart';
-import '../../../services/enhanced_icon_service.dart';
-import '../models/conversation_model.dart';
-import '../models/message_model.dart';
+import 'package:InstructoHub/services/api_service.dart';
+import 'package:InstructoHub/services/dynamic_theme_service.dart';
+import 'package:InstructoHub/services/enhanced_icon_service.dart';
+import 'package:InstructoHub/features/messaging/models/conversation_model.dart';
+import 'package:InstructoHub/features/messaging/models/message_model.dart';
 
 class ConversationScreen extends StatefulWidget {
   final String token;
