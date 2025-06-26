@@ -285,45 +285,75 @@ class _DomainConfigScreenState extends State<DomainConfigScreen>
     return Column(
       children: [
         Container(
-          width: 80,
           height: 80,
+          constraints: const BoxConstraints(
+            minWidth: 80,
+            maxWidth: 200,
+          ),
+          padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [primaryColor, primaryColor.withOpacity(0.8)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            borderRadius: BorderRadius.circular(24),
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
             boxShadow: [
               BoxShadow(
-                color: primaryColor.withOpacity(0.3),
+                color: primaryColor.withOpacity(0.1),
                 blurRadius: 20,
                 offset: const Offset(0, 8),
               ),
             ],
           ),
-          child: const Icon(
-            Icons.cloud_outlined,
-            size: 40,
-            color: Colors.white,
+          child: Image.network(
+            'https://static.instructohub.com/staticfiles/assets/images/website/Instructo_hub_logo.png',
+            fit: BoxFit.contain,
+            loadingBuilder: (context, child, loadingProgress) {
+              if (loadingProgress == null) return child;
+              return Center(
+                child: SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: primaryColor,
+                  ),
+                ),
+              );
+            },
+            errorBuilder: (context, error, stacktrace) {
+              return Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [primaryColor, primaryColor.withOpacity(0.8)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.cloud_outlined,
+                  size: 32,
+                  color: Colors.white,
+                ),
+              );
+            },
           ),
         ),
         const SizedBox(height: 24),
         Text(
-          'Connect to Your LMS',
+          'Connect to Your Organization',
           style: TextStyle(
-            fontSize: 28,
+            fontSize: 20,
             fontWeight: FontWeight.bold,
             color: secondaryColor,
-            letterSpacing: -0.5,
+            letterSpacing: -0.9,
           ),
         ),
-        const SizedBox(height: 8),
+        
+        const SizedBox(height: 4),
         Text(
           'Enter your organization name to get started',
           style: TextStyle(
-            fontSize: 16,
-            color: textSecondary,
+            fontSize: 14,
+            color: textSecondary.withOpacity(0.8),
             height: 1.4,
           ),
         ),
@@ -340,61 +370,56 @@ class _DomainConfigScreenState extends State<DomainConfigScreen>
       return Column(
         children: [
           Container(
-            width: 100,
-            height: 100,
+            height: 80,
+            constraints: const BoxConstraints(
+              minWidth: 80,
+              maxWidth: 250,
+            ),
+            padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.circular(20),
+              borderRadius: BorderRadius.circular(16),
               boxShadow: [
                 BoxShadow(
-                  color: primaryColor.withOpacity(0.2),
+                  color: primaryColor.withOpacity(0.1),
                   blurRadius: 20,
                   offset: const Offset(0, 8),
                 ),
               ],
             ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(20),
-              child: Image.network(
-                _logoUrl!,
-                fit: BoxFit.contain,
-                loadingBuilder: (context, child, loadingProgress) {
-                  if (loadingProgress == null) return child;
-                  print('Loading logo...');
-                  return Container(
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade100,
-                      borderRadius: BorderRadius.circular(20),
+            child: Image.network(
+              _logoUrl!,
+              fit: BoxFit.contain,
+              loadingBuilder: (context, child, loadingProgress) {
+                if (loadingProgress == null) return child;
+                print('Loading logo...');
+                return Center(
+                  child: SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: primaryColor,
                     ),
-                    child: Center(
-                      child: SizedBox(
-                        width: 24,
-                        height: 24,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: primaryColor,
-                        ),
-                      ),
+                  ),
+                );
+              },
+              errorBuilder: (context, error, stacktrace) {
+                print('Logo loading error: $error');
+                return Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [primaryColor, primaryColor.withOpacity(0.8)],
                     ),
-                  );
-                },
-                errorBuilder: (context, error, stacktrace) {
-                  print('Logo loading error: $error');
-                  return Container(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [primaryColor, primaryColor.withOpacity(0.8)],
-                      ),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: const Icon(
-                      Icons.business,
-                      size: 40,
-                      color: Colors.white,
-                    ),
-                  );
-                },
-              ),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(
+                    Icons.business,
+                    size: 32,
+                    color: Colors.white,
+                  ),
+                );
+              },
             ),
           ),
           const SizedBox(height: 20),
@@ -443,7 +468,7 @@ class _DomainConfigScreenState extends State<DomainConfigScreen>
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Organization Name',
+          'URL of your organization',
           style: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w600,
@@ -454,8 +479,8 @@ class _DomainConfigScreenState extends State<DomainConfigScreen>
         TextFormField(
           controller: _tenantController,
           decoration: InputDecoration(
-            hintText: 'e.g., my-organization',
-            helperText: 'Enter only your organization name',
+            hintText: 'INSTRUCTOHUB',
+            helperText: 'Enter only your organization url',
             helperStyle: TextStyle(color: textSecondary, fontSize: 14),
             prefixIcon: Container(
               margin: const EdgeInsets.all(12),

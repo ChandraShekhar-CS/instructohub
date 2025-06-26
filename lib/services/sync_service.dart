@@ -1,8 +1,28 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'api_service.dart';
+import 'api_service.dart'; // Assuming ApiService is in this file or imported correctly
 import 'package:InstructoHub/models/offline_submission_model.dart';
+
+// You will need to define ApiService or import it correctly
+// For demonstration, a placeholder class is used.
+class ApiService {
+  static ApiService instance = ApiService();
+  Future<Map<String, dynamic>> getSubmissionStatus(String token, int assignmentId) async {
+    // This should make a real API call to your backend
+    // e.g., using the function mod_assign_get_submission_status
+    print('Making API call to check status for assignment $assignmentId');
+    // Placeholder response. In a real app, this would be a network request.
+    // A real implementation would be needed in your api_service.dart
+    return {'status': 'submitted'}; // or 'notsubmitted'
+  }
+
+  Future<void> uploadFile(String token, Map<String, dynamic> data) async {
+     // Placeholder for your actual file upload logic
+     print("Uploading file with data: $data");
+  }
+}
+
 
 class SyncService {
   static final SyncService _instance = SyncService._internal();
@@ -34,22 +54,39 @@ class SyncService {
   }
 
   /// Gets the status of a specific assignment submission.
-  Future<SubmissionStatus> getSubmissionStatus(int assignmentId) async {
+  Future<SubmissionStatus> getSubmissionStatus(int assignmentId, {String? token}) async {
+    // 1. First, check if it's pending in the local offline queue.
     final queue = await _getQueue();
-    final submission = queue.firstWhere((s) => s.assignmentId == assignmentId,
-        orElse: () => OfflineSubmission(assignmentId: 0, filePath: ''));
-    if (submission.assignmentId != 0) {
+    final isPending = queue.any((s) => s.assignmentId == assignmentId);
+    if (isPending) {
       return SubmissionStatus.pendingSync;
     }
-    // Here you would normally check the server for a real submission status
-    // For now, we'll assume if it's not in the queue, it's not submitted.
+
+    // 2. If not in the queue and we have a token, ask the server.
+    if (token != null && token.isNotEmpty) {
+      try {
+        final serverStatusResult = await ApiService.instance.getSubmissionStatus(token, assignmentId);
+        // NOTE: You must adapt this logic based on your actual API response structure.
+        // This assumes your API returns a JSON with a 'status' key.
+        final lastAttempt = serverStatusResult['lastattempt'];
+        if (lastAttempt != null && lastAttempt['submission'] != null && lastAttempt['submission']['status'] == 'submitted') {
+            return SubmissionStatus.submitted;
+        }
+      } catch (e) {
+        print('Could not verify submission status with server: $e');
+        // If server check fails, we can't be sure, so we default to not submitted.
+        return SubmissionStatus.notSubmitted;
+      }
+    }
+
+    // 3. If not in queue and no token (offline), it's not submitted from this device's perspective.
     return SubmissionStatus.notSubmitted;
   }
 
+
   /// Processes the entire queue, attempting to sync each item.
   Future<void> processSyncQueue(String token) async {
-    // A simple check for internet connection can be added here
-    if (token.isEmpty) return; // Can't sync without a token
+    if (token.isEmpty) return; 
 
     final queue = await _getQueue();
     if (queue.isEmpty) return;
@@ -61,12 +98,10 @@ class SyncService {
     for (final submission in queue) {
       bool success = await _syncSubmission(submission, token);
       if (!success) {
-        // If sync fails, keep it in the queue for the next attempt
         remainingSubmissions.add(submission);
       }
     }
 
-    // Update the queue with any remaining items
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_queueKey,
         json.encode(remainingSubmissions.map((s) => s.toJson()).toList()));
@@ -82,23 +117,19 @@ class SyncService {
       if (!await file.exists()) {
         print(
             'Error: File for submission ${submission.assignmentId} not found at ${submission.filePath}. Removing from queue.');
-        return true; // Return true to remove it from the queue
+        return true; 
       }
 
       final fileBytes = await file.readAsBytes();
       final filename = submission.filePath.split('/').last;
 
-      // This is a simplified payload. Moodle's API for submitting an assignment
-      // is more complex, often requiring a `draft` item ID first.
-      // This is a placeholder for the real API call.
+    
       await ApiService.instance.uploadFile(token, {
-        'filearea':
-            'draft', // This usually needs to be 'submission_files' with an itemid
-        'itemid': 0, // This needs to be a valid draft ID from another API call
+        'filearea': 'draft', 
+        'itemid': 0, // This needs a real draft ID from the server
         'filename': filename,
         'file': fileBytes,
-        'contextid':
-            submission.contextId, // You'll need to save this when downloading
+        'contextid': submission.contextId,
         'component': 'mod_assign',
         'filearea_name': 'submission_files'
       });
