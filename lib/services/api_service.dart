@@ -143,7 +143,6 @@ class ApiService {
     try {
       await ConfigurationService.instance.initialize();
     } catch (e) {
-      // Configuration service initialization failed
     }
 
     final prefs = await SharedPreferences.getInstance();
@@ -167,7 +166,6 @@ class ApiService {
         try {
           await ConfigurationService.instance.loadForDomain(domain);
         } catch (e) {
-          // Failed to load configuration for cached domain
         }
       }
 
@@ -180,7 +178,6 @@ class ApiService {
     try {
       await ConfigurationService.instance.clearConfiguration();
     } catch (e) {
-      // Error clearing configuration service
     }
 
     final prefs = await SharedPreferences.getInstance();
@@ -213,7 +210,6 @@ class ApiService {
         }
       }
     } catch (e) {
-      // Error getting API function from config
     }
 
     const fallbackMappings = {
@@ -409,6 +405,294 @@ class ApiService {
       return response;
     } catch (e) {
       rethrow;
+    }
+  }
+
+  // --- Teacher Methods ---
+  Future<Map<String, dynamic>> getUserRolesAndCapabilities(String token) async {
+    try {
+      final userInfoResult = await getUserInfo(token);
+      if (userInfoResult['success'] != true) {
+        throw Exception('Failed to get user info');
+      }
+
+      final userInfo = userInfoResult['data'];
+      final userId = userInfo['userid'];
+
+      if (userId == null) {
+        throw Exception('User ID not found');
+      }
+
+      final response = await _post(
+          'local_instructohub_get_user_roles_with_capabilities',
+          token,
+          {'userid': userId.toString()});
+
+      return response is Map<String, dynamic> 
+          ? response 
+          : Map<String, dynamic>.from(response as Map);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<bool> isTeacher(String token) async {
+    try {
+      final rolesData = await getUserRolesAndCapabilities(token);
+      
+      if (rolesData['courses'] != null) {
+        for (var course in rolesData['courses']) {
+          if (course['roles'] != null) {
+            for (var role in course['roles']) {
+              if (role['roleid'] == 3 || 
+                  role['name']?.toLowerCase().contains('teacher') == true ||
+                  role['shortname']?.toLowerCase().contains('teacher') == true ||
+                  role['name']?.toLowerCase().contains('editingteacher') == true) {
+                return true;
+              }
+            }
+          }
+        }
+      }
+      
+      if (rolesData['globalroles'] != null) {
+        for (var role in rolesData['globalroles']) {
+          if (role['roleid'] == 3 || 
+              role['name']?.toLowerCase().contains('teacher') == true ||
+              role['shortname']?.toLowerCase().contains('teacher') == true ||
+              role['name']?.toLowerCase().contains('editingteacher') == true) {
+            return true;
+          }
+        }
+      }
+      
+      return false;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  Future<List<dynamic>> getTeachingCourses(String token) async {
+    try {
+      final userInfoResult = await getUserInfo(token);
+      if (userInfoResult['success'] != true) {
+        throw Exception('Failed to get user info');
+      }
+
+      final userInfo = userInfoResult['data'];
+      final userId = userInfo['userid'];
+
+      final response = await _post(
+          'local_instructohub_get_user_courses_with_roles',
+          token,
+          {'userid': userId.toString()});
+
+      List<dynamic> teachingCourses = [];
+      if (response is List) {
+        teachingCourses = response.where((course) {
+          if (course['roles'] != null) {
+            return (course['roles'] as List).any((role) => 
+              role['roleid'] == 3 || 
+              role['shortname']?.toLowerCase().contains('teacher') == true ||
+              role['name']?.toLowerCase().contains('teacher') == true ||
+              role['name']?.toLowerCase().contains('editingteacher') == true
+            );
+          }
+          return false;
+        }).toList();
+      }
+
+      return teachingCourses;
+    } catch (e) {
+      print('getTeachingCourses API not available: $e');
+      return [];
+    }
+  }
+
+  Future<Map<String, dynamic>> getTeacherMetrics(String token) async {
+    try {
+      final userInfoResult = await getUserInfo(token);
+      if (userInfoResult['success'] != true) {
+        throw Exception('Failed to get user info');
+      }
+
+      final userInfo = userInfoResult['data'];
+      final userId = userInfo['userid'];
+
+      final response = await _post(
+          'local_instructohub_get_teacher_metrics',
+          token,
+          {'userid': userId.toString()});
+
+      return response is Map<String, dynamic> 
+          ? response 
+          : Map<String, dynamic>.from(response as Map);
+    } catch (e) {
+      try {
+        final teachingCourses = await getTeachingCourses(token);
+        
+        int totalStudents = 0;
+        int pendingAssignments = 0;
+        
+        for (var course in teachingCourses) {
+          totalStudents += (course['enrolleduserscount'] ?? 0) as int;
+        }
+
+        return <String, dynamic>{
+          'coursesTaught': teachingCourses.length,
+          'totalStudents': totalStudents,
+          'pendingGrading': pendingAssignments,
+          'avgCourseCompletion': 0.0,
+        };
+      } catch (e) {
+        return <String, dynamic>{
+          'coursesTaught': 0,
+          'totalStudents': 0,
+          'pendingGrading': 0,
+          'avgCourseCompletion': 0.0,
+        };
+      }
+    }
+  }
+
+  Future<List<dynamic>> getPendingAssignments(String token) async {
+    try {
+      final userInfoResult = await getUserInfo(token);
+      if (userInfoResult['success'] != true) {
+        throw Exception('Failed to get user info');
+      }
+
+      final userInfo = userInfoResult['data'];
+      final userId = userInfo['userid'];
+
+      final response = await _post(
+          'local_instructohub_get_teacher_pending_assignments',
+          token,
+          {'userid': userId.toString()});
+
+      return response is List ? response : [];
+    } catch (e) {
+      print('getPendingAssignments API not available: $e');
+      return [];
+    }
+  }
+
+  Future<List<dynamic>> getStudentProgress(String courseId, String token) async {
+    try {
+      final response = await _post(
+          'local_instructohub_get_student_progress',
+          token,
+          {'courseid': courseId});
+
+      return response is List ? response : [];
+    } catch (e) {
+      print('getStudentProgress API not available: $e');
+      return [];
+    }
+  }
+
+  Future<dynamic> createCourse(String token, Map<String, dynamic> courseData) async {
+    try {
+      final response = await _post(
+          'local_instructohub_create_course',
+          token,
+          {
+            'fullname': courseData['fullname'] ?? '',
+            'shortname': courseData['shortname'] ?? '',
+            'categoryid': courseData['categoryid']?.toString() ?? '1',
+            'summary': courseData['summary'] ?? '',
+            'startdate': courseData['startdate']?.toString() ?? '',
+            'enddate': courseData['enddate']?.toString() ?? '',
+          });
+
+      return response;
+    } catch (e) {
+      print('createCourse API not available: $e');
+      rethrow;
+    }
+  }
+
+  Future<List<dynamic>> getCourseStudents(String courseId, String token) async {
+    try {
+      final students = await getEnrolledUsers(courseId, token);
+      
+      if (students is List) {
+        return students.where((user) {
+          if (user['roles'] != null) {
+            return (user['roles'] as List).any((role) => 
+              role['roleid'] == 5 || 
+              role['shortname']?.toLowerCase().contains('student') == true
+            );
+          }
+          return true;
+        }).toList();
+      }
+      
+      return students is List ? students : [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  Future<dynamic> sendCourseAnnouncement(String token, {
+    required String courseId,
+    required String subject,
+    required String message,
+  }) async {
+    try {
+      final response = await _post(
+          'local_instructohub_send_course_announcement',
+          token,
+          {
+            'courseid': courseId,
+            'subject': subject,
+            'message': message,
+          });
+
+      return response;
+    } catch (e) {
+      print('sendCourseAnnouncement API not available: $e');
+      rethrow;
+    }
+  }
+
+  Future<dynamic> gradeAssignment(String token, {
+    required String assignmentId,
+    required String userId,
+    required String grade,
+    String? feedback,
+  }) async {
+    try {
+      final response = await _post(
+          'local_instructohub_grade_assignment',
+          token,
+          {
+            'assignmentid': assignmentId,
+            'userid': userId,
+            'grade': grade,
+            if (feedback != null) 'feedback': feedback,
+          });
+
+      return response;
+    } catch (e) {
+      print('gradeAssignment API not available: $e');
+      rethrow;
+    }
+  }
+
+  Future<Map<String, dynamic>> getCourseAnalytics(String courseId, String token) async {
+    try {
+      final response = await _post(
+          'local_instructohub_get_course_analytics',
+          token,
+          {'courseid': courseId});
+
+      return response is Map<String, dynamic> 
+          ? response 
+          : Map<String, dynamic>.from(response as Map);
+    } catch (e) {
+      print('getCourseAnalytics API not available: $e');
+      return <String, dynamic>{};
     }
   }
 

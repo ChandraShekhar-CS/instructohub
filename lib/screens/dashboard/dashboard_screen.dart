@@ -112,6 +112,13 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
   int _currentIndex = 0;
   late PageController _pageController;
 
+  // Teacher-specific variables
+  bool _isTeacher = false;
+  bool _isCheckingRole = true;
+  Map<String, dynamic> _teacherMetrics = {};
+  List<dynamic> _teachingCourses = [];
+  List<dynamic> _pendingAssignments = [];
+
   @override
   void initState() {
     super.initState();
@@ -127,6 +134,7 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
     DynamicThemeService.instance.addListener(_onThemeChanged);
 
     _initializeServices();
+    _checkUserRole();
     _fetchAllData();
     _animationController.forward();
   }
@@ -141,6 +149,88 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
     try {
       await DynamicIconService.instance.loadIcons(token: widget.token);
     } catch (e) {
+    }
+  }
+
+  Future<void> _checkUserRole() async {
+    try {
+      final isTeacher = await ApiService.instance.isTeacher(widget.token);
+      if (mounted) {
+        setState(() {
+          _isTeacher = isTeacher;
+          _isCheckingRole = false;
+        });
+        
+        if (_isTeacher) {
+          _fetchTeacherData();
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isTeacher = false;
+          _isCheckingRole = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _fetchTeacherData() async {
+    try {
+      final results = await Future.wait([
+        _fetchTeachingCourses(),
+        _fetchPendingAssignments(),
+        _fetchTeacherMetrics(),
+      ]);
+    } catch (e) {
+    }
+  }
+
+  Future<void> _fetchTeachingCourses() async {
+    try {
+      final teachingCourses = await ApiService.instance.getTeachingCourses(widget.token);
+      
+      if (mounted) {
+        setState(() {
+          _teachingCourses = teachingCourses;
+        });
+      }
+    } catch (e) {
+    }
+  }
+
+  Future<void> _fetchPendingAssignments() async {
+    try {
+      final pendingAssignments = await ApiService.instance.getPendingAssignments(widget.token);
+      
+      if (mounted) {
+        setState(() {
+          _pendingAssignments = pendingAssignments;
+        });
+      }
+    } catch (e) {
+    }
+  }
+
+  Future<void> _fetchTeacherMetrics() async {
+    try {
+      final metrics = await ApiService.instance.getTeacherMetrics(widget.token);
+      
+      if (mounted) {
+        setState(() {
+          _teacherMetrics = metrics;
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _teacherMetrics = {
+          'coursesTaught': _teachingCourses.length,
+          'totalStudents': _teachingCourses.fold(0, (sum, course) => 
+            sum + ((course['enrolleduserscount'] ?? 0) as int)),
+          'pendingGrading': _pendingAssignments.length,
+          'avgCourseCompletion': 0.0,
+        };
+      });
     }
   }
 
@@ -325,6 +415,280 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
     if (hour < 12) return AppStrings.goodMorning;
     if (hour < 17) return AppStrings.goodAfternoon;
     return AppStrings.goodEvening;
+  }
+
+  Widget _buildTeacherMetrics() {
+    final themeService = DynamicThemeService.instance;
+    final textTheme = Theme.of(context).textTheme;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        themeService.buildSectionHeader(title: 'Teaching Overview'),
+        SizedBox(height: themeService.getSpacing('md')),
+        Container(
+          margin: EdgeInsets.symmetric(horizontal: themeService.getSpacing('md')),
+          child: GridView.count(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            crossAxisCount: 2,
+            crossAxisSpacing: themeService.getSpacing('sm'),
+            mainAxisSpacing: themeService.getSpacing('sm'),
+            childAspectRatio: 1.4,
+            children: [
+              themeService.buildMetricCard(
+                title: 'Courses Teaching',
+                value: _teacherMetrics['coursesTaught']?.toString() ?? '0',
+                icon: Icons.school,
+                iconColor: themeService.getColor('primary'),
+              ),
+              themeService.buildMetricCard(
+                title: 'Total Students',
+                value: _teacherMetrics['totalStudents']?.toString() ?? '0',
+                icon: Icons.people,
+                iconColor: themeService.getColor('info'),
+              ),
+              themeService.buildMetricCard(
+                title: 'Pending Grading',
+                value: _teacherMetrics['pendingGrading']?.toString() ?? '0',
+                icon: Icons.assignment_late,
+                iconColor: themeService.getColor('warning'),
+              ),
+              themeService.buildMetricCard(
+                title: 'Avg Completion',
+                value: '${(_teacherMetrics['avgCourseCompletion'] ?? 0.0).toStringAsFixed(0)}%',
+                icon: Icons.trending_up,
+                iconColor: themeService.getColor('success'),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTeachingCoursesSection() {
+    final themeService = DynamicThemeService.instance;
+    final textTheme = Theme.of(context).textTheme;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        themeService.buildSectionHeader(
+          title: 'My Teaching Courses',
+          actionText: 'Manage All',
+          onActionTap: () => _showComingSoon('Course Management'),
+        ),
+        SizedBox(height: themeService.getSpacing('md')),
+        if (_teachingCourses.isEmpty)
+          Container(
+            margin: EdgeInsets.symmetric(horizontal: themeService.getSpacing('md')),
+            child: themeService.buildCleanCard(
+              child: Column(
+                children: [
+                  Icon(
+                    Icons.school,
+                    size: 48,
+                    color: themeService.getColor('textSecondary'),
+                  ),
+                  SizedBox(height: themeService.getSpacing('md')),
+                  Text(
+                    'No Teaching Courses',
+                    style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+                  ),
+                  SizedBox(height: themeService.getSpacing('xs')),
+                  Text(
+                    'Contact admin to get teaching access',
+                    style: textTheme.bodySmall?.copyWith(
+                      color: themeService.getColor('textSecondary'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          )
+        else
+          SizedBox(
+            height: 160,
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              padding: EdgeInsets.symmetric(horizontal: themeService.getSpacing('md')),
+              itemCount: _teachingCourses.length,
+              itemBuilder: (context, index) {
+                final course = _teachingCourses[index];
+                return Container(
+                  width: 300,
+                  margin: EdgeInsets.only(right: themeService.getSpacing('sm')),
+                  child: themeService.buildCleanCard(
+                    onTap: () => _navigateToTeacherCourse(course),
+                    child: Padding(
+                      padding: EdgeInsets.all(themeService.getSpacing('sm')),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  course['fullname'] ?? 'Course',
+                                  style: textTheme.titleMedium?.copyWith(
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              Container(
+                                padding: EdgeInsets.all(themeService.getSpacing('xs')),
+                                decoration: BoxDecoration(
+                                  color: themeService.getColor('primary').withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(
+                                    themeService.getBorderRadius('small'),
+                                  ),
+                                ),
+                                child: Icon(
+                                  Icons.edit,
+                                  size: 16,
+                                  color: themeService.getColor('primary'),
+                                ),
+                              ),
+                            ],
+                          ),
+                          SizedBox(height: themeService.getSpacing('sm')),
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.people,
+                                size: 16,
+                                color: themeService.getColor('textSecondary'),
+                              ),
+                              SizedBox(width: themeService.getSpacing('xs')),
+                              Text(
+                                '${course['enrolleduserscount'] ?? 0} students',
+                                style: textTheme.bodySmall?.copyWith(
+                                  color: themeService.getColor('textSecondary'),
+                                ),
+                              ),
+                              Spacer(),
+                              if (course['pendingassignments'] != null && course['pendingassignments'] > 0)
+                                Container(
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal: themeService.getSpacing('sm'),
+                                    vertical: themeService.getSpacing('xs'),
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: themeService.getColor('warning').withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(
+                                      themeService.getBorderRadius('small'),
+                                    ),
+                                  ),
+                                  child: Text(
+                                    '${course['pendingassignments']} to grade',
+                                    style: textTheme.bodySmall?.copyWith(
+                                      color: themeService.getColor('warning'),
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildTeacherQuickActions() {
+    final themeService = DynamicThemeService.instance;
+    final textTheme = Theme.of(context).textTheme;
+
+    final teacherActions = [
+      {
+        'title': 'Create Course',
+        'icon': Icons.add_circle,
+        'color': themeService.getColor('success'),
+        'onTap': () => _showComingSoon('Create Course'),
+      },
+      {
+        'title': 'Grade Assignments',
+        'icon': Icons.assignment_turned_in,
+        'color': themeService.getColor('warning'),
+        'onTap': () => _showComingSoon('Grade Assignments'),
+      },
+      {
+        'title': 'Student Reports',
+        'icon': Icons.analytics,
+        'color': themeService.getColor('info'),
+        'onTap': () => _showComingSoon('Student Reports'),
+      },
+      {
+        'title': 'Live Session',
+        'icon': Icons.videocam,
+        'color': themeService.getColor('primary'),
+        'onTap': () => _showComingSoon('Live Session'),
+      },
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        themeService.buildSectionHeader(title: 'Teacher Tools'),
+        SizedBox(height: themeService.getSpacing('md')),
+        Container(
+          margin: EdgeInsets.symmetric(horizontal: themeService.getSpacing('md')),
+          child: GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 4,
+              crossAxisSpacing: themeService.getSpacing('sm'),
+              mainAxisSpacing: themeService.getSpacing('sm'),
+              childAspectRatio: 0.9,
+            ),
+            itemCount: teacherActions.length,
+            itemBuilder: (context, index) {
+              final action = teacherActions[index];
+              return GestureDetector(
+                onTap: action['onTap'] as VoidCallback,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(
+                      padding: EdgeInsets.all(themeService.getSpacing('md')),
+                      decoration: BoxDecoration(
+                        color: (action['color'] as Color).withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(
+                          themeService.getBorderRadius('large'),
+                        ),
+                      ),
+                      child: Icon(
+                        action['icon'] as IconData,
+                        color: action['color'] as Color,
+                        size: 28,
+                      ),
+                    ),
+                    SizedBox(height: themeService.getSpacing('sm')),
+                    Text(
+                      action['title'] as String,
+                      style: textTheme.bodySmall,
+                      textAlign: TextAlign.center,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
   }
 
   Color _getProgressColor(double progress) {
@@ -918,6 +1282,16 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
           SizedBox(height: themeService.getSpacing('sm')),
           _buildContinueLearningWidget(),
           SizedBox(height: themeService.getSpacing('lg')),
+          
+          if (_isTeacher && !_isCheckingRole) ...[
+            _buildTeacherMetrics(),
+            SizedBox(height: themeService.getSpacing('lg')),
+            _buildTeacherQuickActions(),
+            SizedBox(height: themeService.getSpacing('lg')),
+            _buildTeachingCoursesSection(),
+            SizedBox(height: themeService.getSpacing('lg')),
+          ],
+          
           _buildLearningMetrics(),
           SizedBox(height: themeService.getSpacing('lg')),
           _buildMyCoursesSection(),
@@ -927,6 +1301,10 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
         ],
       ),
     );
+  }
+
+  void _navigateToTeacherCourse(dynamic course) {
+    _showComingSoon('Teacher Course Management');
   }
 
   Widget _buildCoursesContent() {
