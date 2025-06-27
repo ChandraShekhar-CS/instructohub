@@ -8,10 +8,11 @@ import 'package:InstructoHub/services/api_service.dart';
 import 'package:InstructoHub/services/download_service.dart';
 import 'package:InstructoHub/screens/course/module_detail_screen.dart';
 import 'package:InstructoHub/screens/course/page_viewer_screen.dart';
-import 'package:InstructoHub/screens/course/assignment_viewer_screen.dart';
 import 'package:InstructoHub/screens/course/quiz_viewer_screen.dart';
 import 'package:InstructoHub/screens/course/forum_viewer_screen.dart';
 import 'package:InstructoHub/screens/course/resource_viewer_screen.dart';
+import 'package:InstructoHub/screens/course/assignments/assignments_list_screen.dart';
+import 'package:InstructoHub/screens/course/assignments/assignment_submission_screen.dart';
 import 'course_catalog_screen.dart';
 import 'package:InstructoHub/services/enhanced_icon_service.dart';
 import 'package:InstructoHub/services/dynamic_theme_service.dart';
@@ -37,6 +38,9 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
   List<dynamic> _courseContents = [];
   Map<String, dynamic>? _courseDetails;
   int? _expandedSectionIndex;
+  String? _userRole;
+  List<Map<String, dynamic>> _assignments = [];
+  int _assignmentCount = 0;
 
   final DownloadService _downloadService = DownloadService();
   bool _isDownloaded = false;
@@ -48,6 +52,8 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
     super.initState();
     _checkDownloadStatus().then((_) {
       _fetchCourseDetails();
+      _fetchUserRole();
+      _fetchAssignments();
     });
     _listenToDownloadProgress();
   }
@@ -83,6 +89,45 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
   Future<void> _checkDownloadStatus() async {
     final status = await _downloadService.isCourseDownloaded(widget.course.id);
     if (mounted) setState(() => _isDownloaded = status);
+  }
+
+  Future<void> _fetchUserRole() async {
+    try {
+      final role = await ApiService.instance.getUserRoleInCourse(
+        widget.token,
+        widget.course.id.toString(),
+      );
+      if (mounted) {
+        setState(() => _userRole = role);
+      }
+    } catch (e) {
+      print('Error fetching user role: $e');
+      setState(() => _userRole = 'student'); // Default to student
+    }
+  }
+
+  Future<void> _fetchAssignments() async {
+    try {
+      final assignments = await ApiService.instance.getCourseAssignments(
+        widget.course.id.toString(),
+        widget.token,
+      );
+      
+      if (mounted) {
+        setState(() {
+          _assignments = List<Map<String, dynamic>>.from(assignments);
+          _assignmentCount = _assignments.length;
+        });
+      }
+    } catch (e) {
+      print('Error fetching assignments: $e');
+      if (mounted) {
+        setState(() {
+          _assignments = [];
+          _assignmentCount = 0;
+        });
+      }
+    }
   }
 
   Future<void> _fetchCourseDetails() async {
@@ -159,15 +204,77 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
     );
   }
 
+  void _navigateToAssignments() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => AssignmentsListScreen(
+          token: widget.token,
+          courseId: widget.course.id.toString(),
+          courseName: widget.course.fullname,
+        ),
+      ),
+    );
+  }
+
+  void _navigateToAssignmentSubmission(Map<String, dynamic> assignment) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => AssignmentSubmissionScreen(
+          token: widget.token,
+          assignment: assignment,
+          courseId: widget.course.id.toString(),
+        ),
+      ),
+    );
+  }
+
   Widget _buildModuleItem(dynamic module) {
     Widget destinationScreen;
     final dynamic foundContent = module['foundContent'];
     final theme = Theme.of(context);
 
-    final modScreenMap = {
+    // Handle assignment modules specially
+    if (module['modname'] == 'assign' && foundContent != null) {
+      // For students, go directly to submission screen
+      if (_userRole == 'student') {
+        return ListTile(
+          leading: Icon(DynamicIconService.instance.assignmentsIcon,
+              color: theme.textTheme.bodyMedium?.color),
+          title: Text(module['name'] ?? 'Unnamed Assignment',
+              style: theme.textTheme.titleSmall),
+          subtitle: _buildAssignmentStatus(foundContent),
+          trailing: Icon(DynamicIconService.instance.forwardIcon, size: 16),
+          onTap: () => _navigateToAssignmentSubmission(foundContent),
+        );
+      } else {
+        // For teachers/admins, show assignment details or use a fallback
+        return ListTile(
+          leading: Icon(DynamicIconService.instance.assignmentsIcon,
+              color: theme.textTheme.bodyMedium?.color),
+          title: Text(module['name'] ?? 'Unnamed Assignment',
+              style: theme.textTheme.titleSmall),
+          subtitle: Text('Assignment Management'),
+          trailing: Icon(DynamicIconService.instance.forwardIcon, size: 16),
+          onTap: () {
+            // Navigate to assignment management or show details
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => ModuleDetailScreen(
+                  module: module, 
+                  token: widget.token
+                ),
+              ),
+            );
+          },
+        );
+      }
+    }
+
+    final modScreenMap = <String, Widget>{
       'forum': ForumViewerScreen(
-          module: module, foundContent: foundContent, token: widget.token),
-      'assign': AssignmentViewerScreen(
           module: module, foundContent: foundContent, token: widget.token),
       'quiz': QuizViewerScreen(
           module: module, foundContent: foundContent, token: widget.token),
@@ -183,6 +290,7 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
           token: widget.token),
     };
 
+    // Get the destination screen, fallback to ModuleDetailScreen
     destinationScreen = modScreenMap[module['modname']] ??
         ModuleDetailScreen(module: module, token: widget.token);
 
@@ -194,6 +302,59 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
       onTap: () => Navigator.push(
           context, MaterialPageRoute(builder: (context) => destinationScreen)),
     );
+  }
+
+  Widget _buildAssignmentStatus(Map<String, dynamic> assignment) {
+    final themeService = DynamicThemeService.instance;
+    final textTheme = Theme.of(context).textTheme;
+    
+    final duedate = assignment['duedate'];
+    if (duedate == null || duedate == 0) {
+      return Text(
+        'No due date',
+        style: textTheme.bodySmall?.copyWith(
+          color: themeService.getColor('textSecondary'),
+        ),
+      );
+    }
+    
+    final dueDateTime = DateTime.fromMillisecondsSinceEpoch(duedate * 1000);
+    final now = DateTime.now();
+    
+    if (now.isAfter(dueDateTime)) {
+      return Text(
+        'Overdue',
+        style: textTheme.bodySmall?.copyWith(
+          color: themeService.getColor('error'),
+          fontWeight: FontWeight.w500,
+        ),
+      );
+    } else {
+      final difference = dueDateTime.difference(now);
+      String timeLeft;
+      Color color;
+      
+      if (difference.inDays > 0) {
+        timeLeft = '${difference.inDays} days left';
+        color = difference.inDays <= 3 
+            ? themeService.getColor('warning')
+            : themeService.getColor('success');
+      } else if (difference.inHours > 0) {
+        timeLeft = '${difference.inHours} hours left';
+        color = themeService.getColor('warning');
+      } else {
+        timeLeft = '${difference.inMinutes} minutes left';
+        color = themeService.getColor('error');
+      }
+      
+      return Text(
+        timeLeft,
+        style: textTheme.bodySmall?.copyWith(
+          color: color,
+          fontWeight: FontWeight.w500,
+        ),
+      );
+    }
   }
 
   Widget _buildProgressBar() {
@@ -254,6 +415,141 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
         ],
       ),
     );
+  }
+
+  Widget _buildQuickActionsSection() {
+    final themeService = DynamicThemeService.instance;
+    final textTheme = Theme.of(context).textTheme;
+    
+    return Container(
+      margin: EdgeInsets.all(themeService.getSpacing('md')),
+      child: Card(
+        elevation: 2,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(themeService.getBorderRadius('large')),
+        ),
+        child: Padding(
+          padding: EdgeInsets.all(themeService.getSpacing('md')),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Quick Actions',
+                style: textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              SizedBox(height: themeService.getSpacing('md')),
+              
+              // Assignments Quick Action
+              if (_userRole == 'student' && _assignmentCount > 0)
+                _buildQuickActionItem(
+                  icon: DynamicIconService.instance.assignmentsIcon,
+                  title: 'Assignments',
+                  subtitle: '$_assignmentCount assignments available',
+                  onTap: _navigateToAssignments,
+                  badgeCount: _getUpcomingAssignmentsCount(),
+                ),
+              
+              // Add other quick actions here as needed
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildQuickActionItem({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+    int? badgeCount,
+  }) {
+    final themeService = DynamicThemeService.instance;
+    final textTheme = Theme.of(context).textTheme;
+    
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(themeService.getBorderRadius('medium')),
+      child: Padding(
+        padding: EdgeInsets.symmetric(vertical: themeService.getSpacing('sm')),
+        child: Row(
+          children: [
+            Container(
+              padding: EdgeInsets.all(themeService.getSpacing('sm')),
+              decoration: BoxDecoration(
+                color: themeService.getColor('primary').withOpacity(0.1),
+                borderRadius: BorderRadius.circular(themeService.getBorderRadius('small')),
+              ),
+              child: Icon(
+                icon,
+                color: themeService.getColor('primary'),
+                size: 20,
+              ),
+            ),
+            SizedBox(width: themeService.getSpacing('md')),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  Text(
+                    subtitle,
+                    style: textTheme.bodySmall?.copyWith(
+                      color: themeService.getColor('textSecondary'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (badgeCount != null && badgeCount > 0)
+              Container(
+                padding: EdgeInsets.symmetric(
+                  horizontal: themeService.getSpacing('sm'),
+                  vertical: themeService.getSpacing('xs'),
+                ),
+                decoration: BoxDecoration(
+                  color: themeService.getColor('error'),
+                  borderRadius: BorderRadius.circular(themeService.getBorderRadius('large')),
+                ),
+                child: Text(
+                  badgeCount.toString(),
+                  style: textTheme.bodySmall?.copyWith(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            SizedBox(width: themeService.getSpacing('sm')),
+            Icon(
+              DynamicIconService.instance.forwardIcon,
+              size: 16,
+              color: themeService.getColor('textSecondary'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  int _getUpcomingAssignmentsCount() {
+    final now = DateTime.now();
+    return _assignments.where((assignment) {
+      final duedate = assignment['duedate'];
+      if (duedate == null || duedate == 0) return false;
+      
+      final dueDateTime = DateTime.fromMillisecondsSinceEpoch(duedate * 1000);
+      final difference = dueDateTime.difference(now);
+      
+      // Count assignments due within the next 7 days
+      return difference.inDays >= 0 && difference.inDays <= 7;
+    }).length;
   }
 
   Widget _buildDownloadButton() {
@@ -341,6 +637,8 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
                 children: [
                   _buildCourseImage(),
                   _buildProgressBar(),
+                  
+                  // Course Information Section
                   Padding(
                     padding: EdgeInsets.all(themeService.getSpacing('md')),
                     child: Column(
@@ -372,7 +670,14 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
                       ],
                     ),
                   ),
+                  
+                  // Quick Actions Section (only for students)
+                  if (_userRole == 'student')
+                    _buildQuickActionsSection(),
+                  
                   const Divider(),
+                  
+                  // Course Content Sections
                   if (_courseContents.isEmpty)
                     const Center(
                         child: Padding(

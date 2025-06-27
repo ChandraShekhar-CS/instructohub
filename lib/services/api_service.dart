@@ -1,6 +1,9 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:InstructoHub/models/offline_submission_model.dart';
 import 'configuration_service.dart';
 
 class ApiService {
@@ -9,6 +12,7 @@ class ApiService {
   String? _loginUrl;
   String? _uploadUrl;
   String? _tenantName;
+  String? _currentUserId;
 
   ApiService._internal();
 
@@ -18,13 +22,11 @@ class ApiService {
   }
 
   bool get isConfigured => _baseUrl != null && _loginUrl != null;
-
   String get baseUrl => _baseUrl ?? '';
   String get loginUrl => _loginUrl ?? '';
   String get uploadUrl => _uploadUrl ?? '';
   String get tenantName => _tenantName ?? '';
 
-  // --- Chat API Methods ---
   Future<List<dynamic>> getConversations(String token) async {
     try {
       final response = await _post('local_chat_get_conversations', token, {});
@@ -86,7 +88,772 @@ class ApiService {
     }
   }
 
-  // --- Configuration Methods ---
+  Future<Map<String, dynamic>> getSubmissionStatus(String token, int assignmentId) async {
+    try {
+      final userId = await _getCurrentUserId(token);
+
+      return await callCustomAPI(
+        'mod_assign_get_submission_status',
+        token,
+        {
+          'assignid': assignmentId.toString(),
+          'userid': userId,
+          'groupid': '0',
+        },
+        method: 'POST',
+      );
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<String> _getCurrentUserId(String token) async {
+    if (_currentUserId != null && _currentUserId!.isNotEmpty) {
+      return _currentUserId!;
+    }
+
+    try {
+      final userInfo = await getUserInfo(token);
+      if (userInfo['success'] == true && userInfo['data']['userid'] != null) {
+        _currentUserId = userInfo['data']['userid'].toString();
+        return _currentUserId!;
+      } else {
+        throw Exception('User ID not found');
+      }
+    } catch (e) {
+      throw Exception('Could not get user ID: ${e.toString()}');
+    }
+  }
+
+  Future<int> _startSubmission(String token, int assignmentId) async {
+    final result = await _post(
+      'mod_assign_start_submission',
+      token,
+      {'assignid': assignmentId.toString()},
+    );
+
+    if (result['lastattempt']?['submission']?['plugins'] != null) {
+      final plugins = result['lastattempt']['submission']['plugins'] as List;
+
+      final filePlugin = plugins.firstWhere((p) => p['type'] == 'file', orElse: () => null);
+      if (filePlugin != null && (filePlugin['fileareas'] as List).isNotEmpty) {
+        return filePlugin['fileareas'][0]['itemid'] as int;
+      }
+
+      final onlinetextPlugin = plugins.firstWhere((p) => p['type'] == 'onlinetext', orElse: () => null);
+      if (onlinetextPlugin != null) {
+        return onlinetextPlugin['editorfields'][0]['itemid'] as int;
+      }
+    }
+    throw Exception('Could not get a draft item ID to begin submission.');
+  }
+
+  Future<void> _saveSubmission(String token, int assignmentId, int itemId, String onlineText) async {
+    await _post(
+      'mod_assign_save_submission',
+      token,
+      {
+        'assignmentid': assignmentId.toString(),
+        'plugindata[onlinetext_editor][text]': onlineText,
+        'plugindata[onlinetext_editor][format]': '1',
+        'plugindata[files_filemanager]': itemId.toString(),
+      },
+    );
+  }
+
+  Future<void> _submitForGrading(String token, int assignmentId) async {
+    await _post(
+      'mod_assign_submit_for_grading',
+      token,
+      {
+        'assignmentid': assignmentId.toString(),
+        'acceptsubmissionstatement': '1',
+      },
+    );
+  }
+
+  Future<void> submitAssignmentDirectly({
+    required String token,
+    required int assignmentId,
+    required String onlineText,
+    required File file,
+  }) async {
+    try {
+      final itemId = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+      final fileBytes = await file.readAsBytes();
+      final fileName = file.path.split('/').last;
+      
+      await uploadFile(token, {
+        'itemid': itemId.toString(),
+        'filename': fileName,
+        'file': fileBytes,
+        'filearea': 'draft',
+        'filepath': '/',
+      });
+      
+      await _saveSubmissionEnhanced(token, assignmentId, itemId, onlineText);
+      await _submitForGradingEnhanced(token, assignmentId);
+
+    } catch (e) {
+      throw Exception('Assignment submission failed: ${e.toString()}');
+    }
+  }
+
+  Future<void> submitOnlineTextOnly({
+    required String token,
+    required int assignmentId,
+    required String onlineText,
+  }) async {
+    try {
+      await _saveSubmissionEnhanced(token, assignmentId, 0, onlineText);
+      await _submitForGradingEnhanced(token, assignmentId);
+    } catch (e) {
+      throw Exception('Online text submission failed: ${e.toString()}');
+    }
+  }
+
+  Future<void> submitFileOnly({
+    required String token,
+    required int assignmentId,
+    required File file,
+  }) async {
+    try {
+      final itemId = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+      final fileBytes = await file.readAsBytes();
+      final fileName = file.path.split('/').last;
+      
+      await uploadFile(token, {
+        'itemid': itemId.toString(),
+        'filename': fileName,
+        'file': fileBytes,
+        'filearea': 'draft',
+        'filepath': '/',
+      });
+      
+      await _saveSubmissionEnhanced(token, assignmentId, itemId, '');
+      await _submitForGradingEnhanced(token, assignmentId);
+    } catch (e) {
+      throw Exception('File submission failed: ${e.toString()}');
+    }
+  }
+
+  Future<Map<String, dynamic>> _uploadFileForAssignment(String token, File file) async {
+    try {
+      final itemId = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+      final fileBytes = await file.readAsBytes();
+      final fileName = file.path.split('/').last;
+      
+      final result = await uploadFile(token, {
+        'itemid': itemId.toString(),
+        'filename': fileName,
+        'file': fileBytes,
+        'filearea': 'draft',
+        'filepath': '/',
+      });
+      
+      return {
+        'itemid': itemId,
+        'filename': fileName,
+        'filesize': fileBytes.length,
+        'result': result,
+      };
+    } catch (e) {
+      throw Exception('File upload failed: ${e.toString()}');
+    }
+  }
+
+  Future<void> _saveSubmissionEnhanced(String token, int assignmentId, int itemId, String onlineText) async {
+    try {
+      final cleanText = onlineText.trim().isEmpty ? ' ' : onlineText.trim();
+      
+      final params = {
+        'assignmentid': assignmentId.toString(),
+        'plugindata[onlinetext_editor][text]': cleanText,
+        'plugindata[onlinetext_editor][format]': '1',
+        'plugindata[onlinetext_editor][itemid]': '0',
+        'plugindata[files_filemanager]': itemId.toString(),
+      };
+      
+      await callCustomAPI('mod_assign_save_submission', token, params, method: 'POST');
+      
+    } catch (e) {
+      throw Exception('Failed to save submission: ${e.toString()}');
+    }
+  }
+
+  Future<void> _submitForGradingEnhanced(String token, int assignmentId) async {
+    try {
+      await callCustomAPI(
+        'mod_assign_submit_for_grading',
+        token,
+        {
+          'assignmentid': assignmentId.toString(),
+          'acceptsubmissionstatement': '1',
+        },
+        method: 'POST',
+      );
+    } catch (e) {
+      throw Exception('Failed to submit for grading: ${e.toString()}');
+    }
+  }
+
+  Future<void> submitAssignmentEnhanced({
+    required String token,
+    required int assignmentId,
+    required String onlineText,
+    required File file,
+  }) async {
+    try {
+      final uploadResult = await _uploadFileForAssignment(token, file);
+      final itemId = uploadResult['itemid'] ?? 0;
+      
+      await _saveSubmissionEnhanced(token, assignmentId, itemId, onlineText);
+      await _submitForGradingEnhanced(token, assignmentId);
+    } catch (e) {
+      throw Exception('Assignment submission failed: ${e.toString()}');
+    }
+  }
+
+  Future<void> submitAssignmentAlternative({
+    required String token,
+    required int assignmentId,
+    required String onlineText,
+    File? file,
+  }) async {
+    try {
+      int itemId = 0;
+      
+      if (file != null) {
+        itemId = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+        final fileBytes = await file.readAsBytes();
+        
+        await uploadFile(token, {
+          'itemid': itemId.toString(),
+          'filename': file.path.split('/').last,
+          'file': fileBytes,
+          'filearea': 'draft',
+          'filepath': '/',
+        });
+      }
+      
+      final params = <String, String>{
+        'assignmentid': assignmentId.toString(),
+      };
+      
+      if (onlineText.trim().isNotEmpty) {
+        params['plugindata[onlinetext_editor][text]'] = onlineText.trim();
+        params['plugindata[onlinetext_editor][format]'] = '1';
+      }
+      
+      if (itemId > 0) {
+        params['plugindata[files_filemanager]'] = itemId.toString();
+      }
+      
+      await callCustomAPI('mod_assign_save_submission', token, params, method: 'POST');
+      await callCustomAPI('mod_assign_submit_for_grading', token, {
+        'assignmentid': assignmentId.toString(),
+        'acceptsubmissionstatement': '1',
+      }, method: 'POST');
+      
+    } catch (e) {
+      throw Exception('Alternative submission failed: ${e.toString()}');
+    }
+  }
+
+  Future<void> _saveSubmissionAlternative(String token, int assignmentId, int itemId, String onlineText) async {
+    try {
+      final cleanText = onlineText.trim().isEmpty ? ' ' : onlineText.trim();
+      final params = <String, String>{};
+      
+      params['assignmentid'] = assignmentId.toString();
+      
+      if (cleanText.isNotEmpty && cleanText != ' ') {
+        params['plugindata[onlinetext_editor][text]'] = cleanText;
+        params['plugindata[onlinetext_editor][format]'] = '1';
+        params['plugindata[onlinetext_editor][itemid]'] = '0';
+      }
+      
+      if (itemId > 0) {
+        params['plugindata[files_filemanager]'] = itemId.toString();
+      }
+      
+      await _post('mod_assign_save_submission', token, params);
+    } catch (e) {
+      throw e;
+    }
+  }
+
+  Future<Map<String, dynamic>> debugAssignmentIssue(String token, int assignmentId) async {
+    final debugResults = <String, dynamic>{
+      'tests': <String, dynamic>{},
+      'recommendations': <String>[],
+      'timestamp': DateTime.now().toIso8601String(),
+      'assignmentId': assignmentId,
+    };
+
+    try {
+      debugResults['tests']['userAuth'] = await _testUserAuth(token);
+      debugResults['tests']['assignmentAccess'] = await _testAssignmentAccess(token, assignmentId);
+      debugResults['tests']['apiEndpoints'] = await _testApiEndpoints(token);
+      debugResults['tests']['fileUpload'] = await _testFileUpload(token);
+      debugResults['tests']['assignmentConfig'] = await _testAssignmentConfig(token, assignmentId);
+      debugResults['tests']['submissionStatus'] = await _testSubmissionStatus(token, assignmentId);
+      
+      debugResults['recommendations'] = _generateRecommendations(debugResults['tests']);
+      
+      return debugResults;
+    } catch (e) {
+      debugResults['error'] = e.toString();
+      debugResults['recommendations'].add('Critical error occurred during debugging: ${e.toString()}');
+      return debugResults;
+    }
+  }
+
+  String exportDebugResults(Map<String, dynamic> results) {
+    final buffer = StringBuffer();
+    
+    buffer.writeln('=== ASSIGNMENT DEBUG REPORT ===');
+    buffer.writeln('Generated: ${results['timestamp']}');
+    buffer.writeln('Assignment ID: ${results['assignmentId']}');
+    buffer.writeln('');
+    
+    buffer.writeln('=== TEST RESULTS ===');
+    final tests = results['tests'] as Map<String, dynamic>;
+    tests.forEach((testName, result) {
+      final success = result['success'] ?? false;
+      final status = success ? '✅ PASS' : '❌ FAIL';
+      buffer.writeln('$testName: $status');
+      
+      if (!success && result['error'] != null) {
+        buffer.writeln('  Error: ${result['error']}');
+      }
+      
+      if (result['details'] != null) {
+        buffer.writeln('  Details: ${result['details']}');
+      }
+      buffer.writeln('');
+    });
+    
+    buffer.writeln('=== RECOMMENDATIONS ===');
+    final recommendations = results['recommendations'] as List<String>;
+    for (int i = 0; i < recommendations.length; i++) {
+      buffer.writeln('${i + 1}. ${recommendations[i]}');
+    }
+    
+    buffer.writeln('');
+    buffer.writeln('=== RAW DATA ===');
+    buffer.writeln(results.toString());
+    
+    return buffer.toString();
+  }
+
+  Future<Map<String, dynamic>> _testUserAuth(String token) async {
+    try {
+      final userInfo = await getUserInfo(token);
+      if (userInfo['success'] == true) {
+        final data = userInfo['data'];
+        return {
+          'success': true,
+          'details': 'User: ${data['firstname']} ${data['lastname']} (ID: ${data['userid']})',
+        };
+      } else {
+        return {
+          'success': false,
+          'error': 'User authentication failed',
+          'details': userInfo['error'] ?? 'Unknown error',
+        };
+      }
+    } catch (e) {
+      return {
+        'success': false,
+        'error': e.toString(),
+      };
+    }
+  }
+
+  Future<Map<String, dynamic>> _testAssignmentAccess(String token, int assignmentId) async {
+    try {
+      final assignments = await getCourseAssignments('1', token);
+      final foundAssignment = assignments.any((a) => a['id'] == assignmentId);
+      
+      return {
+        'success': foundAssignment,
+        'details': foundAssignment 
+            ? 'Assignment found in course assignments list'
+            : 'Assignment not found in accessible assignments',
+        'assignmentCount': assignments.length,
+      };
+    } catch (e) {
+      return {
+        'success': false,
+        'error': e.toString(),
+      };
+    }
+  }
+
+  Future<Map<String, dynamic>> _testApiEndpoints(String token) async {
+    final endpointTests = <String, bool>{};
+    
+    try {
+      try {
+        await callCustomAPI('core_webservice_get_site_info', token, {});
+        endpointTests['site_info'] = true;
+      } catch (e) {
+        endpointTests['site_info'] = false;
+      }
+      
+      try {
+        await callCustomAPI('mod_assign_get_assignments', token, {'courseids[0]': '1'});
+        endpointTests['get_assignments'] = true;
+      } catch (e) {
+        endpointTests['get_assignments'] = false;
+      }
+      
+      try {
+        await callCustomAPI('mod_assign_save_submission', token, {'assignmentid': '999999'});
+        endpointTests['save_submission'] = true;
+      } catch (e) {
+        endpointTests['save_submission'] = !e.toString().contains('Invalid token');
+      }
+      
+      final successCount = endpointTests.values.where((v) => v).length;
+      
+      return {
+        'success': successCount >= 2,
+        'details': 'Working endpoints: $successCount/${endpointTests.length}',
+        'endpoints': endpointTests,
+      };
+    } catch (e) {
+      return {
+        'success': false,
+        'error': e.toString(),
+      };
+    }
+  }
+
+  Future<Map<String, dynamic>> _testFileUpload(String token) async {
+    try {
+      final testContent = 'Test file for debugging assignment submission capabilities.';
+      final testBytes = testContent.codeUnits;
+      
+      final result = await uploadFile(token, {
+        'itemid': '0',
+        'filename': 'debug_test.txt',
+        'file': testBytes,
+        'filearea': 'draft',
+        'filepath': '/',
+      });
+      
+      return {
+        'success': true,
+        'details': 'File upload successful',
+        'uploadResult': result,
+      };
+    } catch (e) {
+      return {
+        'success': false,
+        'error': e.toString(),
+      };
+    }
+  }
+
+  Future<Map<String, dynamic>> _testAssignmentConfig(String token, int assignmentId) async {
+    try {
+      final assignments = await getCourseAssignments('1', token);
+      final assignment = assignments.firstWhere(
+        (a) => a['id'] == assignmentId,
+        orElse: () => null,
+      );
+      
+      if (assignment == null) {
+        return {
+          'success': false,
+          'error': 'Assignment not found',
+        };
+      }
+      
+      final configs = assignment['configs'] as List<dynamic>? ?? [];
+      final submissionPlugins = configs.where((c) => 
+          c['subtype'] == 'assignsubmission').toList();
+      
+      return {
+        'success': true,
+        'details': 'Assignment found with ${submissionPlugins.length} submission plugins',
+        'submissionPlugins': submissionPlugins,
+      };
+    } catch (e) {
+      return {
+        'success': false,
+        'error': e.toString(),
+      };
+    }
+  }
+
+  Future<Map<String, dynamic>> _testSubmissionStatus(String token, int assignmentId) async {
+    try {
+      final status = await getSubmissionStatus(token, assignmentId);
+      return {
+        'success': true,
+        'details': 'Submission status retrieved successfully',
+        'status': status,
+      };
+    } catch (e) {
+      return {
+        'success': false,
+        'error': e.toString(),
+      };
+    }
+  }
+
+  List<String> _generateRecommendations(Map<String, dynamic> tests) {
+    final recommendations = <String>[];
+    
+    if (tests['userAuth']?['success'] != true) {
+      recommendations.add('Check user authentication - token may be invalid or expired');
+    }
+    
+    if (tests['assignmentAccess']?['success'] != true) {
+      recommendations.add('Verify assignment ID and user permissions for this assignment');
+    }
+    
+    if (tests['apiEndpoints']?['success'] != true) {
+      recommendations.add('API endpoints may not be properly configured or accessible');
+    }
+    
+    if (tests['fileUpload']?['success'] != true) {
+      recommendations.add('File upload functionality is not working - check server configuration');
+    }
+    
+    if (tests['submissionStatus']?['success'] != true) {
+      recommendations.add('Cannot access submission status - assignment may not accept submissions');
+    }
+    
+    if (recommendations.isEmpty) {
+      recommendations.add('All tests passed - assignment submission should work normally');
+    }
+    
+    return recommendations;
+  }
+
+  Future<Map<String, dynamic>> testAssignmentSubmissionCapabilities(String token, int assignmentId) async {
+    final results = <String, dynamic>{
+      'canGetStatus': false,
+      'canUploadFile': false,
+      'canSaveSubmission': false,
+      'errors': <String>[],
+      'warnings': <String>[],
+    };
+    
+    try {
+      try {
+        await getSubmissionStatus(token, assignmentId);
+        results['canGetStatus'] = true;
+      } catch (e) {
+        results['errors'].add('Cannot get submission status: $e');
+      }
+      
+      try {
+        final tempDir = await getTemporaryDirectory();
+        final testFile = File('${tempDir.path}/test.txt');
+        await testFile.writeAsString('Test submission file');
+        
+        final uploadResult = await _uploadFileForAssignment(token, testFile);
+        results['canUploadFile'] = true;
+        results['uploadResult'] = uploadResult;
+        
+        await testFile.delete();
+      } catch (e) {
+        results['errors'].add('Cannot upload files: $e');
+      }
+      
+      try {
+        await _getCurrentUserId(token);
+        results['canSaveSubmission'] = true;
+      } catch (e) {
+        results['errors'].add('Cannot prepare for save: $e');
+      }
+      
+      return results;
+    } catch (e) {
+      results['errors'].add('Test failed: $e');
+      return results;
+    }
+  }
+
+  Future<String> getUserRoleInCourse(String token, String courseId) async {
+    try {
+      final rolesData = await getUserRolesAndCapabilities(token);
+      
+      if (rolesData['courses'] != null) {
+        for (var course in rolesData['courses']) {
+          if (course['courseid'].toString() == courseId) {
+            if (course['roles'] != null && course['roles'].isNotEmpty) {
+              final role = course['roles'][0];
+              if (role['roleid'] == 5) return 'student';
+              if (role['roleid'] == 3) return 'teacher';
+              if (role['roleid'] == 4) return 'teacher';
+              return role['shortname'] ?? 'student';
+            }
+          }
+        }
+      }
+      
+      return 'student';
+    } catch (e) {
+      return 'student';
+    }
+  }
+
+  Future<void> quickAssignmentTest(String token, int assignmentId) async {
+    try {
+      final userInfo = await getUserInfo(token);
+      if (userInfo['success'] == true) {
+        final data = userInfo['data'];
+      }
+      
+      try {
+        await getCourseAssignments('1', token);
+      } catch (e) {
+        // Continue test
+      }
+      
+      try {
+        await getSubmissionStatus(token, assignmentId);
+      } catch (e) {
+        // Continue test
+      }
+      
+    } catch (e) {
+      // Test failed
+    }
+  }
+
+  Future<Map<String, dynamic>> validateAssignmentSubmission({
+    required String token,
+    required int assignmentId,
+    String? onlineText,
+    File? file,
+  }) async {
+    final validation = <String, dynamic>{
+      'isValid': true,
+      'errors': <String>[],
+      'warnings': <String>[],
+    };
+    
+    try {
+      try {
+        await getSubmissionStatus(token, assignmentId);
+      } catch (e) {
+        validation['warnings'].add('Could not verify submission status: $e');
+      }
+      
+      try {
+        await _getCurrentUserId(token);
+      } catch (e) {
+        validation['isValid'] = false;
+        validation['errors'].add('User authentication failed: $e');
+      }
+      
+      return validation;
+    } catch (e) {
+      validation['isValid'] = false;
+      validation['errors'].add('Validation error: ${e.toString()}');
+      return validation;
+    }
+  }
+
+  Future<void> submitAssignmentManual({
+    required String token,
+    required int assignmentId,
+    required String onlineText,
+    File? file,
+  }) async {
+    try {
+      final params = <String, String>{
+        'assignmentid': assignmentId.toString(),
+      };
+      
+      if (onlineText.trim().isNotEmpty) {
+        params['onlinetext'] = onlineText.trim();
+      }
+      
+      if (file != null) {
+        final itemId = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+        final fileBytes = await file.readAsBytes();
+        
+        await uploadFile(token, {
+          'itemid': itemId.toString(),
+          'filename': file.path.split('/').last,
+          'file': fileBytes,
+          'filearea': 'draft',
+        });
+        
+        params['fileitemid'] = itemId.toString();
+      }
+      
+      await callCustomAPI('mod_assign_save_submission', token, params, method: 'POST');
+      await callCustomAPI('mod_assign_submit_for_grading', token, {
+        'assignmentid': assignmentId.toString(),
+        'acceptsubmissionstatement': '1',
+      }, method: 'POST');
+      
+    } catch (e) {
+      throw Exception('Manual submission failed: ${e.toString()}');
+    }
+  }
+
+  Future<bool> validateAssignmentExists(String token, int assignmentId) async {
+    try {
+      final response = await _post('get_assignments', token, {
+        'assignmentids[0]': assignmentId.toString(),
+      });
+
+      if (response is Map && response['assignments'] is List) {
+        final assignments = response['assignments'] as List;
+        return assignments.any((assignment) => assignment['id'] == assignmentId);
+      }
+
+      return false;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  Future<List<dynamic>> getAssignmentsByCourse(String token, int courseId) async {
+    try {
+      final response = await _post('get_assignments', token, {
+        'courseids[0]': courseId.toString(),
+      });
+
+      if (response is Map && response['courses'] is List) {
+        final courses = response['courses'] as List;
+        if (courses.isNotEmpty && courses[0]['assignments'] is List) {
+          return courses[0]['assignments'] as List;
+        }
+      }
+
+      return [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  Future<int?> findAssignmentIdByCmid(String token, int courseId, int cmid) async {
+    try {
+      final assignments = await getAssignmentsByCourse(token, courseId);
+
+      for (var assignment in assignments) {
+        if (assignment['cmid'] == cmid) {
+          return assignment['id'] as int;
+        }
+      }
+
+      return null;
+    } catch (e) {
+      return null;
+    }
+  }
+
   Future<void> configure(String domain) async {
     try {
       await ConfigurationService.instance.initialize();
@@ -142,8 +909,7 @@ class ApiService {
   Future<bool> loadConfiguration() async {
     try {
       await ConfigurationService.instance.initialize();
-    } catch (e) {
-    }
+    } catch (e) {}
 
     final prefs = await SharedPreferences.getInstance();
     final tenant = prefs.getString('api_tenant');
@@ -152,11 +918,7 @@ class ApiService {
     final loginUrl = prefs.getString('api_login_url');
     final uploadUrl = prefs.getString('api_upload_url');
 
-    if (tenant != null &&
-        domain != null &&
-        baseUrl != null &&
-        loginUrl != null &&
-        uploadUrl != null) {
+    if (tenant != null && domain != null && baseUrl != null && loginUrl != null && uploadUrl != null) {
       _tenantName = tenant;
       _baseUrl = baseUrl;
       _loginUrl = loginUrl;
@@ -165,8 +927,7 @@ class ApiService {
       if (domain.isNotEmpty) {
         try {
           await ConfigurationService.instance.loadForDomain(domain);
-        } catch (e) {
-        }
+        } catch (e) {}
       }
 
       return true;
@@ -177,8 +938,7 @@ class ApiService {
   Future<void> clearConfiguration() async {
     try {
       await ConfigurationService.instance.clearConfiguration();
-    } catch (e) {
-    }
+    } catch (e) {}
 
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('api_tenant');
@@ -209,15 +969,31 @@ class ApiService {
           return customFunction;
         }
       }
-    } catch (e) {
-    }
+    } catch (e) {}
 
     const fallbackMappings = {
       'get_site_info': 'core_webservice_get_site_info',
       'get_user_courses': 'core_enrol_get_users_courses',
       'get_course_contents': 'core_course_get_contents',
+      'get_enrolled_users': 'core_enrol_get_enrolled_users',
+      'get_upcoming_events': 'core_calendar_get_calendar_upcoming_view',
+      'get_categories': 'core_course_get_categories',
+      'get_assignments': 'mod_assign_get_assignments',
+      'get_page_content': 'mod_page_get_pages_by_courses',
+      'get_forums': 'mod_forum_get_forums_by_courses',
+      'get_quizzes': 'mod_quiz_get_quizzes_by_courses',
+      'get_resources': 'mod_resource_get_resources_by_courses',
+      'mod_assign_get_submission_status': 'mod_assign_get_submission_status',
+      'mod_assign_start_submission': 'mod_assign_start_submission',
+      'mod_assign_save_submission': 'mod_assign_save_submission',
+      'mod_assign_submit_for_grading': 'mod_assign_submit_for_grading',
       'get_user_progress': 'local_instructohub_get_user_course_progress',
-      'local_instructohub_get_user_course_progress': 'local_instructohub_get_user_course_progress',
+      'local_chat_get_conversations': 'local_chat_get_conversations',
+      'local_chat_get_messages': 'local_chat_get_messages',
+      'local_chat_send_message': 'local_chat_send_message',
+      'local_chat_mark_read': 'local_chat_mark_read',
+      'local_chat_get_contacts': 'local_chat_get_contacts',
+      'local_chat_search_users': 'local_chat_search_users',
     };
 
     return fallbackMappings[functionKey] ?? functionKey;
@@ -234,7 +1010,7 @@ class ApiService {
       if (response.statusCode == 200) {
         final decoded = json.decode(response.body);
         if (decoded is Map && decoded.containsKey('exception')) {
-          throw Exception('Moodle API Error: ${decoded['message']}');
+          throw Exception('Moodle API Error for $wsfunction: ${decoded['message']}');
         }
         return decoded;
       } else {
@@ -274,7 +1050,6 @@ class ApiService {
     }
   }
 
-  // --- Authentication Methods ---
   Future<Map<String, dynamic>> login(String username, String password) async {
     _ensureConfigured();
 
@@ -353,7 +1128,6 @@ class ApiService {
     }
   }
 
-  // --- Course Methods ---
   Future<List<dynamic>> getUserCourses(String token) async {
     try {
       final userInfoResult = await getUserInfo(token);
@@ -397,18 +1171,13 @@ class ApiService {
         throw Exception('User ID not found');
       }
 
-      final response = await _post(
-          'local_instructohub_get_user_course_progress',
-          token,
-          {'userid': userId.toString()});
-
+      final response = await _post('local_instructohub_get_user_course_progress', token, {'userid': userId.toString()});
       return response;
     } catch (e) {
       rethrow;
     }
   }
 
-  // --- Teacher Methods ---
   Future<Map<String, dynamic>> getUserRolesAndCapabilities(String token) async {
     try {
       final userInfoResult = await getUserInfo(token);
@@ -423,14 +1192,8 @@ class ApiService {
         throw Exception('User ID not found');
       }
 
-      final response = await _post(
-          'local_instructohub_get_user_roles_with_capabilities',
-          token,
-          {'userid': userId.toString()});
-
-      return response is Map<String, dynamic> 
-          ? response 
-          : Map<String, dynamic>.from(response as Map);
+      final response = await _post('local_instructohub_get_user_roles_with_capabilities', token, {'userid': userId.toString()});
+      return response is Map<String, dynamic> ? response : Map<String, dynamic>.from(response as Map);
     } catch (e) {
       rethrow;
     }
@@ -439,12 +1202,12 @@ class ApiService {
   Future<bool> isTeacher(String token) async {
     try {
       final rolesData = await getUserRolesAndCapabilities(token);
-      
+
       if (rolesData['courses'] != null) {
         for (var course in rolesData['courses']) {
           if (course['roles'] != null) {
             for (var role in course['roles']) {
-              if (role['roleid'] == 3 || 
+              if (role['roleid'] == 3 ||
                   role['name']?.toLowerCase().contains('teacher') == true ||
                   role['shortname']?.toLowerCase().contains('teacher') == true ||
                   role['name']?.toLowerCase().contains('editingteacher') == true) {
@@ -454,10 +1217,10 @@ class ApiService {
           }
         }
       }
-      
+
       if (rolesData['globalroles'] != null) {
         for (var role in rolesData['globalroles']) {
-          if (role['roleid'] == 3 || 
+          if (role['roleid'] == 3 ||
               role['name']?.toLowerCase().contains('teacher') == true ||
               role['shortname']?.toLowerCase().contains('teacher') == true ||
               role['name']?.toLowerCase().contains('editingteacher') == true) {
@@ -465,7 +1228,7 @@ class ApiService {
           }
         }
       }
-      
+
       return false;
     } catch (e) {
       return false;
@@ -482,21 +1245,17 @@ class ApiService {
       final userInfo = userInfoResult['data'];
       final userId = userInfo['userid'];
 
-      final response = await _post(
-          'local_instructohub_get_user_courses_with_roles',
-          token,
-          {'userid': userId.toString()});
+      final response = await _post('local_instructohub_get_user_courses_with_roles', token, {'userid': userId.toString()});
 
       List<dynamic> teachingCourses = [];
       if (response is List) {
         teachingCourses = response.where((course) {
           if (course['roles'] != null) {
-            return (course['roles'] as List).any((role) => 
-              role['roleid'] == 3 || 
-              role['shortname']?.toLowerCase().contains('teacher') == true ||
-              role['name']?.toLowerCase().contains('teacher') == true ||
-              role['name']?.toLowerCase().contains('editingteacher') == true
-            );
+            return (course['roles'] as List).any((role) =>
+                role['roleid'] == 3 ||
+                role['shortname']?.toLowerCase().contains('teacher') == true ||
+                role['name']?.toLowerCase().contains('teacher') == true ||
+                role['name']?.toLowerCase().contains('editingteacher') == true);
           }
           return false;
         }).toList();
@@ -504,7 +1263,6 @@ class ApiService {
 
       return teachingCourses;
     } catch (e) {
-      print('getTeachingCourses API not available: $e');
       return [];
     }
   }
@@ -519,21 +1277,14 @@ class ApiService {
       final userInfo = userInfoResult['data'];
       final userId = userInfo['userid'];
 
-      final response = await _post(
-          'local_instructohub_get_teacher_metrics',
-          token,
-          {'userid': userId.toString()});
-
-      return response is Map<String, dynamic> 
-          ? response 
-          : Map<String, dynamic>.from(response as Map);
+      final response = await _post('local_instructohub_get_teacher_metrics', token, {'userid': userId.toString()});
+      return response is Map<String, dynamic> ? response : Map<String, dynamic>.from(response as Map);
     } catch (e) {
       try {
         final teachingCourses = await getTeachingCourses(token);
-        
         int totalStudents = 0;
         int pendingAssignments = 0;
-        
+
         for (var course in teachingCourses) {
           totalStudents += (course['enrolleduserscount'] ?? 0) as int;
         }
@@ -565,49 +1316,34 @@ class ApiService {
       final userInfo = userInfoResult['data'];
       final userId = userInfo['userid'];
 
-      final response = await _post(
-          'local_instructohub_get_teacher_pending_assignments',
-          token,
-          {'userid': userId.toString()});
-
+      final response = await _post('local_instructohub_get_teacher_pending_assignments', token, {'userid': userId.toString()});
       return response is List ? response : [];
     } catch (e) {
-      print('getPendingAssignments API not available: $e');
       return [];
     }
   }
 
   Future<List<dynamic>> getStudentProgress(String courseId, String token) async {
     try {
-      final response = await _post(
-          'local_instructohub_get_student_progress',
-          token,
-          {'courseid': courseId});
-
+      final response = await _post('local_instructohub_get_student_progress', token, {'courseid': courseId});
       return response is List ? response : [];
     } catch (e) {
-      print('getStudentProgress API not available: $e');
       return [];
     }
   }
 
   Future<dynamic> createCourse(String token, Map<String, dynamic> courseData) async {
     try {
-      final response = await _post(
-          'local_instructohub_create_course',
-          token,
-          {
-            'fullname': courseData['fullname'] ?? '',
-            'shortname': courseData['shortname'] ?? '',
-            'categoryid': courseData['categoryid']?.toString() ?? '1',
-            'summary': courseData['summary'] ?? '',
-            'startdate': courseData['startdate']?.toString() ?? '',
-            'enddate': courseData['enddate']?.toString() ?? '',
-          });
-
+      final response = await _post('local_instructohub_create_course', token, {
+        'fullname': courseData['fullname'] ?? '',
+        'shortname': courseData['shortname'] ?? '',
+        'categoryid': courseData['categoryid']?.toString() ?? '1',
+        'summary': courseData['summary'] ?? '',
+        'startdate': courseData['startdate']?.toString() ?? '',
+        'enddate': courseData['enddate']?.toString() ?? '',
+      });
       return response;
     } catch (e) {
-      print('createCourse API not available: $e');
       rethrow;
     }
   }
@@ -615,88 +1351,71 @@ class ApiService {
   Future<List<dynamic>> getCourseStudents(String courseId, String token) async {
     try {
       final students = await getEnrolledUsers(courseId, token);
-      
+
       if (students is List) {
         return students.where((user) {
           if (user['roles'] != null) {
-            return (user['roles'] as List).any((role) => 
-              role['roleid'] == 5 || 
-              role['shortname']?.toLowerCase().contains('student') == true
-            );
+            return (user['roles'] as List).any((role) =>
+                role['roleid'] == 5 ||
+                role['shortname']?.toLowerCase().contains('student') == true);
           }
           return true;
         }).toList();
       }
-      
+
       return students is List ? students : [];
     } catch (e) {
       return [];
     }
   }
 
-  Future<dynamic> sendCourseAnnouncement(String token, {
+  Future<dynamic> sendCourseAnnouncement(
+    String token, {
     required String courseId,
     required String subject,
     required String message,
   }) async {
     try {
-      final response = await _post(
-          'local_instructohub_send_course_announcement',
-          token,
-          {
-            'courseid': courseId,
-            'subject': subject,
-            'message': message,
-          });
-
+      final response = await _post('local_instructohub_send_course_announcement', token, {
+        'courseid': courseId,
+        'subject': subject,
+        'message': message,
+      });
       return response;
     } catch (e) {
-      print('sendCourseAnnouncement API not available: $e');
       rethrow;
     }
   }
 
-  Future<dynamic> gradeAssignment(String token, {
+  Future<dynamic> gradeAssignment(
+    String token, {
     required String assignmentId,
     required String userId,
     required String grade,
     String? feedback,
   }) async {
     try {
-      final response = await _post(
-          'local_instructohub_grade_assignment',
-          token,
-          {
-            'assignmentid': assignmentId,
-            'userid': userId,
-            'grade': grade,
-            if (feedback != null) 'feedback': feedback,
-          });
-
+      final response = await _post('local_instructohub_grade_assignment', token, {
+        'assignmentid': assignmentId,
+        'userid': userId,
+        'grade': grade,
+        if (feedback != null) 'feedback': feedback,
+      });
       return response;
     } catch (e) {
-      print('gradeAssignment API not available: $e');
       rethrow;
     }
   }
 
   Future<Map<String, dynamic>> getCourseAnalytics(String courseId, String token) async {
     try {
-      final response = await _post(
-          'local_instructohub_get_course_analytics',
-          token,
-          {'courseid': courseId});
-
-      return response is Map<String, dynamic> 
-          ? response 
-          : Map<String, dynamic>.from(response as Map);
+      final response = await _post('local_instructohub_get_course_analytics', token, {'courseid': courseId});
+      return response is Map<String, dynamic> ? response : Map<String, dynamic>.from(response as Map);
     } catch (e) {
-      print('getCourseAnalytics API not available: $e');
       return <String, dynamic>{};
     }
   }
 
-  // --- Course Content Methods ---
   Future<List<dynamic>> getCoursePages(String courseId, String token) async {
     final response = await _post('get_page_content', token, {'courseids[0]': courseId});
     return response['pages'] ?? [];
@@ -760,7 +1479,6 @@ class ApiService {
                 foundContent = resourceData.firstWhere((r) => r['coursemodule'] == item['id'], orElse: () => null);
                 break;
             }
-
             item['foundContent'] = foundContent;
           }
         }
@@ -782,7 +1500,6 @@ class ApiService {
     return await _post('get_categories', token, {});
   }
 
-  // --- File Upload ---
   Future<dynamic> uploadFile(String token, Map<String, dynamic> fileData) async {
     _ensureConfigured();
 
@@ -798,7 +1515,7 @@ class ApiService {
       if (fileData['file'] != null) {
         request.files.add(
           http.MultipartFile.fromBytes(
-            'filecontent',
+            'file',
             fileData['file'],
             filename: fileData['filename'],
           ),
@@ -809,7 +1526,11 @@ class ApiService {
       final responseBody = await response.stream.bytesToString();
 
       if (response.statusCode == 200) {
-        return json.decode(responseBody);
+        final decoded = json.decode(responseBody);
+        if (decoded is Map && decoded.containsKey('error')) {
+          throw Exception('File upload error: ${decoded['error']}');
+        }
+        return decoded;
       } else {
         throw Exception('Upload failed with status code: ${response.statusCode}');
       }
@@ -818,7 +1539,6 @@ class ApiService {
     }
   }
 
-  // --- Custom API Calls ---
   Future<dynamic> callCustomAPI(String functionKey, String token, Map<String, String> params, {String method = 'POST'}) async {
     if (method.toUpperCase() == 'GET') {
       return await _get(functionKey, token, params);
@@ -827,7 +1547,6 @@ class ApiService {
     }
   }
 
-  // --- Branding & Theme Methods ---
   Future<Map<String, dynamic>?> getBrandingConfig() async {
     try {
       final response = await _post('local_instructohub_get_branding_config', '', {});
@@ -922,7 +1641,6 @@ class ApiService {
     }
   }
 
-  // --- Connection Testing ---
   Future<Map<String, dynamic>> testConnection(String domain) async {
     try {
       await ConfigurationService.instance.initialize();

@@ -51,14 +51,19 @@ class DynamicThemeService {
     }
   }
 
-  Future<void> loadTheme({String? token}) async {
+  // MODIFICATION: The loadTheme method now accepts an optional tenantName.
+  Future<void> loadTheme({String? tenantName, String? token}) async {
     try {
       Map<String, dynamic>? remoteTheme;
       String? fetchedSiteName;
       String? fetchedLogoUrl;
 
-      if (ApiService.instance.isConfigured) {
-        remoteTheme = await _fetchAndProcessRemoteTheme();
+      // Prioritize the tenantName passed as a parameter. Fallback to the one from ApiService.
+      final effectiveTenantName = tenantName ?? ApiService.instance.tenantName;
+
+      if (effectiveTenantName.isNotEmpty) {
+        // Pass the tenant name to the fetch method.
+        remoteTheme = await _fetchAndProcessRemoteTheme(tenantName: effectiveTenantName);
 
         try {
           final siteInfo = await ApiService.instance.callCustomAPI('core_webservice_get_site_info', token ?? '', {});
@@ -76,7 +81,7 @@ class DynamicThemeService {
 
       if (remoteTheme != null && _isValidThemeConfig(remoteTheme)) {
         finalThemeConfig = remoteTheme;
-        finalThemeConfig['siteName'] = fetchedSiteName ?? ApiService.instance.tenantName.toUpperCase();
+        finalThemeConfig['siteName'] = fetchedSiteName ?? effectiveTenantName.toUpperCase();
         finalThemeConfig['logoUrl'] = fetchedLogoUrl ?? finalThemeConfig['imageUrls']?['logo_image'];
         await _saveCachedTheme(finalThemeConfig);
       } else if (cachedTheme != null && _isValidThemeConfig(cachedTheme)) {
@@ -114,8 +119,10 @@ class DynamicThemeService {
     _isLoaded = true;
   }
   
-  Future<Map<String, dynamic>?> _fetchAndProcessRemoteTheme() async {
-    const String apiUrl = 'https://learn.mdl.instructohub.com/local/instructohub/theme.php';
+  // MODIFICATION: This method now requires a tenantName to build the URL.
+  Future<Map<String, dynamic>?> _fetchAndProcessRemoteTheme({required String tenantName}) async {
+    // MODIFICATION: Construct the API URL dynamically.
+    final String apiUrl = 'https://$tenantName.mdl.instructohub.com/local/instructohub/theme.php';
     try {
       final response = await http.get(Uri.parse(apiUrl));
 
@@ -535,7 +542,6 @@ class DynamicThemeService {
     return cardContent;
   }
 
-  // REVERTED this method to its original form to avoid potential side effects
   Widget buildMetricCard({
     required String title,
     required String value,
@@ -581,7 +587,6 @@ class DynamicThemeService {
     );
   }
 
-  // REVERTED this method to its original form to avoid potential side effects
   Widget buildSectionHeader({
     required String title,
     String? actionText,

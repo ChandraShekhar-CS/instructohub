@@ -462,6 +462,8 @@ class DynamicIconService {
     };
   }
 
+  
+
   Map<String, IconData> _parseIconMappings(Map<String, dynamic> iconConfig) {
     final iconsMap = iconConfig['icons'] ?? {};
     final Map<String, IconData> parsedIcons = {};
@@ -739,4 +741,28 @@ class DynamicIconService {
   IconData get domainIcon => getIcon('domain');
   IconData get schoolIcon => getIcon('school');
   IconData get swapIcon => getIcon('swap');
+}
+class SafeIconService {
+  static IconData getIconSafely(String iconName) {
+    try {
+      return DynamicIconService.instance.getIcon(iconName);
+    } catch (e) {
+      // Fallback icons
+      switch (iconName) {
+        case 'analytics': return Icons.analytics;
+        case 'copy': return Icons.copy;
+        case 'check_circle': return Icons.check_circle;
+        case 'error': return Icons.error;
+        case 'info': return Icons.info;
+        case 'lightbulb': return Icons.lightbulb;
+        case 'play': return Icons.play_arrow;
+        case 'assignment': return Icons.assignment;
+        default: return Icons.help_outline;
+      }
+    }
+  }
+  
+  static IconData get errorIcon => Icons.error;
+  static IconData get successIcon => Icons.check_circle;
+  static IconData get infoIcon => Icons.info;
 }

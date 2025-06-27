@@ -56,7 +56,7 @@ class _CourseCatalogScreenState extends State<CourseCatalogScreen> {
         setState(() {
           _categories = results[0] as List<CourseCategory>;
           _courses = results[1] as List<Course>;
-          _filterCourses(); // Initial filter based on search term
+          _filterCourses();
         });
       }
     } catch (e) {
@@ -186,9 +186,15 @@ class _CourseCatalogScreenState extends State<CourseCatalogScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Course Catalog'),
+        elevation: 0,
         actions: [
           IconButton(
-            icon: Icon(DynamicIconService.instance.getIcon('filter')),
+            icon: Icon(
+              DynamicIconService.instance.getIcon('filter'),
+              color: _isFilterPanelOpen 
+                ? Theme.of(context).primaryColor
+                : null,
+            ),
             onPressed: _toggleFilterPanel,
             tooltip: 'Filters',
           ),
@@ -212,8 +218,8 @@ class _CourseCatalogScreenState extends State<CourseCatalogScreen> {
     }
     return Row(
       children: [
-        Expanded(child: _buildMainContent()),
         if (_isFilterPanelOpen) _buildFilterPanel(),
+        Expanded(child: _buildMainContent()),
       ],
     );
   }
@@ -259,34 +265,88 @@ class _CourseCatalogScreenState extends State<CourseCatalogScreen> {
   Widget _buildMainContent() {
     return Column(
       children: [
-        _buildSearchBar(),
+        _buildSearchSection(),
         Expanded(child: _buildCourseGrid()),
       ],
     );
   }
 
-  Widget _buildSearchBar() {
+  Widget _buildSearchSection() {
     final themeService = DynamicThemeService.instance;
-    return Padding(
+    return Container(
       padding: EdgeInsets.all(themeService.getSpacing('md')),
-      child: TextField(
-        controller: _searchController,
-        decoration: InputDecoration(
-          hintText: 'Search for courses...',
-          prefixIcon: Icon(
-            DynamicIconService.instance.getIcon('search'),
-            color: themeService.getColor('secondary1'),
+      child: Column(
+        children: [
+          TextField(
+            controller: _searchController,
+            decoration: InputDecoration(
+              hintText: 'Search for courses...',
+              prefixIcon: Icon(
+                DynamicIconService.instance.getIcon('search'),
+                color: themeService.getColor('secondary1'),
+              ),
+              suffixIcon: _searchController.text.isNotEmpty
+                  ? IconButton(
+                      icon: Icon(DynamicIconService.instance.getIcon('close'),
+                          color: themeService.getColor('textSecondary')),
+                      onPressed: () {
+                        _searchController.clear();
+                      },
+                    )
+                  : null,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(
+                  color: themeService.getColor('borderColor'),
+                ),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(
+                  color: themeService.getColor('borderColor'),
+                ),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(
+                  color: themeService.getColor('primary'),
+                  width: 2,
+                ),
+              ),
+              filled: true,
+              fillColor: themeService.getColor('cardColor'),
+            ),
           ),
-          suffixIcon: _searchController.text.isNotEmpty
-              ? IconButton(
-                  icon: Icon(DynamicIconService.instance.getIcon('close'),
-                      color: themeService.getColor('textSecondary')),
-                  onPressed: () {
-                    _searchController.clear();
-                  },
-                )
-              : null,
-        ),
+          const SizedBox(height: 16),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                '${_filteredCourses.length} courses found',
+                style: TextStyle(
+                  color: themeService.getColor('textSecondary'),
+                  fontSize: 14,
+                ),
+              ),
+              if (_selectedCategoryIds.isNotEmpty)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: themeService.getColor('primary').withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    '${_selectedCategoryIds.length} filters',
+                    style: TextStyle(
+                      color: themeService.getColor('primary'),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ],
       ),
     );
   }
@@ -296,38 +356,21 @@ class _CourseCatalogScreenState extends State<CourseCatalogScreen> {
       return _buildEmptyState();
     }
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final themeService = DynamicThemeService.instance;
-        int crossAxisCount = (constraints.maxWidth > 1200)
-            ? 4
-            : (constraints.maxWidth > 800)
-                ? 3
-                : (constraints.maxWidth > 500)
-                    ? 2
-                    : 1;
-        double childAspectRatio = (crossAxisCount == 1) ? 3.0 : 0.8;
-
-        return GridView.builder(
-          padding: EdgeInsets.all(themeService.getSpacing('md')),
-          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: crossAxisCount,
-            crossAxisSpacing: themeService.getSpacing('md'),
-            mainAxisSpacing: themeService.getSpacing('md'),
-            childAspectRatio: childAspectRatio,
-          ),
-          itemCount: _filteredCourses.length,
-          itemBuilder: (context, index) {
-            final course = _filteredCourses[index];
-            return CourseCard(
-              course: course,
-              token: widget.token,
-              onCoursePressed: _openCourse,
-              layoutType: crossAxisCount == 1
-                  ? CardLayoutType.list
-                  : CardLayoutType.grid,
-            );
-          },
+    return GridView.builder(
+      padding: const EdgeInsets.all(16),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        crossAxisSpacing: 12,
+        mainAxisSpacing: 12,
+        childAspectRatio: 0.68,
+      ),
+      itemCount: _filteredCourses.length,
+      itemBuilder: (context, index) {
+        final course = _filteredCourses[index];
+        return CourseGridCard(
+          course: course,
+          token: widget.token,
+          onCoursePressed: _openCourse,
         );
       },
     );
@@ -482,19 +525,15 @@ class _CourseCatalogScreenState extends State<CourseCatalogScreen> {
   }
 }
 
-enum CardLayoutType { grid, list }
-
-class CourseCard extends StatelessWidget {
+class CourseGridCard extends StatelessWidget {
   final Course course;
   final String token;
   final Function(Course) onCoursePressed;
-  final CardLayoutType layoutType;
 
-  const CourseCard({
+  const CourseGridCard({
     required this.course,
     required this.token,
     required this.onCoursePressed,
-    this.layoutType = CardLayoutType.grid,
     Key? key,
   }) : super(key: key);
 
@@ -504,126 +543,168 @@ class CourseCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final themeService = DynamicThemeService.instance;
+    final textTheme = Theme.of(context).textTheme;
+    
     return Card(
+      elevation: 2,
       clipBehavior: Clip.antiAlias,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
       child: InkWell(
         onTap: () => onCoursePressed(course),
-        child: layoutType == CardLayoutType.grid
-            ? _buildGridContent(context)
-            : _buildListContent(context),
+        borderRadius: BorderRadius.circular(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              flex: 4,
+              child: Container(
+                width: double.infinity,
+                child: _buildCourseImage(context),
+              ),
+            ),
+            Expanded(
+              flex: 7,
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      course.fullname,
+                      style: textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w600,
+                        height: 1.2,
+                        fontSize: 14,
+                      ),
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 8),
+                    Expanded(
+                      child: Text(
+                        course.summary.isNotEmpty
+                            ? _cleanHtmlContent(course.summary)
+                            : 'Explore this course to learn new skills.',
+                        style: textTheme.bodySmall?.copyWith(
+                          color: themeService.getColor('textSecondary'),
+                          height: 1.3,
+                          fontSize: 12,
+                        ),
+                        maxLines: 4,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    if (course.progress != null && course.progress! > 0) 
+                      _buildProgressSection(context),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildGridContent(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        AspectRatio(
-          aspectRatio: 16 / 9,
-          child: _buildCourseImage(context, course.courseimage),
-        ),
-        Expanded(
-          child: Padding(
-            padding: const EdgeInsets.all(12.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(course.fullname,
-                    style: textTheme.titleMedium,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis),
-                const SizedBox(height: 4),
-                Expanded(
-                  child: Text(
-                    course.summary.isNotEmpty
-                        ? _cleanHtmlContent(course.summary)
-                        : 'Explore this course to learn new skills.',
-                    style: textTheme.bodySmall,
-                    overflow: TextOverflow.ellipsis,
-                    maxLines: 3,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Align(
-                    alignment: Alignment.bottomRight,
-                    child: ElevatedButton(
-                        onPressed: () => onCoursePressed(course),
-                        child: const Text('View'))),
-              ],
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildListContent(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    final double progress = course.progress ?? 0.0;
-
-    return Row(
-      children: [
-        SizedBox(
-            width: 120, child: _buildCourseImage(context, course.courseimage)),
-        Expanded(
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(course.fullname,
-                    style: textTheme.titleMedium,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis),
-                const Spacer(),
-                if (course.progress != null)
-                  Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      LinearProgressIndicator(
-                        value: progress / 100.0,
-                        minHeight: 8,
-                      ),
-                      const SizedBox(height: 6),
-                      Text('${progress.toStringAsFixed(0)}% Complete',
-                          style: textTheme.bodySmall),
-                    ],
-                  ),
-              ],
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildCourseImage(BuildContext context, String imageUrl) {
+  Widget _buildProgressSection(BuildContext context) {
     final themeService = DynamicThemeService.instance;
-    return Container(
-      color: themeService.getColor('secondary3'),
-      child: imageUrl.isNotEmpty
-          ? CachedNetworkImage(
-              imageUrl: course.courseimage,
-              fit: BoxFit.cover,
-              placeholder: (context, url) =>
-                  const Center(child: CircularProgressIndicator()),
-              errorWidget: (context, url, error) =>
-                  _buildImagePlaceholder(context),
-            )
-          : _buildImagePlaceholder(context),
+    final progress = course.progress ?? 0.0;
+    
+    return Padding(
+      padding: const EdgeInsets.only(top: 6),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Progress',
+                style: TextStyle(
+                  color: themeService.getColor('textSecondary'),
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              Text(
+                '${progress.toStringAsFixed(0)}%',
+                style: TextStyle(
+                  color: themeService.getColor('primary'),
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(3),
+            child: LinearProgressIndicator(
+              value: progress / 100.0,
+              minHeight: 5,
+              backgroundColor: themeService.getColor('borderColor').withOpacity(0.3),
+              valueColor: AlwaysStoppedAnimation<Color>(
+                _getProgressColor(progress, themeService),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
+  }
+
+  Color _getProgressColor(double progress, DynamicThemeService themeService) {
+    if (progress >= 100) {
+      return Colors.green;
+    } else if (progress >= 75) {
+      return Colors.blue;
+    } else if (progress >= 50) {
+      return Colors.orange;
+    } else if (progress > 0) {
+      return themeService.getColor('primary');
+    }
+    return themeService.getColor('borderColor');
+  }
+
+  Widget _buildCourseImage(BuildContext context) {
+    final themeService = DynamicThemeService.instance;
+    
+    if (course.courseimage.isNotEmpty) {
+      return CachedNetworkImage(
+        imageUrl: course.courseimage,
+        fit: BoxFit.cover,
+        placeholder: (context, url) => _buildImagePlaceholder(context),
+        errorWidget: (context, url, error) => _buildImagePlaceholder(context),
+      );
+    }
+    
+    return _buildImagePlaceholder(context);
   }
 
   Widget _buildImagePlaceholder(BuildContext context) {
     final themeService = DynamicThemeService.instance;
-    return Center(
-      child: Icon(
-        DynamicIconService.instance.getIcon('courses'),
-        size: 40,
-        color: themeService.getColor('secondary1').withOpacity(0.6),
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            themeService.getColor('primary').withOpacity(0.3),
+            themeService.getColor('secondary1').withOpacity(0.3),
+          ],
+        ),
+      ),
+      child: Center(
+        child: Icon(
+          DynamicIconService.instance.getIcon('courses'),
+          size: 32,
+          color: Colors.white,
+        ),
       ),
     );
   }
