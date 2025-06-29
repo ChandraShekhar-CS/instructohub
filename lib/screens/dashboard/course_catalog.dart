@@ -51,7 +51,6 @@ class _CourseCatalogScreenState extends State<CourseCatalogScreen> {
       if (mounted) {
         setState(() {
           _categories = categoriesData.map((cat) => CourseCategory.fromJson(cat)).toList();
-
           if (coursesData.isNotEmpty && coursesData.first is Map && coursesData.first.containsKey('courses')) {
                _allCourses = coursesData
                 .expand((category) => (category['courses'] as List<dynamic>))
@@ -60,7 +59,6 @@ class _CourseCatalogScreenState extends State<CourseCatalogScreen> {
           } else {
               _allCourses = coursesData.map((course) => Course.fromJson(course)).toList();
           }
-
           _applyFilters();
           _isLoading = false;
         });
@@ -115,16 +113,88 @@ class _CourseCatalogScreenState extends State<CourseCatalogScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: _isLoading
-        ? const Center(child: CircularProgressIndicator())
-        : _errorMessage != null
-            ? _buildErrorState()
-            : Row(
-              children: [
-                if (_isFilterPanelOpen) _buildFilterPanel(),
-                Expanded(child: _buildMainContent()),
-              ],
+      backgroundColor: DynamicThemeService.instance.getColor('background'),
+      body: SafeArea(
+        child: _isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : _errorMessage != null
+                ? _buildErrorState()
+                : Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (_isFilterPanelOpen) _buildFilterPanel(),
+                      Expanded(child: _buildMainContent()),
+                    ],
+                  ),
+      ),
+    );
+  }
+
+  Widget _buildMainContent() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        
+        _buildSearchAndFilterSection(),
+        Expanded(
+          child: _filteredCourses.isEmpty 
+              ? _buildEmptyState() 
+              : _buildCourseGrid()
+        ),
+      ],
+    );
+  }
+  
+  
+  
+  Widget _buildSearchAndFilterSection() {
+    final themeService = DynamicThemeService.instance;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+      child: Row(
+        children: [
+          Expanded(
+            child: TextField(
+              controller: _searchController,
+              decoration: InputDecoration(
+                hintText: 'Search courses...',
+                prefixIcon: const Icon(Icons.search, size: 20),
+                suffixIcon: _searchController.text.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear, size: 20),
+                        onPressed: () => _searchController.clear(),
+                      )
+                    : null,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
+                filled: true,
+                fillColor: themeService.getColor('backgroundLight'),
+                contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 16),
+              ),
             ),
+          ),
+          const SizedBox(width: 12),
+          Material(
+            color: themeService.getColor('backgroundLight'),
+            borderRadius: BorderRadius.circular(12),
+            child: InkWell(
+              onTap: _toggleFilterPanel,
+              borderRadius: BorderRadius.circular(12),
+              child: Container(
+                padding: const EdgeInsets.all(14),
+                child: Icon(
+                  Icons.filter_list,
+                  color: _selectedCategoryIds.isNotEmpty
+                      ? themeService.getColor('primary')
+                      : themeService.getColor('textSecondary'),
+                ),
+              ),
+            ),
+          )
+        ],
+      ),
     );
   }
 
@@ -134,73 +204,7 @@ class _CourseCatalogScreenState extends State<CourseCatalogScreen> {
       child: Text(_errorMessage!, textAlign: TextAlign.center),
     ));
   }
-
-  Widget _buildMainContent() {
-    return Column(
-      children: [
-        _buildHeader(),
-        _buildSearchSection(),
-        Expanded(child: _filteredCourses.isEmpty ? _buildEmptyState() : _buildCourseGrid()),
-      ],
-    );
-  }
   
-  Widget _buildHeader() {
-      return Padding(
-        padding: const EdgeInsets.fromLTRB(16, 16, 0, 0),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text('Catalog', style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold)),
-            IconButton(
-              icon: Icon(
-                Icons.filter_list,
-                color: _selectedCategoryIds.isNotEmpty 
-                  ? Theme.of(context).colorScheme.primary
-                  : null,
-              ),
-              onPressed: _toggleFilterPanel,
-              tooltip: 'Filters',
-            ),
-          ],
-        ),
-      );
-  }
-
-  Widget _buildSearchSection() {
-    final themeService = DynamicThemeService.instance;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-      child: TextField(
-        controller: _searchController,
-        decoration: InputDecoration(
-          hintText: 'Search courses...',
-          prefixIcon: const Icon(Icons.search),
-          suffixIcon: _searchController.text.isNotEmpty
-              ? IconButton(
-                  icon: const Icon(Icons.clear),
-                  onPressed: () => _searchController.clear(),
-                )
-              : null,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide(color: themeService.getColor('border')),
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide(color: themeService.getColor('border')),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide(color: themeService.getColor('primary'), width: 2),
-          ),
-          filled: true,
-          fillColor: themeService.getColor('backgroundLight'),
-        ),
-      ),
-    );
-  }
-
   Widget _buildCourseGrid() {
     return RefreshIndicator(
       onRefresh: _fetchData,
