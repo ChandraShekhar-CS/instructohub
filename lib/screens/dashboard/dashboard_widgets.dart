@@ -7,7 +7,7 @@ import 'package:InstructoHub/models/course_model.dart';
 import 'package:InstructoHub/services/api_service.dart';
 import 'package:InstructoHub/services/dynamic_theme_service.dart';
 import 'package:InstructoHub/services/enhanced_icon_service.dart';
-import 'course_catalog_screen.dart';
+import 'my_course.dart';
 import 'course_detail_screen.dart';
 
 class QuickActionsScreen extends StatelessWidget {

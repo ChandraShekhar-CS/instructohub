@@ -7,18 +7,21 @@ import 'package:InstructoHub/services/api_service.dart';
 import 'package:InstructoHub/services/enhanced_icon_service.dart';
 import 'package:InstructoHub/services/dynamic_theme_service.dart';
 
-import 'course_catalog_screen.dart';
+import 'my_courses_screen.dart';
+import 'course_catalog.dart';
 import 'course_detail_screen.dart';
 import 'package:InstructoHub/features/messaging/screens/chat_list_screen.dart';
 import 'package:InstructoHub/screens/domain_config/domain_config_screen.dart';
 import 'downloaded_courses_screen.dart';
+
 
 class AppStrings {
   static const String dashboard = 'Dashboard';
   static const String goodMorning = 'Good morning';
   static const String goodAfternoon = 'Good afternoon';
   static const String goodEvening = 'Good evening';
-  static const String readyToContinue = 'Ready to continue your learning journey?';
+  static const String readyToContinue =
+      'Ready to continue your learning journey?';
   static const String yourLearningMetrics = 'Your Learning Metrics';
   static const String myCourses = 'My Courses';
   static const String upcomingEvents = 'Upcoming Events';
@@ -29,14 +32,15 @@ class AppStrings {
   static const String startLearning = 'Start Learning';
   static const String continueLearning = 'Continue Learning';
   static const String exploreCatalog = 'Explore the course catalog';
-  static const String unableToContinue = 'Unable to continue. Please try again.';
+  static const String unableToContinue =
+      'Unable to continue. Please try again.';
   static const String errorFetchingCourses = 'Error fetching course details';
   static const String errorLoadingData = 'Error loading data';
   static const String tryAgain = 'Try Again';
   static const String logout = 'Logout';
   static const String totalCourses = 'Total Courses';
   static const String notStarted = 'Not Started';
-  static const String activeCourses = 'Active Courses';
+  static const String activeCourses = 'In Progress';
   static const String completed = 'Completed';
   static const String overallProgress = 'Overall Progress';
   static const String loadingCourses = 'Loading courses...';
@@ -45,6 +49,7 @@ class AppStrings {
   static const String downloadedCourses = 'Downloaded Courses';
   static const String courses = 'Courses';
   static const String account = 'Account';
+  static const String catalog = 'Catalog';
 }
 
 class UpcomingEvent {
@@ -95,7 +100,8 @@ class DashboardScreen extends StatefulWidget {
   State<DashboardScreen> createState() => _DashboardScreenState();
 }
 
-class _DashboardScreenState extends State<DashboardScreen> with TickerProviderStateMixin {
+class _DashboardScreenState extends State<DashboardScreen>
+    with TickerProviderStateMixin {
   Map<String, dynamic>? _userInfo;
   bool _isUserLoading = true;
   bool _isCoursesLoading = true;
@@ -148,8 +154,7 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
   Future<void> _initializeServices() async {
     try {
       await DynamicIconService.instance.loadIcons(token: widget.token);
-    } catch (e) {
-    }
+    } catch (e) {}
   }
 
   Future<void> _checkUserRole() async {
@@ -160,7 +165,7 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
           _isTeacher = isTeacher;
           _isCheckingRole = false;
         });
-        
+
         if (_isTeacher) {
           _fetchTeacherData();
         }
@@ -182,40 +187,39 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
         _fetchPendingAssignments(),
         _fetchTeacherMetrics(),
       ]);
-    } catch (e) {
-    }
+    } catch (e) {}
   }
 
   Future<void> _fetchTeachingCourses() async {
     try {
-      final teachingCourses = await ApiService.instance.getTeachingCourses(widget.token);
-      
+      final teachingCourses =
+          await ApiService.instance.getTeachingCourses(widget.token);
+
       if (mounted) {
         setState(() {
           _teachingCourses = teachingCourses;
         });
       }
-    } catch (e) {
-    }
+    } catch (e) {}
   }
 
   Future<void> _fetchPendingAssignments() async {
     try {
-      final pendingAssignments = await ApiService.instance.getPendingAssignments(widget.token);
-      
+      final pendingAssignments =
+          await ApiService.instance.getPendingAssignments(widget.token);
+
       if (mounted) {
         setState(() {
           _pendingAssignments = pendingAssignments;
         });
       }
-    } catch (e) {
-    }
+    } catch (e) {}
   }
 
   Future<void> _fetchTeacherMetrics() async {
     try {
       final metrics = await ApiService.instance.getTeacherMetrics(widget.token);
-      
+
       if (mounted) {
         setState(() {
           _teacherMetrics = metrics;
@@ -225,8 +229,10 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
       setState(() {
         _teacherMetrics = {
           'coursesTaught': _teachingCourses.length,
-          'totalStudents': _teachingCourses.fold(0, (sum, course) => 
-            sum + ((course['enrolleduserscount'] ?? 0) as int)),
+          'totalStudents': _teachingCourses.fold(
+              0,
+              (sum, course) =>
+                  sum + ((course['enrolleduserscount'] ?? 0) as int)),
           'pendingGrading': _pendingAssignments.length,
           'avgCourseCompletion': 0.0,
         };
@@ -271,37 +277,44 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
   Future<void> _fetchLearningMetrics() async {
     setState(() => _isMetricsLoading = true);
     try {
-      final progressData = await ApiService.instance.getUserProgress(widget.token);
+      final progressData =
+          await ApiService.instance.getUserProgress(widget.token);
 
       if (mounted && progressData != null) {
         final metrics = {
           'totalCourses': progressData['totalcourses']?.toString() ?? '0',
           'notStarted': progressData['notstartedcount']?.toString() ?? '0',
-          'activeCourses': progressData['activecoursescount']?.toString() ?? '0',
+          'activeCourses':
+              progressData['activecoursescount']?.toString() ?? '0',
           'completed': progressData['completedcoursescount']?.toString() ?? '0',
-          'overallProgress': (progressData['overallprogress'] ?? 0.0).toDouble(),
+          'overallProgress':
+              (progressData['overallprogress'] ?? 0.0).toDouble(),
         };
 
         List<Course> courses = [];
 
-        if (progressData['courses'] is List && (progressData['courses'] as List).isNotEmpty) {
+        if (progressData['courses'] is List &&
+            (progressData['courses'] as List).isNotEmpty) {
           courses = (progressData['courses'] as List).map((courseData) {
             return Course.fromJson(courseData);
           }).toList();
         } else {
           try {
-            final fallbackCourses = await ApiService.instance.getUserCourses(widget.token);
+            final fallbackCourses =
+                await ApiService.instance.getUserCourses(widget.token);
             courses = fallbackCourses.map((courseData) {
               return Course.fromJson({
                 'id': courseData['id'],
-                'fullname': courseData['fullname'] ?? courseData['displayname'] ?? courseData['shortname'] ?? 'Course ${courseData['id']}',
+                'fullname': courseData['fullname'] ??
+                    courseData['displayname'] ??
+                    courseData['shortname'] ??
+                    'Course ${courseData['id']}',
                 'summary': courseData['summary'] ?? '',
                 'courseimage': courseData['courseimage'] ?? '',
                 'progress': 0.0,
               });
             }).toList();
-          } catch (e) {
-          }
+          } catch (e) {}
         }
 
         setState(() {
@@ -325,12 +338,15 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
   Future<void> _fetchUpcomingEvents() async {
     setState(() => _isEventsLoading = true);
     try {
-      final eventsData = await ApiService.instance.getUpcomingEvents(widget.token);
+      final eventsData =
+          await ApiService.instance.getUpcomingEvents(widget.token);
 
       List<UpcomingEvent> events = [];
       if (eventsData is Map && eventsData['events'] is List) {
         final eventsList = eventsData['events'] as List;
-        events = eventsList.map((eventData) => UpcomingEvent.fromJson(eventData)).toList();
+        events = eventsList
+            .map((eventData) => UpcomingEvent.fromJson(eventData))
+            .toList();
       }
 
       if (mounted) {
@@ -388,12 +404,23 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
     }
   }
 
+  void _navigateToMyCoursesWithFilter(CourseFilter filter) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => MyCoursesScreen(
+          token: widget.token,
+          initialFilter: filter,
+        ),
+      ),
+    );
+  }
+
   Future<void> _saveLastViewedCourse(Course course) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('lastViewedCourse', json.encode(course.toJson()));
-    } catch (e) {
-    }
+    } catch (e) {}
   }
 
   Future<void> _logout() async {
@@ -427,7 +454,8 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
         themeService.buildSectionHeader(title: 'Teaching Overview'),
         SizedBox(height: themeService.getSpacing('md')),
         Container(
-          margin: EdgeInsets.symmetric(horizontal: themeService.getSpacing('md')),
+          margin:
+              EdgeInsets.symmetric(horizontal: themeService.getSpacing('md')),
           child: GridView.count(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
@@ -456,7 +484,8 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
               ),
               themeService.buildMetricCard(
                 title: 'Avg Completion',
-                value: '${(_teacherMetrics['avgCourseCompletion'] ?? 0.0).toStringAsFixed(0)}%',
+                value:
+                    '${(_teacherMetrics['avgCourseCompletion'] ?? 0.0).toStringAsFixed(0)}%',
                 icon: Icons.trending_up,
                 iconColor: themeService.getColor('success'),
               ),
@@ -482,7 +511,8 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
         SizedBox(height: themeService.getSpacing('md')),
         if (_teachingCourses.isEmpty)
           Container(
-            margin: EdgeInsets.symmetric(horizontal: themeService.getSpacing('md')),
+            margin:
+                EdgeInsets.symmetric(horizontal: themeService.getSpacing('md')),
             child: themeService.buildCleanCard(
               child: Column(
                 children: [
@@ -494,7 +524,8 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
                   SizedBox(height: themeService.getSpacing('md')),
                   Text(
                     'No Teaching Courses',
-                    style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+                    style: textTheme.titleMedium
+                        ?.copyWith(fontWeight: FontWeight.w600),
                   ),
                   SizedBox(height: themeService.getSpacing('xs')),
                   Text(
@@ -512,7 +543,8 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
             height: 160,
             child: ListView.builder(
               scrollDirection: Axis.horizontal,
-              padding: EdgeInsets.symmetric(horizontal: themeService.getSpacing('md')),
+              padding: EdgeInsets.symmetric(
+                  horizontal: themeService.getSpacing('md')),
               itemCount: _teachingCourses.length,
               itemBuilder: (context, index) {
                 final course = _teachingCourses[index];
@@ -539,9 +571,12 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
                                 ),
                               ),
                               Container(
-                                padding: EdgeInsets.all(themeService.getSpacing('xs')),
+                                padding: EdgeInsets.all(
+                                    themeService.getSpacing('xs')),
                                 decoration: BoxDecoration(
-                                  color: themeService.getColor('primary').withOpacity(0.1),
+                                  color: themeService
+                                      .getColor('primary')
+                                      .withOpacity(0.1),
                                   borderRadius: BorderRadius.circular(
                                     themeService.getBorderRadius('small'),
                                   ),
@@ -570,14 +605,17 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
                                 ),
                               ),
                               Spacer(),
-                              if (course['pendingassignments'] != null && course['pendingassignments'] > 0)
+                              if (course['pendingassignments'] != null &&
+                                  course['pendingassignments'] > 0)
                                 Container(
                                   padding: EdgeInsets.symmetric(
                                     horizontal: themeService.getSpacing('sm'),
                                     vertical: themeService.getSpacing('xs'),
                                   ),
                                   decoration: BoxDecoration(
-                                    color: themeService.getColor('warning').withOpacity(0.1),
+                                    color: themeService
+                                        .getColor('warning')
+                                        .withOpacity(0.1),
                                     borderRadius: BorderRadius.circular(
                                       themeService.getBorderRadius('small'),
                                     ),
@@ -641,7 +679,8 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
         themeService.buildSectionHeader(title: 'Teacher Tools'),
         SizedBox(height: themeService.getSpacing('md')),
         Container(
-          margin: EdgeInsets.symmetric(horizontal: themeService.getSpacing('md')),
+          margin:
+              EdgeInsets.symmetric(horizontal: themeService.getSpacing('md')),
           child: GridView.builder(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
@@ -733,7 +772,8 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
                   Text(
                     '${_getGreeting()},',
                     style: textTheme.bodyMedium?.copyWith(
-                      color: themeService.getColor('onPrimary').withOpacity(0.9),
+                      color:
+                          themeService.getColor('onPrimary').withOpacity(0.9),
                     ),
                   ),
                   const SizedBox(height: 4),
@@ -748,7 +788,8 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
                   Text(
                     AppStrings.readyToContinue,
                     style: textTheme.bodySmall?.copyWith(
-                      color: themeService.getColor('onPrimary').withOpacity(0.8),
+                      color:
+                          themeService.getColor('onPrimary').withOpacity(0.8),
                     ),
                   ),
                 ],
@@ -758,7 +799,8 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
               padding: EdgeInsets.all(themeService.getSpacing('sm')),
               decoration: BoxDecoration(
                 color: themeService.getColor('onPrimary').withOpacity(0.15),
-                borderRadius: BorderRadius.circular(themeService.getBorderRadius('medium')),
+                borderRadius: BorderRadius.circular(
+                    themeService.getBorderRadius('medium')),
               ),
               child: Icon(
                 Icons.school,
@@ -787,7 +829,8 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
               padding: EdgeInsets.all(themeService.getSpacing('xs')),
               decoration: BoxDecoration(
                 color: themeService.getColor('success').withOpacity(0.1),
-                borderRadius: BorderRadius.circular(themeService.getBorderRadius('small')),
+                borderRadius: BorderRadius.circular(
+                    themeService.getBorderRadius('small')),
               ),
               child: Icon(
                 Icons.play_arrow,
@@ -841,7 +884,8 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              CircularProgressIndicator(color: themeService.getColor('primary')),
+              CircularProgressIndicator(
+                  color: themeService.getColor('primary')),
               SizedBox(height: themeService.getSpacing('sm')),
               Text(AppStrings.loadingMetrics, style: textTheme.bodyMedium),
             ],
@@ -856,12 +900,15 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
         child: themeService.buildCleanCard(
           child: Column(
             children: [
-              Icon(Icons.error_outline, color: themeService.getColor('error'), size: 48),
+              Icon(Icons.error_outline,
+                  color: themeService.getColor('error'), size: 48),
               SizedBox(height: themeService.getSpacing('sm')),
               Text(AppStrings.errorLoadingData,
-                  style: textTheme.titleMedium?.copyWith(color: themeService.getColor('error'))),
+                  style: textTheme.titleMedium
+                      ?.copyWith(color: themeService.getColor('error'))),
               SizedBox(height: themeService.getSpacing('xs')),
-              Text(_errorMessage!, style: textTheme.bodySmall, textAlign: TextAlign.center),
+              Text(_errorMessage!,
+                  style: textTheme.bodySmall, textAlign: TextAlign.center),
               SizedBox(height: themeService.getSpacing('md')),
               ElevatedButton(
                 onPressed: _fetchLearningMetrics,
@@ -881,7 +928,8 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
         themeService.buildSectionHeader(title: AppStrings.yourLearningMetrics),
         SizedBox(height: themeService.getSpacing('md')),
         Container(
-          margin: EdgeInsets.symmetric(horizontal: themeService.getSpacing('md')),
+          margin:
+              EdgeInsets.symmetric(horizontal: themeService.getSpacing('md')),
           child: GridView.count(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
@@ -890,36 +938,51 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
             mainAxisSpacing: themeService.getSpacing('sm'),
             childAspectRatio: 1.4,
             children: [
-              themeService.buildMetricCard(
-                title: AppStrings.totalCourses,
-                value: _learningMetrics['totalCourses'] ?? '0',
-                icon: Icons.book,
-                iconColor: themeService.getColor('info'),
+               GestureDetector(
+                onTap: () => _navigateToMyCoursesWithFilter(CourseFilter.all),
+                child: themeService.buildMetricCard(
+                  title: AppStrings.totalCourses,
+                  value: _learningMetrics['totalCourses'] ?? '0',
+                  icon: Icons.book,
+                  iconColor: themeService.getColor('info'),
+                ),
               ),
-              themeService.buildMetricCard(
-                title: AppStrings.completed,
-                value: _learningMetrics['completed'] ?? '0',
-                icon: Icons.check_circle,
-                iconColor: themeService.getColor('success'),
+              GestureDetector(
+                onTap: () => _navigateToMyCoursesWithFilter(CourseFilter.notStarted),
+                child: themeService.buildMetricCard(
+                  title: AppStrings.notStarted,
+                  value: _learningMetrics['notStarted'] ?? '0',
+                  icon: Icons.schedule,
+                  iconColor: themeService.getColor('textMuted'),
+                ),
               ),
-              themeService.buildMetricCard(
-                title: AppStrings.activeCourses,
-                value: _learningMetrics['activeCourses'] ?? '0',
-                icon: Icons.play_circle,
-                iconColor: themeService.getColor('warning'),
+               GestureDetector(
+                onTap: () => _navigateToMyCoursesWithFilter(CourseFilter.inProgress),
+                child: themeService.buildMetricCard(
+                  title: AppStrings.activeCourses,
+                  value: _learningMetrics['activeCourses'] ?? '0',
+                  icon: Icons.play_circle,
+                  iconColor: themeService.getColor('warning'),
+                ),
               ),
-              themeService.buildMetricCard(
-                title: AppStrings.notStarted,
-                value: _learningMetrics['notStarted'] ?? '0',
-                icon: Icons.schedule,
-                iconColor: themeService.getColor('textMuted'),
+              GestureDetector(
+                onTap: () => _navigateToMyCoursesWithFilter(CourseFilter.completed),
+                child: themeService.buildMetricCard(
+                  title: AppStrings.completed,
+                  value: _learningMetrics['completed'] ?? '0',
+                  icon: Icons.check_circle,
+                  iconColor: themeService.getColor('success'),
+                ),
               ),
+             
+              
             ],
           ),
         ),
         SizedBox(height: themeService.getSpacing('md')),
         Container(
-          margin: EdgeInsets.symmetric(horizontal: themeService.getSpacing('md')),
+          margin:
+              EdgeInsets.symmetric(horizontal: themeService.getSpacing('md')),
           child: themeService.buildCleanCard(
             padding: EdgeInsets.all(themeService.getSpacing('lg')),
             child: Column(
@@ -930,7 +993,8 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
                   children: [
                     Text(
                       AppStrings.overallProgress,
-                      style: textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600),
+                      style: textTheme.titleLarge
+                          ?.copyWith(fontWeight: FontWeight.w600),
                     ),
                     Container(
                       padding: EdgeInsets.symmetric(
@@ -939,7 +1003,8 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
                       ),
                       decoration: BoxDecoration(
                         color: _getProgressColor(progress).withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(themeService.getBorderRadius('large')),
+                        borderRadius: BorderRadius.circular(
+                            themeService.getBorderRadius('large')),
                       ),
                       child: Text(
                         '${progress.toStringAsFixed(0)}%',
@@ -953,12 +1018,14 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
                 ),
                 SizedBox(height: themeService.getSpacing('lg')),
                 ClipRRect(
-                  borderRadius: BorderRadius.circular(themeService.getBorderRadius('large')),
+                  borderRadius: BorderRadius.circular(
+                      themeService.getBorderRadius('large')),
                   child: LinearProgressIndicator(
                     value: progress / 100,
                     minHeight: 12,
                     backgroundColor: themeService.getColor('borderLight'),
-                    valueColor: AlwaysStoppedAnimation<Color>(_getProgressColor(progress)),
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                        _getProgressColor(progress)),
                   ),
                 ),
                 SizedBox(height: themeService.getSpacing('md')),
@@ -1002,14 +1069,15 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
         themeService.buildSectionHeader(
           title: AppStrings.myCourses,
           actionText: AppStrings.viewAll,
-          onActionTap: () => _onBottomNavTap(1),
+          onActionTap: () => _navigateToMyCoursesWithFilter(CourseFilter.all),
         ),
         SizedBox(height: themeService.getSpacing('md')),
         if (_isCoursesLoading)
           Center(
             child: Column(
               children: [
-                CircularProgressIndicator(color: themeService.getColor('primary')),
+                CircularProgressIndicator(
+                    color: themeService.getColor('primary')),
                 SizedBox(height: themeService.getSpacing('sm')),
                 Text(AppStrings.loadingCourses, style: textTheme.bodyMedium),
               ],
@@ -1017,7 +1085,8 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
           )
         else if (_myCourses.isEmpty)
           Container(
-            margin: EdgeInsets.symmetric(horizontal: themeService.getSpacing('md')),
+            margin:
+                EdgeInsets.symmetric(horizontal: themeService.getSpacing('md')),
             child: themeService.buildCleanCard(
               child: Column(
                 children: [
@@ -1036,12 +1105,14 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
                   SizedBox(height: themeService.getSpacing('md')),
                   Text(
                     AppStrings.noCoursesEnrolled,
-                    style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+                    style: textTheme.titleMedium
+                        ?.copyWith(fontWeight: FontWeight.w600),
                   ),
                   SizedBox(height: themeService.getSpacing('xs')),
                   Text(
                     AppStrings.exploreCatalog,
-                    style: textTheme.bodySmall?.copyWith(color: themeService.getColor('textSecondary')),
+                    style: textTheme.bodySmall?.copyWith(
+                        color: themeService.getColor('textSecondary')),
                   ),
                   SizedBox(height: themeService.getSpacing('md')),
                   ElevatedButton(
@@ -1057,7 +1128,8 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
             height: 220,
             child: ListView.builder(
               scrollDirection: Axis.horizontal,
-              padding: EdgeInsets.symmetric(horizontal: themeService.getSpacing('md')),
+              padding: EdgeInsets.symmetric(
+                  horizontal: themeService.getSpacing('md')),
               itemCount: _myCourses.take(10).length,
               itemBuilder: (context, index) {
                 final course = _myCourses[index];
@@ -1075,20 +1147,25 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
                           width: double.infinity,
                           decoration: BoxDecoration(
                             borderRadius: BorderRadius.only(
-                              topLeft: Radius.circular(themeService.getBorderRadius('large')),
-                              topRight: Radius.circular(themeService.getBorderRadius('large')),
+                              topLeft: Radius.circular(
+                                  themeService.getBorderRadius('large')),
+                              topRight: Radius.circular(
+                                  themeService.getBorderRadius('large')),
                             ),
                           ),
                           child: course.courseimage.isNotEmpty
                               ? ClipRRect(
                                   borderRadius: BorderRadius.only(
-                                    topLeft: Radius.circular(themeService.getBorderRadius('large')),
-                                    topRight: Radius.circular(themeService.getBorderRadius('large')),
+                                    topLeft: Radius.circular(
+                                        themeService.getBorderRadius('large')),
+                                    topRight: Radius.circular(
+                                        themeService.getBorderRadius('large')),
                                   ),
                                   child: Image.network(
                                     course.courseimage,
                                     fit: BoxFit.cover,
-                                    errorBuilder: (context, error, stackTrace) => Center(
+                                    errorBuilder:
+                                        (context, error, stackTrace) => Center(
                                       child: Icon(
                                         Icons.school,
                                         color: themeService.getColor('primary'),
@@ -1107,35 +1184,43 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
                         ),
                         Expanded(
                           child: Padding(
-                            padding: EdgeInsets.all(themeService.getSpacing('sm')),
+                            padding:
+                                EdgeInsets.all(themeService.getSpacing('sm')),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
                                   course.fullname,
-                                  style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+                                  style: textTheme.titleMedium
+                                      ?.copyWith(fontWeight: FontWeight.w600),
                                   maxLines: 2,
                                   overflow: TextOverflow.ellipsis,
                                 ),
                                 const Spacer(),
                                 if (course.progress != null) ...[
                                   Row(
-                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
                                     children: [
                                       Text(
                                         '${course.progress!.toStringAsFixed(0)}% complete',
                                         style: textTheme.bodySmall?.copyWith(
-                                            color: themeService.getColor('textSecondary')),
+                                            color: themeService
+                                                .getColor('textSecondary')),
                                       ),
                                     ],
                                   ),
-                                  SizedBox(height: themeService.getSpacing('xs')),
+                                  SizedBox(
+                                      height: themeService.getSpacing('xs')),
                                   LinearProgressIndicator(
                                     value: course.progress! / 100,
-                                    backgroundColor: themeService.getColor('borderLight'),
-                                    valueColor: AlwaysStoppedAnimation<Color>(_getProgressColor(course.progress!)),
+                                    backgroundColor:
+                                        themeService.getColor('borderLight'),
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                        _getProgressColor(course.progress!)),
                                     minHeight: 6,
-                                    borderRadius: BorderRadius.circular(themeService.getBorderRadius('small')),
+                                    borderRadius: BorderRadius.circular(
+                                        themeService.getBorderRadius('small')),
                                   ),
                                 ]
                               ],
@@ -1164,11 +1249,13 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
         SizedBox(height: themeService.getSpacing('md')),
         if (_isEventsLoading)
           Center(
-            child: CircularProgressIndicator(color: themeService.getColor('primary')),
+            child: CircularProgressIndicator(
+                color: themeService.getColor('primary')),
           )
         else if (_upcomingEvents.isEmpty)
           Container(
-            margin: EdgeInsets.symmetric(horizontal: themeService.getSpacing('md')),
+            margin:
+                EdgeInsets.symmetric(horizontal: themeService.getSpacing('md')),
             child: themeService.buildCleanCard(
               child: Column(
                 children: [
@@ -1187,7 +1274,8 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
                   SizedBox(height: themeService.getSpacing('md')),
                   Text(
                     AppStrings.noUpcomingEvents,
-                    style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+                    style: textTheme.titleMedium
+                        ?.copyWith(fontWeight: FontWeight.w600),
                   ),
                 ],
               ),
@@ -1195,21 +1283,28 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
           )
         else
           Container(
-            margin: EdgeInsets.symmetric(horizontal: themeService.getSpacing('md')),
+            margin:
+                EdgeInsets.symmetric(horizontal: themeService.getSpacing('md')),
             child: Column(
               children: _upcomingEvents
                   .take(3)
                   .map((event) => Padding(
-                        padding: EdgeInsets.only(bottom: themeService.getSpacing('xs')),
+                        padding: EdgeInsets.only(
+                            bottom: themeService.getSpacing('xs')),
                         child: themeService.buildCleanCard(
-                          padding: EdgeInsets.all(themeService.getSpacing('sm')),
+                          padding:
+                              EdgeInsets.all(themeService.getSpacing('sm')),
                           child: Row(
                             children: [
                               Container(
-                                padding: EdgeInsets.all(themeService.getSpacing('sm')),
+                                padding: EdgeInsets.all(
+                                    themeService.getSpacing('sm')),
                                 decoration: BoxDecoration(
-                                  color: themeService.getColor('warning').withOpacity(0.1),
-                                  borderRadius: BorderRadius.circular(themeService.getBorderRadius('medium')),
+                                  color: themeService
+                                      .getColor('warning')
+                                      .withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(
+                                      themeService.getBorderRadius('medium')),
                                 ),
                                 child: Icon(
                                   Icons.event_available,
@@ -1224,7 +1319,8 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
                                   children: [
                                     Text(
                                       event.title,
-                                      style: textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+                                      style: textTheme.titleSmall?.copyWith(
+                                          fontWeight: FontWeight.w600),
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
                                     ),
@@ -1232,7 +1328,8 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
                                       Text(
                                         event.subtitle,
                                         style: textTheme.bodySmall?.copyWith(
-                                          color: themeService.getColor('textSecondary'),
+                                          color: themeService
+                                              .getColor('textSecondary'),
                                         ),
                                         maxLines: 1,
                                         overflow: TextOverflow.ellipsis,
@@ -1247,13 +1344,15 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
                                     event.formattedDate,
                                     style: textTheme.bodySmall?.copyWith(
                                       fontWeight: FontWeight.w600,
-                                      color: themeService.getColor('textPrimary'),
+                                      color:
+                                          themeService.getColor('textPrimary'),
                                     ),
                                   ),
                                   Text(
                                     event.formattedTime,
                                     style: textTheme.bodySmall?.copyWith(
-                                      color: themeService.getColor('textSecondary'),
+                                      color: themeService
+                                          .getColor('textSecondary'),
                                     ),
                                   ),
                                 ],
@@ -1282,7 +1381,6 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
           SizedBox(height: themeService.getSpacing('sm')),
           _buildContinueLearningWidget(),
           SizedBox(height: themeService.getSpacing('lg')),
-          
           if (_isTeacher && !_isCheckingRole) ...[
             _buildTeacherMetrics(),
             SizedBox(height: themeService.getSpacing('lg')),
@@ -1291,7 +1389,6 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
             _buildTeachingCoursesSection(),
             SizedBox(height: themeService.getSpacing('lg')),
           ],
-          
           _buildLearningMetrics(),
           SizedBox(height: themeService.getSpacing('lg')),
           _buildMyCoursesSection(),
@@ -1309,198 +1406,6 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
 
   Widget _buildCoursesContent() {
     return CourseCatalogScreen(token: widget.token);
-  }
-
-  Widget _buildContinueLearningContent() {
-    final themeService = DynamicThemeService.instance;
-    final textTheme = Theme.of(context).textTheme;
-
-    if (_isCoursesLoading) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            CircularProgressIndicator(color: themeService.getColor('primary')),
-            SizedBox(height: themeService.getSpacing('md')),
-            Text(AppStrings.loadingCourses, style: textTheme.bodyMedium),
-          ],
-        ),
-      );
-    }
-
-    if (_myCourses.isEmpty) {
-      return Center(
-        child: Padding(
-          padding: EdgeInsets.all(themeService.getSpacing('lg')),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                padding: EdgeInsets.all(themeService.getSpacing('xl')),
-                decoration: BoxDecoration(
-                  color: themeService.getColor('primary').withOpacity(0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  Icons.school,
-                  size: 64,
-                  color: themeService.getColor('primary'),
-                ),
-              ),
-              SizedBox(height: themeService.getSpacing('lg')),
-              Text(
-                AppStrings.noCoursesEnrolled,
-                style: textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w600),
-              ),
-              SizedBox(height: themeService.getSpacing('sm')),
-              Text(
-                AppStrings.exploreCatalog,
-                style: textTheme.bodyMedium?.copyWith(color: themeService.getColor('textSecondary')),
-                textAlign: TextAlign.center,
-              ),
-              SizedBox(height: themeService.getSpacing('xl')),
-              ElevatedButton.icon(
-                onPressed: () => _onBottomNavTap(1),
-                icon: const Icon(Icons.school),
-                label: const Text(AppStrings.browseCourses),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
-    final inProgressCourses = _myCourses.where((course) => 
-      course.progress != null && course.progress! > 0 && course.progress! < 100).toList();
-
-    if (inProgressCourses.isEmpty) {
-      return Center(
-        child: Padding(
-          padding: EdgeInsets.all(themeService.getSpacing('lg')),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                padding: EdgeInsets.all(themeService.getSpacing('xl')),
-                decoration: BoxDecoration(
-                  color: themeService.getColor('success').withOpacity(0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  Icons.check_circle,
-                  size: 64,
-                  color: themeService.getColor('success'),
-                ),
-              ),
-              SizedBox(height: themeService.getSpacing('lg')),
-              Text(
-                'All Caught Up!',
-                style: textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w600),
-              ),
-              SizedBox(height: themeService.getSpacing('sm')),
-              Text(
-                'You have no courses in progress. Start a new course to continue learning.',
-                style: textTheme.bodyMedium?.copyWith(color: themeService.getColor('textSecondary')),
-                textAlign: TextAlign.center,
-              ),
-              SizedBox(height: themeService.getSpacing('xl')),
-              ElevatedButton.icon(
-                onPressed: () => _onBottomNavTap(1),
-                icon: const Icon(Icons.add),
-                label: const Text('Explore New Courses'),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
-    return ListView.builder(
-      padding: EdgeInsets.all(themeService.getSpacing('md')),
-      itemCount: inProgressCourses.length,
-      itemBuilder: (context, index) {
-        final course = inProgressCourses[index];
-        return Container(
-          margin: EdgeInsets.only(bottom: themeService.getSpacing('md')),
-          child: themeService.buildCleanCard(
-            onTap: () => _navigateToCourse(course),
-            child: Row(
-              children: [
-                Container(
-                  width: 80,
-                  height: 80,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(themeService.getBorderRadius('medium')),
-                  ),
-                  child: course.courseimage.isNotEmpty
-                      ? ClipRRect(
-                          borderRadius: BorderRadius.circular(themeService.getBorderRadius('medium')),
-                          child: Image.network(
-                            course.courseimage,
-                            fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) => Container(
-                              color: themeService.getColor('primary').withOpacity(0.1),
-                              child: Icon(
-                                Icons.school,
-                                color: themeService.getColor('primary'),
-                                size: 30,
-                              ),
-                            ),
-                          ),
-                        )
-                      : Container(
-                          decoration: BoxDecoration(
-                            color: themeService.getColor('primary').withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(themeService.getBorderRadius('medium')),
-                          ),
-                          child: Icon(
-                            Icons.school,
-                            color: themeService.getColor('primary'),
-                            size: 30,
-                          ),
-                        ),
-                ),
-                SizedBox(width: themeService.getSpacing('md')),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        course.fullname,
-                        style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      SizedBox(height: themeService.getSpacing('sm')),
-                      Text(
-                        '${course.progress!.toStringAsFixed(0)}% complete',
-                        style: textTheme.bodySmall?.copyWith(
-                          color: themeService.getColor('textSecondary'),
-                        ),
-                      ),
-                      SizedBox(height: themeService.getSpacing('xs')),
-                      LinearProgressIndicator(
-                        value: course.progress! / 100,
-                        backgroundColor: themeService.getColor('borderLight'),
-                        valueColor: AlwaysStoppedAnimation<Color>(_getProgressColor(course.progress!)),
-                        minHeight: 6,
-                        borderRadius: BorderRadius.circular(themeService.getBorderRadius('small')),
-                      ),
-                    ],
-                  ),
-                ),
-                SizedBox(width: themeService.getSpacing('sm')),
-                Icon(
-                  Icons.arrow_forward_ios,
-                  color: themeService.getColor('textSecondary'),
-                  size: 16,
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
   }
 
   Widget _buildDownloadedCoursesContent() {
@@ -1536,7 +1441,8 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
                             child: Image.network(
                               _userInfo!['userpictureurl'],
                               fit: BoxFit.cover,
-                              errorBuilder: (context, error, stackTrace) => Icon(
+                              errorBuilder: (context, error, stackTrace) =>
+                                  Icon(
                                 Icons.person,
                                 color: themeService.getColor('primary'),
                                 size: 30,
@@ -1556,7 +1462,8 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
                       children: [
                         Text(
                           _userInfo?['fullname'] ?? 'User',
-                          style: textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600),
+                          style: textTheme.titleLarge
+                              ?.copyWith(fontWeight: FontWeight.w600),
                         ),
                         SizedBox(height: themeService.getSpacing('xs')),
                         Text(
@@ -1573,57 +1480,48 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
             ),
             SizedBox(height: themeService.getSpacing('lg')),
           ],
-          
           Text(
             'Account Settings',
             style: textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600),
           ),
           SizedBox(height: themeService.getSpacing('md')),
-          
           _buildAccountOption(
             icon: Icons.person_outline,
             title: 'Profile Settings',
             subtitle: 'Manage your personal information',
             onTap: () => _showComingSoon('Profile Settings'),
           ),
-          
           _buildAccountOption(
             icon: Icons.notifications_outlined,
             title: 'Notifications',
             subtitle: 'Configure notification preferences',
             onTap: () => _showComingSoon('Notifications'),
           ),
-          
           _buildAccountOption(
             icon: Icons.security_outlined,
             title: 'Privacy & Security',
             subtitle: 'Password and security settings',
             onTap: () => _showComingSoon('Privacy & Security'),
           ),
-          
           _buildAccountOption(
             icon: Icons.language_outlined,
             title: 'Language & Region',
             subtitle: 'Set your preferred language',
             onTap: () => _showComingSoon('Language & Region'),
           ),
-          
           _buildAccountOption(
             icon: Icons.help_outline,
             title: 'Help & Support',
             subtitle: 'Get help and contact support',
             onTap: () => _showComingSoon('Help & Support'),
           ),
-          
           _buildAccountOption(
             icon: Icons.info_outline,
             title: 'About',
             subtitle: 'App version and information',
             onTap: () => _showComingSoon('About'),
           ),
-          
           SizedBox(height: themeService.getSpacing('lg')),
-          
           themeService.buildCleanCard(
             backgroundColor: themeService.getColor('error').withOpacity(0.05),
             onTap: _showLogoutConfirmation,
@@ -1633,7 +1531,8 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
                   padding: EdgeInsets.all(themeService.getSpacing('sm')),
                   decoration: BoxDecoration(
                     color: themeService.getColor('error').withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(themeService.getBorderRadius('medium')),
+                    borderRadius: BorderRadius.circular(
+                        themeService.getBorderRadius('medium')),
                   ),
                   child: Icon(
                     Icons.logout,
@@ -1683,7 +1582,8 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
               padding: EdgeInsets.all(themeService.getSpacing('sm')),
               decoration: BoxDecoration(
                 color: themeService.getColor('primary').withOpacity(0.1),
-                borderRadius: BorderRadius.circular(themeService.getBorderRadius('medium')),
+                borderRadius: BorderRadius.circular(
+                    themeService.getBorderRadius('medium')),
               ),
               child: Icon(
                 icon,
@@ -1698,7 +1598,8 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
                 children: [
                   Text(
                     title,
-                    style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+                    style: textTheme.titleMedium
+                        ?.copyWith(fontWeight: FontWeight.w600),
                   ),
                   SizedBox(height: themeService.getSpacing('xs') / 2),
                   Text(
@@ -1770,12 +1671,10 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
       case 0:
         return AppStrings.dashboard;
       case 1:
-        return AppStrings.courses;
+        return AppStrings.catalog;
       case 2:
-        return AppStrings.continueLearning;
-      case 3:
         return AppStrings.downloadedCourses;
-      case 4:
+      case 3:
         return AppStrings.account;
       default:
         return AppStrings.dashboard;
@@ -1790,7 +1689,8 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
       backgroundColor: themeService.getColor('background'),
       appBar: _currentIndex == 0
           ? AppBar(
-              title: Text(DynamicThemeService.instance.siteName ?? AppStrings.dashboard),
+              title: Text(DynamicThemeService.instance.siteName ??
+                  AppStrings.dashboard),
               actions: [
                 IconButton(
                   icon: Icon(
@@ -1832,7 +1732,6 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
               child: _buildDashboardContent(),
             ),
             _buildCoursesContent(),
-            _buildContinueLearningContent(),
             _buildDownloadedCoursesContent(),
             _buildAccountContent(),
           ],
@@ -1854,12 +1753,7 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
           BottomNavigationBarItem(
             icon: Icon(Icons.school_outlined),
             activeIcon: Icon(Icons.school),
-            label: AppStrings.courses,
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.play_circle_outline),
-            activeIcon: Icon(Icons.play_circle),
-            label: AppStrings.continueLearning,
+            label: AppStrings.catalog,
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.download_outlined),

@@ -13,6 +13,7 @@ class Course {
   final String fullname;
   final String summary;
   final String courseimage;
+  final int categoryId;
   final double? progress;
   final bool? isEnrolled;
 
@@ -21,6 +22,7 @@ class Course {
     required this.fullname,
     required this.summary,
     required this.courseimage,
+    required this.categoryId,
     this.progress,
     this.isEnrolled,
   });
@@ -38,76 +40,55 @@ class Course {
     }
 
     String courseName = 'Untitled Course';
-
-    if (json['fullname'] != null &&
-        json['fullname'].toString().trim().isNotEmpty) {
+    if (json['fullname'] != null && json['fullname'].toString().trim().isNotEmpty) {
       courseName = json['fullname'].toString().trim();
-    } else if (json['displayname'] != null &&
-        json['displayname'].toString().trim().isNotEmpty) {
+    } else if (json['displayname'] != null && json['displayname'].toString().trim().isNotEmpty) {
       courseName = json['displayname'].toString().trim();
-    } else if (json['shortname'] != null &&
-        json['shortname'].toString().trim().isNotEmpty) {
+    } else if (json['shortname'] != null && json['shortname'].toString().trim().isNotEmpty) {
       courseName = json['shortname'].toString().trim();
-    } else if (json['name'] != null &&
-        json['name'].toString().trim().isNotEmpty) {
+    } else if (json['name'] != null && json['name'].toString().trim().isNotEmpty) {
       courseName = json['name'].toString().trim();
-    } else if (json['coursename'] != null &&
-        json['coursename'].toString().trim().isNotEmpty) {
+    } else if (json['coursename'] != null && json['coursename'].toString().trim().isNotEmpty) {
       courseName = json['coursename'].toString().trim();
     } else if (courseId > 0) {
       courseName = 'Course $courseId';
     }
 
     String courseSummary = '';
-    if (json['summary'] != null &&
-        json['summary'].toString().trim().isNotEmpty) {
+    if (json['summary'] != null && json['summary'].toString().trim().isNotEmpty) {
       courseSummary = json['summary'].toString().trim();
-
       courseSummary = courseSummary.replaceAll(RegExp(r'<[^>]*>'), '').trim();
-    } else if (json['description'] != null &&
-        json['description'].toString().trim().isNotEmpty) {
-      courseSummary = json['description'].toString().trim();
-      courseSummary = courseSummary.replaceAll(RegExp(r'<[^>]*>'), '').trim();
+    } else if (json['description'] != null && json['description'].toString().trim().isNotEmpty) {
+        courseSummary = json['description'].toString().trim();
+        courseSummary = courseSummary.replaceAll(RegExp(r'<[^>]*>'), '').trim();
     }
+
 
     String courseImage = '';
-    if (json['courseimage'] != null &&
-        json['courseimage'].toString().trim().isNotEmpty) {
+    if (json['courseimage'] != null && json['courseimage'].toString().trim().isNotEmpty) {
       courseImage = json['courseimage'].toString().trim();
-    } else if (json['image'] != null &&
-        json['image'].toString().trim().isNotEmpty) {
+    } else if (json['image'] != null && json['image'].toString().trim().isNotEmpty) {
       courseImage = json['image'].toString().trim();
-    } else if (json['imageurl'] != null &&
-        json['imageurl'].toString().trim().isNotEmpty) {
-      courseImage = json['imageurl'].toString().trim();
+    } else if (json['imageurl'] != null && json['imageurl'].toString().trim().isNotEmpty) {
+        courseImage = json['imageurl'].toString().trim();
     }
-
+    
     double? courseProgress;
     if (json['progress'] != null) {
-      if (json['progress'] is num) {
-        courseProgress = json['progress'].toDouble();
-      } else {
-        courseProgress = double.tryParse(json['progress'].toString());
-      }
-    } else if (json['completionpercentage'] != null) {
-      if (json['completionpercentage'] is num) {
-        courseProgress = json['completionpercentage'].toDouble();
-      } else {
-        courseProgress =
-            double.tryParse(json['completionpercentage'].toString());
-      }
-    } else if (json['completion'] != null) {
-      if (json['completion'] is num) {
-        courseProgress = json['completion'].toDouble();
-      } else {
-        courseProgress = double.tryParse(json['completion'].toString());
-      }
+      courseProgress = (json['progress'] as num?)?.toDouble();
     } else if (json['progresspercentage'] != null) {
-      if (json['progresspercentage'] is num) {
-        courseProgress = json['progresspercentage'].toDouble();
-      } else {
-        courseProgress = double.tryParse(json['progresspercentage'].toString());
-      }
+      courseProgress = (json['progresspercentage'] as num?)?.toDouble();
+    }
+
+    int categoryIdValue = 0;
+    if (json['categoryid'] != null) {
+        categoryIdValue = json['categoryid'] is int
+            ? json['categoryid']
+            : int.tryParse(json['categoryid'].toString()) ?? 0;
+    } else if (json['category'] != null) {
+         categoryIdValue = json['category'] is int
+            ? json['category']
+            : int.tryParse(json['category'].toString()) ?? 0;
     }
 
     return Course(
@@ -115,6 +96,7 @@ class Course {
       fullname: courseName,
       summary: courseSummary,
       courseimage: courseImage,
+      categoryId: categoryIdValue,
       progress: courseProgress,
       isEnrolled: parseBool(json['isenrolled']),
     );
@@ -126,22 +108,9 @@ class Course {
       'fullname': fullname,
       'summary': summary,
       'courseimage': courseimage,
+      'categoryid': categoryId,
       'progress': progress,
       'isenrolled': isEnrolled,
     };
   }
-
-  @override
-  String toString() {
-    return 'Course(id: $id, fullname: $fullname, progress: $progress)';
-  }
-
-  @override
-  bool operator ==(Object other) {
-    if (identical(this, other)) return true;
-    return other is Course && other.id == id;
-  }
-
-  @override
-  int get hashCode => id.hashCode;
 }

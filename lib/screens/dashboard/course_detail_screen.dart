@@ -13,7 +13,7 @@ import 'package:InstructoHub/screens/course/forum_viewer_screen.dart';
 import 'package:InstructoHub/screens/course/resource_viewer_screen.dart';
 import 'package:InstructoHub/screens/course/assignments/assignments_list_screen.dart';
 import 'package:InstructoHub/screens/course/assignments/assignment_submission_screen.dart';
-import 'course_catalog_screen.dart';
+import 'my_course.dart';
 import 'package:InstructoHub/services/enhanced_icon_service.dart';
 import 'package:InstructoHub/services/dynamic_theme_service.dart';
 

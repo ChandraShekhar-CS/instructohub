@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'course_catalog_screen.dart';
+import 'my_course.dart';
 import 'package:InstructoHub/services/dynamic_theme_service.dart';
 import 'package:InstructoHub/services/enhanced_icon_service.dart';
 

@@ -8,8 +8,8 @@ import 'package:InstructoHub/models/course_model.dart';
 import 'package:InstructoHub/services/dynamic_theme_service.dart';
 import 'package:InstructoHub/services/download_service.dart';
 import 'package:InstructoHub/screens/dashboard/course_detail_screen.dart';
-import 'package:InstructoHub/screens/dashboard/course_catalog_screen.dart';
-import 'package:InstructoHub/screens/dashboard/dashboard_screen.dart'; // For AppStrings
+import 'package:InstructoHub/screens/dashboard/course_catalog.dart'; 
+import 'package:InstructoHub/screens/dashboard/dashboard_screen.dart'; 
 
 class DownloadedCoursesScreen extends StatefulWidget {
   final String token;
@@ -47,48 +47,6 @@ class _DownloadedCoursesScreenState extends State<DownloadedCoursesScreen> {
     super.dispose();
   }
 
-  Future<void> _debugDownloadStatus() async {
-    final prefs = await SharedPreferences.getInstance();
-    final downloadedIds = prefs.getStringList('downloaded_course_ids') ?? [];
-    
-    final appDir = await getApplicationDocumentsDirectory();
-    final baseDir = Directory('${appDir.path}/offline_courses');
-
-
-    if (await baseDir.exists()) {
-      final subdirs = await baseDir.list().toList();
-
-      for (String courseId in downloadedIds) {
-        final courseDir = Directory('${baseDir.path}/$courseId');
-        final metadataFile = File('${courseDir.path}/course_data.json');
-        
-        if (await metadataFile.exists()) {
-          try {
-            final content = await metadataFile.readAsString();
-            final data = json.decode(content);
-
-            if (data is Map) {
-              if (data['course_info'] != null) {
-              }
-              if (data['sections'] != null) {
-              }
-            } else if (data is List) {
-              if (data.isNotEmpty && data[0] is Map) {
-                final firstItem = data[0] as Map;
-                
-                if (firstItem['modules'] is List) {
-                }
-              }
-            }
-
-          } catch (e) {
-            // Error reading metadata
-          }
-        }
-      }
-    }
-  }
-
   Future<void> _loadDownloadedCourses() async {
     setState(() {
       _isLoading = true;
@@ -123,74 +81,25 @@ class _DownloadedCoursesScreenState extends State<DownloadedCoursesScreen> {
             final jsonString = await metadataFile.readAsString();
             final courseData = json.decode(jsonString);
 
-            if (courseData is Map<String, dynamic>) {
-              if (courseData['course_info'] != null) {
-                final courseInfo = courseData['course_info'];
-                courses.add(Course(
-                  id: courseInfo['id'],
-                  fullname: courseInfo['fullname'] ?? 'Course $courseId',
-                  summary: courseInfo['summary'] ?? '',
-                  courseimage: courseInfo['courseimage'] ?? '',
-                  progress: (courseInfo['progress'] ?? 100.0).toDouble(),
-                ));
-              } else {
-                courses.add(Course(
-                  id: courseId,
-                  fullname: 'Downloaded Course $courseId',
-                  summary: 'Offline course content available',
-                  courseimage: '',
-                  progress: 100.0,
-                ));
-              }
-            } else if (courseData is List) {
-              String courseName = 'Downloaded Course $courseId';
-              String courseSummary = '';
-
-              try {
-                if (courseData.isNotEmpty && courseData[0] is Map) {
-                  final firstSection = courseData[0] as Map<String, dynamic>;
-
-                  if (firstSection['name'] != null &&
-                      firstSection['name'] != 'General' &&
-                      firstSection['name'].toString().isNotEmpty) {
-                    courseName = firstSection['name'];
-                  }
-
-                  if (firstSection['summary'] != null &&
-                      firstSection['summary'].toString().isNotEmpty) {
-                    courseSummary = firstSection['summary']
-                        .toString()
-                        .replaceAll(RegExp(r'<[^>]*>'), '')
-                        .trim();
-                  }
-
-                  if (courseName == 'Downloaded Course $courseId' &&
-                      firstSection['modules'] is List &&
-                      (firstSection['modules'] as List).isNotEmpty) {
-                    final modules = firstSection['modules'] as List;
-                    if (modules[0] is Map && modules[0]['name'] != null) {
-                      courseName = 'Course: ${modules[0]['name']}';
-                    }
-                  }
-                }
-              } catch (e) {
-                // Error extracting course info from old format
-              }
-
+            if (courseData is Map<String, dynamic> && courseData.containsKey('course_info')) {
+              final courseInfo = courseData['course_info'];
               courses.add(Course(
-                id: courseId,
-                fullname: courseName,
-                summary: courseSummary,
-                courseimage: '',
-                progress: 100.0,
+                id: courseInfo['id'],
+                fullname: courseInfo['fullname'] ?? 'Course $courseId',
+                summary: courseInfo['summary'] ?? '',
+                courseimage: courseInfo['courseimage'] ?? '',
+                progress: (courseInfo['progress'] ?? 100.0).toDouble(),
+                categoryId: courseInfo['categoryid'] as int? ?? 0,
               ));
             } else {
+              // Fallback for older download formats or incomplete data
               courses.add(Course(
                 id: courseId,
                 fullname: 'Downloaded Course $courseId',
                 summary: 'Offline course content available',
                 courseimage: '',
                 progress: 100.0,
+                categoryId: 0,
               ));
             }
           } else {
@@ -390,11 +299,6 @@ class _DownloadedCoursesScreenState extends State<DownloadedCoursesScreen> {
         backgroundColor: themeService.getColor('backgroundLight'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.bug_report),
-            onPressed: _debugDownloadStatus,
-            tooltip: 'Debug',
-          ),
-          IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: _loadDownloadedCourses,
             tooltip: 'Refresh',
@@ -421,31 +325,13 @@ class _DownloadedCoursesScreenState extends State<DownloadedCoursesScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Container(
-              padding: EdgeInsets.all(themeService.getSpacing('xl')),
-              decoration: BoxDecoration(
-                color: themeService.getColor('error').withOpacity(0.1),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                Icons.error,
-                size: 64,
-                color: themeService.getColor('error'),
-              ),
-            ),
+            Icon(Icons.error, size: 64, color: themeService.getColor('error')),
             SizedBox(height: themeService.getSpacing('lg')),
-            Text(
-              'Error Loading Downloads',
-              style: textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
-            ),
+            Text('Error Loading Downloads', style: textTheme.headlineSmall),
             SizedBox(height: themeService.getSpacing('sm')),
             Text(
               _errorMessage!,
-              style: textTheme.bodyMedium?.copyWith(
-                color: themeService.getColor('textSecondary'),
-              ),
+              style: textTheme.bodyMedium?.copyWith(color: themeService.getColor('textSecondary')),
               textAlign: TextAlign.center,
             ),
             SizedBox(height: themeService.getSpacing('xl')),
@@ -470,31 +356,13 @@ class _DownloadedCoursesScreenState extends State<DownloadedCoursesScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Container(
-              padding: EdgeInsets.all(themeService.getSpacing('xl')),
-              decoration: BoxDecoration(
-                color: themeService.getColor('primary').withOpacity(0.1),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                Icons.download,
-                size: 64,
-                color: themeService.getColor('primary'),
-              ),
-            ),
+            Icon(Icons.download_done, size: 64, color: themeService.getColor('primary')),
             SizedBox(height: themeService.getSpacing('lg')),
-            Text(
-              'No Downloaded Courses',
-              style: textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
-            ),
+            Text('No Downloaded Courses', style: textTheme.headlineSmall),
             SizedBox(height: themeService.getSpacing('sm')),
             Text(
               'Download courses from the catalog to access them offline',
-              style: textTheme.bodyMedium?.copyWith(
-                color: themeService.getColor('textSecondary'),
-              ),
+              style: textTheme.bodyMedium?.copyWith(color: themeService.getColor('textSecondary')),
               textAlign: TextAlign.center,
             ),
             SizedBox(height: themeService.getSpacing('xl')),
@@ -502,10 +370,7 @@ class _DownloadedCoursesScreenState extends State<DownloadedCoursesScreen> {
               onPressed: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(
-                    builder: (context) =>
-                        CourseCatalogScreen(token: widget.token),
-                  ),
+                  MaterialPageRoute(builder: (context) => CourseCatalogScreen(token: widget.token)),
                 );
               },
               icon: const Icon(Icons.school),
@@ -521,8 +386,7 @@ class _DownloadedCoursesScreenState extends State<DownloadedCoursesScreen> {
     return RefreshIndicator(
       onRefresh: _loadDownloadedCourses,
       child: ListView.builder(
-        padding: EdgeInsets.symmetric(
-            vertical: DynamicThemeService.instance.getSpacing('md')),
+        padding: EdgeInsets.symmetric(vertical: DynamicThemeService.instance.getSpacing('md')),
         itemCount: _downloadedCourses.length,
         itemBuilder: (context, index) {
           return _buildCourseCard(_downloadedCourses[index]);
