@@ -29,7 +29,12 @@ class ApiService {
 
   Future<List<dynamic>> getConversations(String token) async {
     try {
-      final response = await _post('local_chat_get_conversations', token, {});
+      final response = await _post('core_message_get_conversations', token, {
+        'userid': await _getCurrentUserId(token),
+        'limitfrom': '0',
+        'limitnum': '10',
+        'mergeself': '0',
+      });
       return response['conversations'] is List ? response['conversations'] : [];
     } catch (e) {
       rethrow;
@@ -38,8 +43,13 @@ class ApiService {
 
   Future<List<dynamic>> getConversationMessages(String token, int conversationId) async {
     try {
-      final response = await _post('local_chat_get_messages', token, {
-        'conversationid': conversationId.toString(),
+      final response = await _post('core_message_get_conversation_messages', token, {
+        'currentuserid': await _getCurrentUserId(token),
+        'convid': conversationId.toString(),
+        'limitfrom': '0',
+        'limitnum': '0',
+        'newest': '0',
+        'timefrom': '0',
       });
       return response['messages'] is List ? response['messages'] : [];
     } catch (e) {
@@ -49,9 +59,10 @@ class ApiService {
 
   Future<dynamic> sendMessage(String token, int recipientId, String text) async {
     try {
-      return await _post('local_chat_send_message', token, {
-        'recipientid': recipientId.toString(),
-        'text': text,
+      return await _post('core_message_send_instant_messages', token, {
+        'messages[0][touserid]': recipientId.toString(),
+        'messages[0][text]': text,
+        'messages[0][textformat]': '2',
       });
     } catch (e) {
       rethrow;
@@ -60,7 +71,8 @@ class ApiService {
 
   Future<dynamic> markMessagesAsRead(String token, int conversationId) async {
     try {
-      return await _post('local_chat_mark_read', token, {
+      return await _post('core_message_mark_all_conversation_messages_as_read', token, {
+        'userid': await _getCurrentUserId(token),
         'conversationid': conversationId.toString(),
       });
     } catch (e) {
@@ -70,7 +82,11 @@ class ApiService {
 
   Future<List<dynamic>> getContacts(String token) async {
     try {
-      final response = await _post('local_chat_get_contacts', token, {});
+      final response = await _post('core_message_get_user_contacts', token, {
+        'userid': await _getCurrentUserId(token),
+        'limitfrom': '0',
+        'limitnum': '0',
+      });
       return response is List ? response : [];
     } catch (e) {
       rethrow;
@@ -79,8 +95,9 @@ class ApiService {
 
   Future<List<dynamic>> searchUsers(String token, String query) async {
     try {
-      final response = await _post('local_chat_search_users', token, {
-        'query': query,
+      final response = await _post('core_message_search_contacts', token, {
+        'searchtext': query,
+        'onlymycourses': '0',
       });
       return response is List ? response : [];
     } catch (e) {
@@ -804,7 +821,7 @@ class ApiService {
 
   Future<bool> validateAssignmentExists(String token, int assignmentId) async {
     try {
-      final response = await _post('get_assignments', token, {
+      final response = await _post('mod_assign_get_assignments', token, {
         'assignmentids[0]': assignmentId.toString(),
       });
 
@@ -821,7 +838,7 @@ class ApiService {
 
   Future<List<dynamic>> getAssignmentsByCourse(String token, int courseId) async {
     try {
-      final response = await _post('get_assignments', token, {
+      final response = await _post('mod_assign_get_assignments', token, {
         'courseids[0]': courseId.toString(),
       });
 
@@ -994,6 +1011,12 @@ class ApiService {
       'local_chat_mark_read': 'local_chat_mark_read',
       'local_chat_get_contacts': 'local_chat_get_contacts',
       'local_chat_search_users': 'local_chat_search_users',
+      'core_message_get_conversations': 'core_message_get_conversations',
+      'core_message_get_conversation_messages': 'core_message_get_conversation_messages',
+      'core_message_send_instant_messages': 'core_message_send_instant_messages',
+      'core_message_mark_all_conversation_messages_as_read': 'core_message_mark_all_conversation_messages_as_read',
+      'core_message_get_user_contacts': 'core_message_get_user_contacts',
+      'core_message_search_contacts': 'core_message_search_contacts',
     };
 
     return fallbackMappings[functionKey] ?? functionKey;
@@ -1334,15 +1357,24 @@ class ApiService {
 
   Future<dynamic> createCourse(String token, Map<String, dynamic> courseData) async {
     try {
-      final response = await _post('local_instructohub_create_course', token, {
-        'fullname': courseData['fullname'] ?? '',
-        'shortname': courseData['shortname'] ?? '',
-        'categoryid': courseData['categoryid']?.toString() ?? '1',
-        'summary': courseData['summary'] ?? '',
-        'startdate': courseData['startdate']?.toString() ?? '',
-        'enddate': courseData['enddate']?.toString() ?? '',
-      });
-      return response;
+      final params = <String, String>{
+        'courses[0][fullname]': courseData['fullname'].toString(),
+        'courses[0][shortname]': courseData['shortname'].toString(),
+        'courses[0][categoryid]': courseData['categoryid'].toString(),
+        'courses[0][newsitems]': '0',
+      };
+      
+      if (courseData['summary'] != null) {
+        params['courses[0][summary]'] = courseData['summary'].toString();
+      }
+      if (courseData['startdate'] != null) {
+        params['courses[0][startdate]'] = courseData['startdate'].toString();
+      }
+      if (courseData['enddate'] != null) {
+        params['courses[0][enddate]'] = courseData['enddate'].toString();
+      }
+      
+      return await _post('core_course_create_courses', token, params);
     } catch (e) {
       rethrow;
     }
@@ -1738,6 +1770,818 @@ class ApiService {
         'error': 'Not registered. Please try again or contact your admin.',
         'originalDomain': domain,
       };
+    }
+  }
+
+  // New APIs from JavaScript file that weren't in the Dart file
+
+  Future<List<dynamic>> getForumDiscussions(String token, int forumId) async {
+    try {
+      return await _post('mod_forum_get_forum_discussions', token, {
+        'forumid': forumId.toString(),
+      });
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<List<dynamic>> getForumDiscussionsPosts(String token, int discussionId) async {
+    try {
+      final response = await _post('mod_forum_get_discussion_posts', token, {
+        'discussionid': discussionId.toString(),
+      });
+      return response['posts'] ?? [];
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<Map<String, dynamic>> getUnreadNotificationCount(String token) async {
+    try {
+      final userId = await _getCurrentUserId(token);
+      return await _post('core_message_get_unread_notification_count', token, {
+        'useridto': userId,
+      });
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<List<dynamic>> getUnreadNotificationsData(String token, {int limit = 10, int offset = 0}) async {
+    try {
+      final userId = await _getCurrentUserId(token);
+      final response = await _post('core_message_get_messages', token, {
+        'useridto': userId,
+        'useridfrom': '0',
+        'type': 'notifications',
+        'read': '0',
+        'newestfirst': '1',
+        'limitfrom': offset.toString(),
+        'limitnum': limit.toString(),
+      });
+      return response['messages'] ?? [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  Future<dynamic> markSingleNotificationAsRead(String token, int notificationId) async {
+    try {
+      final userId = await _getCurrentUserId(token);
+      return await _post('local_instructohub_mark_notification_read', token, {
+        'userid': userId,
+        'notificationid': notificationId.toString(),
+      });
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<dynamic> markAllNotificationsAsRead(String token) async {
+    try {
+      final userId = await _getCurrentUserId(token);
+      return await _post('core_message_mark_all_notifications_as_read', token, {
+        'useridto': userId,
+        'useridfrom': '0',
+        'timecreatedto': '0',
+      });
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<Map<String, dynamic>> getUserProfile(String token, {String field = 'id'}) async {
+    try {
+      final userId = await _getCurrentUserId(token);
+      final response = await _post('core_user_get_users', token, {
+        'criteria[0][key]': field,
+        'criteria[0][value]': userId,
+      });
+      return response['users']?[0] ?? {};
+    } catch (e) {
+      return {};
+    }
+  }
+
+  Future<dynamic> updateOwnProfile(String token, Map<String, dynamic> userData) async {
+    try {
+      final params = <String, String>{
+        'username': userData['username'].toString(),
+        'firstname': userData['firstname'].toString(),
+        'lastname': userData['lastname'].toString(),
+      };
+      
+      if (userData['city'] != null) params['city'] = userData['city'].toString();
+      if (userData['country'] != null) params['country'] = userData['country'].toString();
+      if (userData['password'] != null) params['password'] = userData['password'].toString();
+      
+      return await _post('local_instructohub_update_own_profile', token, params);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<Map<String, dynamic>> getQuizAttemptStatus(String token, int quizId) async {
+    try {
+      final userId = await _getCurrentUserId(token);
+      return await _post('local_instructohub_get_quiz_attempts_status', token, {
+        'quizid': quizId.toString(),
+        'userid': userId,
+      });
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<Map<String, dynamic>> getQuizQuestionsAndAnswers(String token, int quizId) async {
+    try {
+      return await _post('local_instructohub_get_quiz_question_details', token, {
+        'quizid': quizId.toString(),
+      });
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<Map<String, dynamic>> startQuizAttempt(String token, int quizId) async {
+    try {
+      return await _post('mod_quiz_start_attempt', token, {
+        'quizid': quizId.toString(),
+      });
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<List<dynamic>> getQuizUserAttempts(String token, int quizId) async {
+    try {
+      final response = await _post('mod_quiz_get_user_attempts', token, {
+        'quizid': quizId.toString(),
+        'status': 'all',
+        'includepreviews': '1',
+      });
+      return response['attempts'] ?? [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  Future<dynamic> submitQuizQuestions(String token, List<Map<String, dynamic>> questionsData) async {
+    try {
+      final params = <String, String>{};
+      
+      for (int i = 0; i < questionsData.length; i++) {
+        final question = questionsData[i];
+        params['questions[$i][attemptid]'] = question['attemptid'].toString();
+        params['questions[$i][questionid]'] = question['questionid'].toString();
+        params['questions[$i][questiontype]'] = question['questiontype'];
+        params['questions[$i][response]'] = question['response'];
+      }
+      
+      return await _post('local_instructohub_submit_question', token, params);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<dynamic> finishQuizAttempt(String token, int attemptId) async {
+    try {
+      return await _post('local_instructohub_finish_attempt', token, {
+        'attemptid': attemptId.toString(),
+      });
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<dynamic> createForum(String token, {
+    required int courseId,
+    required int sectionId,
+    required String name,
+    required String description,
+  }) async {
+    try {
+      return await _post('local_instructohub_create_forum', token, {
+        'courseid': courseId.toString(),
+        'sectionid': sectionId.toString(),
+        'name': name,
+        'description': description,
+        'type': 'general',
+      });
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<dynamic> addForumDiscussion(String token, Map<String, String> params) async {
+    try {
+      return await _post('mod_forum_add_discussion', token, params);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<dynamic> addForumDiscussionPost(String token, Map<String, String> params) async {
+    try {
+      return await _post('mod_forum_add_discussion_post', token, params);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<dynamic> deleteForumDiscussionPost(String token, int postId) async {
+    try {
+      return await _post('mod_forum_delete_post', token, {
+        'postid': postId.toString(),
+      });
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<dynamic> updatePageContent(String token, {
+    required int pageId,
+    required String content,
+    required String title,
+    required String description,
+  }) async {
+    try {
+      return await _post('local_instructohub_update_page_content', token, {
+        'pageid': pageId.toString(),
+        'title': title,
+        'description': description,
+        'content': content,
+      });
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<dynamic> updateQuizDetails(String token, {
+    required int quizId,
+    required String name,
+    required String intro,
+    required int timeLimit,
+    required int gradeMethod,
+    required int attempts,
+  }) async {
+    try {
+      return await _post('local_instructohub_update_quiz_settings', token, {
+        'quizid': quizId.toString(),
+        'name': name,
+        'intro': intro,
+        'introformat': '1',
+        'timelimit': timeLimit.toString(),
+        'grademethod': gradeMethod.toString(),
+        'attempts': attempts.toString(),
+      });
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<List<dynamic>> getCourseSections(String token, int courseId) async {
+    try {
+      return await _post('core_course_get_contents', token, {
+        'courseid': courseId.toString(),
+      });
+    } catch (e) {
+      return [];
+    }
+  }
+
+  Future<dynamic> createAssignment(String token, {
+    required int courseId,
+    required int sectionId,
+    required String name,
+    required String description,
+    required int allowSubmissionsFromDate,
+    required int dueDate,
+    required String activityInstruction,
+    required List<String> submissionTypes,
+    required String fileTypes,
+    required String additionalFilesId,
+  }) async {
+    try {
+      final params = {
+        'courseid': courseId.toString(),
+        'sectionid': sectionId.toString(),
+        'name': name,
+        'description': description,
+        'allowsubmissionsfromdate': allowSubmissionsFromDate.toString(),
+        'duedate': dueDate.toString(),
+        'activityinstruction': activityInstruction,
+      };
+      
+      String submissionTypesQuery = '';
+      for (int i = 0; i < submissionTypes.length; i++) {
+        submissionTypesQuery += '&submissiontypes[$i]=${submissionTypes[i]}';
+      }
+      
+      final customUrl = '$_baseUrl?wsfunction=local_instructohub_create_assignment&moodlewsrestformat=json$submissionTypesQuery&filetypes=${Uri.encodeComponent(fileTypes)}&additionalfiles=$additionalFilesId&wstoken=$token';
+      
+      final response = await http.post(Uri.parse(customUrl), body: params);
+      if (response.statusCode == 200) {
+        final decoded = json.decode(response.body);
+        if (decoded is Map && decoded.containsKey('exception')) {
+          throw Exception('API Error: ${decoded['message']}');
+        }
+        return decoded;
+      } else {
+        throw Exception('Failed with status: ${response.statusCode}');
+      }
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<dynamic> createSection(String token, {
+    required int courseId,
+    int position = 0,
+    int number = 1,
+    String name = 'New Module',
+  }) async {
+    try {
+      return await _post('local_instructohub_create_sections', token, {
+        'courseid': courseId.toString(),
+        'position': position.toString(),
+        'number': number.toString(),
+        'name': name,
+      });
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<dynamic> updateSectionName(String token, int sectionId, String name) async {
+    try {
+      return await _post('local_instructohub_update_section_name', token, {
+        'sectionid': sectionId.toString(),
+        'name': name,
+      });
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<dynamic> deleteSection(String token, int sectionId) async {
+    try {
+      return await _post('local_instructohub_delete_section', token, {
+        'sectionid': sectionId.toString(),
+      });
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<dynamic> createQuiz(String token, {
+    required int courseId,
+    required int sectionId,
+    required String name,
+    required String description,
+    int timeLimit = 3600,
+    int gradeMethod = 3,
+    int attempts = 10,
+  }) async {
+    try {
+      return await _post('local_instructohub_create_quiz', token, {
+        'courseid': courseId.toString(),
+        'sectionid': sectionId.toString(),
+        'name': name,
+        'description': description,
+        'timelimit': timeLimit.toString(),
+        'grademethod': gradeMethod.toString(),
+        'attempts': attempts.toString(),
+      });
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<dynamic> createSingleChoiceQuestions(String token, {
+    required int quizId,
+    required List<Map<String, dynamic>> questions,
+  }) async {
+    try {
+      final params = <String, String>{
+        'quizid': quizId.toString(),
+      };
+      
+      for (int qi = 0; qi < questions.length; qi++) {
+        final q = questions[qi];
+        params['questions[$qi][name]'] = q['name'];
+        params['questions[$qi][text]'] = q['text'];
+        
+        final answers = q['answers'] as List;
+        for (int ai = 0; ai < answers.length; ai++) {
+          final a = answers[ai];
+          params['questions[$qi][answers][$ai][answer]'] = a['answer'];
+          params['questions[$qi][answers][$ai][fraction]'] = a['fraction'].toString();
+        }
+      }
+      
+      return await _post('local_instructohub_create_quiz_questions', token, params);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<dynamic> editForum(String token, {
+    required int forumId,
+    required String name,
+    required String intro,
+  }) async {
+    try {
+      return await _post('local_instructohub_update_forum_settings', token, {
+        'forumid': forumId.toString(),
+        'name': name,
+        'intro': intro,
+        'introformat': '1',
+        'type': 'general',
+      });
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<dynamic> createPage(String token, {
+    required int courseId,
+    required int sectionId,
+    required String name,
+    required String content,
+    required String description,
+  }) async {
+    try {
+      return await _post('local_instructohub_create_page', token, {
+        'courseid': courseId.toString(),
+        'sectionid': sectionId.toString(),
+        'name': name,
+        'description': description,
+        'content': content,
+      });
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<dynamic> editAssignment(String token, {
+    required int assignmentId,
+    required String name,
+    required String description,
+    required int allowSubmissionsFromDate,
+    required int dueDate,
+    required String activityInstruction,
+    required List<String> submissionTypes,
+    required String fileTypes,
+    required String additionalFilesId,
+  }) async {
+    try {
+      final params = {
+        'assignmentid': assignmentId.toString(),
+        'name': name,
+        'description': description,
+        'allowsubmissionsfromdate': allowSubmissionsFromDate.toString(),
+        'duedate': dueDate.toString(),
+        'activityinstruction': activityInstruction,
+      };
+      
+      String submissionTypesQuery = '';
+      for (int i = 0; i < submissionTypes.length; i++) {
+        submissionTypesQuery += '&submissiontypes[$i]=${submissionTypes[i]}';
+      }
+      
+      final customUrl = '$_baseUrl?wsfunction=local_instructohub_update_assignment_settings&moodlewsrestformat=json$submissionTypesQuery&filetypes=${Uri.encodeComponent(fileTypes)}&additionalfiles=$additionalFilesId&wstoken=$token';
+      
+      final response = await http.post(Uri.parse(customUrl), body: params);
+      if (response.statusCode == 200) {
+        final decoded = json.decode(response.body);
+        if (decoded is Map && decoded.containsKey('exception')) {
+          throw Exception('API Error: ${decoded['message']}');
+        }
+        return decoded;
+      } else {
+        throw Exception('Failed with status: ${response.statusCode}');
+      }
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<dynamic> deleteForum(String token, int forumId) async {
+    try {
+      return await _post('local_instructohub_delete_forum', token, {
+        'forumid': forumId.toString(),
+      });
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<dynamic> deleteAssignment(String token, int assignmentId) async {
+    try {
+      return await _post('local_instructohub_delete_assignment', token, {
+        'assignmentid': assignmentId.toString(),
+      });
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<dynamic> deleteQuiz(String token, int quizId) async {
+    try {
+      return await _post('local_instructohub_delete_quiz', token, {
+        'quizid': quizId.toString(),
+      });
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<dynamic> deletePage(String token, int pageId) async {
+    try {
+      return await _post('local_instructohub_delete_page', token, {
+        'pageid': pageId.toString(),
+      });
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<dynamic> createResourceActivity(String token, {
+    required int courseId,
+    required int sectionId,
+    required String name,
+    required String intro,
+    required String fileItemId,
+  }) async {
+    try {
+      return await _post('local_instructohub_create_resource_activity', token, {
+        'courseid': courseId.toString(),
+        'sectionid': sectionId.toString(),
+        'name': name,
+        'intro': intro,
+        'fileitemid': fileItemId,
+      });
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<dynamic> updateResourceActivity(String token, {
+    required int activityId,
+    required String name,
+    required String intro,
+    required String fileItemId,
+  }) async {
+    try {
+      return await _post('local_instructohub_update_resource_activity', token, {
+        'activityid': activityId.toString(),
+        'name': name,
+        'intro': intro,
+        'fileitemid': fileItemId,
+      });
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<dynamic> deleteResourceActivity(String token, int activityId) async {
+    try {
+      return await _post('local_instructohub_delete_resource_activity', token, {
+        'activityid': activityId.toString(),
+      });
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<List<dynamic>> getUserCoursesWithRoles(String token) async {
+    try {
+      final userId = await _getCurrentUserId(token);
+      return await _post('local_instructohub_get_user_courses_with_roles', token, {
+        'userid': userId,
+      });
+    } catch (e) {
+      return [];
+    }
+  }
+
+  Future<dynamic> updateUser(String token, Map<String, dynamic> userData) async {
+    try {
+      final params = <String, String>{
+        'users[0][id]': userData['id'].toString(),
+        'users[0][username]': userData['username'].toString(),
+        'users[0][firstname]': userData['firstname'].toString(),
+        'users[0][lastname]': userData['lastname'].toString(),
+        'users[0][email]': userData['email'].toString(),
+      };
+      
+      if (userData['password'] != null) params['users[0][password]'] = userData['password'].toString();
+      if (userData['city'] != null) params['users[0][city]'] = userData['city'].toString();
+      if (userData['country'] != null) params['users[0][country]'] = userData['country'].toString();
+      
+      return await _post('core_user_update_users', token, params);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<dynamic> deleteUser(String token, dynamic userIds) async {
+    try {
+      final idsArray = userIds is List ? userIds : [userIds];
+      final params = <String, String>{};
+      
+      for (int i = 0; i < idsArray.length; i++) {
+        params['userids[$i]'] = idsArray[i].toString();
+      }
+      
+      return await _post('core_user_delete_users', token, params);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<Map<String, dynamic>> enrollUsersToCourse(String token, int courseId, List<int> userIds, {int roleId = 5}) async {
+    try {
+      final results = <String, dynamic>{
+        'successful': [],
+        'failed': [],
+        'totalProcessed': userIds.length,
+      };
+      
+      for (final userId in userIds) {
+        try {
+          await _post('local_instructohub_enrol_user_in_course', token, {
+            'userid': userId.toString(),
+            'courseid': courseId.toString(),
+            'roleid': roleId.toString(),
+          });
+          results['successful'].add(userId);
+        } catch (e) {
+          results['failed'].add({
+            'userId': userId,
+            'error': e.toString(),
+          });
+        }
+      }
+      
+      return results;
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<dynamic> selfEnrollInCourse(String token, int courseId) async {
+    try {
+      return await _post('local_instructohub_self_enrol_user_in_course', token, {
+        'courseid': courseId.toString(),
+      });
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<dynamic> updateUserProfilePicture(String token, {int? userId, required int draftItemId}) async {
+    try {
+      final params = {
+        'userid': (userId ?? 0).toString(),
+        'draftitemid': draftItemId.toString(),
+      };
+      
+      return await _post('core_user_update_picture', token, params);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<List<dynamic>> getCoursesByCategories(String token) async {
+    try {
+      return await _post('local_instructohub_get_all_courses', token, {});
+    } catch (e) {
+      return [];
+    }
+  }
+
+  Future<dynamic> createCourseCategory(String token, Map<String, dynamic> categoryData) async {
+    try {
+      final params = <String, String>{
+        'categories[0][name]': categoryData['name'].toString(),
+        'categories[0][parent]': '0',
+      };
+      
+      if (categoryData['description'] != null) {
+        params['categories[0][description]'] = categoryData['description'].toString();
+      }
+      if (categoryData['idnumber'] != null) {
+        params['categories[0][idnumber]'] = categoryData['idnumber'].toString();
+      }
+      
+      return await _post('core_course_create_categories', token, params);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<Map<String, dynamic>> updateCourseCategory(String token, Map<String, dynamic> categoryData) async {
+    try {
+      final params = <String, String>{
+        'categories[0][id]': categoryData['id'].toString(),
+      };
+      
+      if (categoryData['name'] != null) params['categories[0][name]'] = categoryData['name'].toString();
+      if (categoryData['idnumber'] != null) params['categories[0][idnumber]'] = categoryData['idnumber'].toString();
+      if (categoryData['description'] != null) params['categories[0][description]'] = categoryData['description'].toString();
+      
+      await _post('core_course_update_categories', token, params);
+      
+      return {
+        'success': true,
+        'status': 200,
+        'categoryId': categoryData['id'],
+      };
+    } catch (e) {
+      return {
+        'success': false,
+        'status': 0,
+        'error': e.toString(),
+        'categoryId': categoryData['id'],
+      };
+    }
+  }
+
+  Future<dynamic> deleteCourseCategory(String token, int categoryId, {int recursive = 1}) async {
+    try {
+      return await _post('core_course_delete_categories', token, {
+        'categories[0][id]': categoryId.toString(),
+        'categories[0][recursive]': recursive.toString(),
+      });
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<dynamic> setCourseOverviewImage(String token, {required int courseId, required int draftItemId}) async {
+    try {
+      return await _post('local_instructohub_set_course_overview_image', token, {
+        'courseid': courseId.toString(),
+        'draftitemid': draftItemId.toString(),
+      });
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<dynamic> createUser(String token, Map<String, dynamic> userData) async {
+    try {
+      final params = <String, String>{
+        'users[0][username]': userData['username'].toString(),
+        'users[0][password]': userData['password'].toString(),
+        'users[0][firstname]': userData['firstname'].toString(),
+        'users[0][lastname]': userData['lastname'].toString(),
+        'users[0][email]': userData['email'].toString(),
+      };
+      
+      if (userData['city'] != null) params['users[0][city]'] = userData['city'].toString();
+      if (userData['country'] != null) params['users[0][country]'] = userData['country'].toString();
+      
+      return await _post('core_user_create_users', token, params);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<dynamic> deleteCourse(String token, dynamic courseIds) async {
+    try {
+      final idsArray = courseIds is List ? courseIds : [courseIds];
+      final params = <String, String>{};
+      
+      for (int i = 0; i < idsArray.length; i++) {
+        params['courseids[$i]'] = idsArray[i].toString();
+      }
+      
+      return await _post('core_course_delete_courses', token, params);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<dynamic> updateCourse(String token, Map<String, dynamic> courseData) async {
+    try {
+      final params = <String, String>{
+        'courses[0][id]': courseData['id'].toString(),
+        'courses[0][fullname]': courseData['fullname'].toString(),
+        'courses[0][shortname]': courseData['shortname'].toString(),
+        'courses[0][categoryid]': courseData['categoryid'].toString(),
+        'courses[0][newsitems]': '0',
+      };
+      
+      if (courseData['summary'] != null) params['courses[0][summary]'] = courseData['summary'].toString();
+      if (courseData['startdate'] != null) params['courses[0][startdate]'] = courseData['startdate'].toString();
+      if (courseData['enddate'] != null) params['courses[0][enddate]'] = courseData['enddate'].toString();
+      
+      return await _post('core_course_update_courses', token, params);
+    } catch (e) {
+      rethrow;
     }
   }
 }
